@@ -150,9 +150,18 @@ published anywhere, and the app is handed to shops in person.
 
 ### Getting an installer to hand out
 
-Every push builds the app on a Windows runner and keeps both installers under
-this repository's **Actions** tab: open the latest *Build Windows app* run and
-download them from the summary page. They are kept for 90 days.
+**On your own Windows PC — free, no limits:**
+
+```bash
+npm install
+npm run dist:win
+```
+
+Both files appear in `release/`. This costs nothing and is the simplest way.
+
+**Or on GitHub**, if you are not at a Windows machine: go to the **Actions** tab,
+pick *Build Windows app*, press **Run workflow**, and download the installers
+from the run's summary page when it finishes.
 
 | Download | What it is |
 | --- | --- |
@@ -160,6 +169,24 @@ download them from the summary page. They are kept for 90 days.
 | `MyVault-windows-portable` | Single `.exe`. Runs from anywhere, including a USB stick. |
 
 Then copy the `.exe` onto a USB stick, or email it, and give it to the shop.
+
+#### Staying inside the free allowance
+
+A private repository on the GitHub Free plan includes **2,000 runner minutes**
+and **500 MB of artifact storage** per month. Both are plenty here, as long as
+the Windows build is not left running on every push:
+
+| | Runs on | Costs roughly |
+| --- | --- | --- |
+| Tests | every push | ~2 Linux minutes |
+| Windows build | only a version tag, or **Run workflow** | ~5 Windows minutes and ~175 MB |
+
+That 175 MB is the one to watch: an Electron app bundles its whole runtime into
+each `.exe`, so two builds sitting around would nearly fill the 500 MB. The
+installers are therefore kept for 7 days, not months — download the one you want
+and it can expire.
+
+Building locally uses none of this at all.
 [HANDOUT.md](HANDOUT.md) is a short bilingual instruction sheet — installing,
 the Windows "unrecognised program" warning, and the first few steps — meant to
 be passed along with the file.
@@ -168,17 +195,8 @@ Windows shows that warning for any program it has not seen before. Getting rid
 of it needs a paid code-signing certificate; when you are handing the file to
 shops yourself, it is not worth it — the handout explains the two clicks past it.
 
-### Building it yourself
-
-You need [Node.js 20 or newer](https://nodejs.org/).
-
-```bash
-npm install
-npm run dist:win     # produces release/MyVault-1.0.0-setup.exe and the portable exe
-```
-
 `npm run dist:win` must run **on Windows** — that is what produces a Windows
-executable.
+executable. You need [Node.js 20 or newer](https://nodejs.org/).
 
 ---
 

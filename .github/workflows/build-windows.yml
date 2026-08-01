@@ -1,10 +1,21 @@
 name: Build Windows app
 
-# Builds MyVault on a real Windows runner and keeps the finished installers
-# here, in this private repository, for the owner to download and hand out.
+# Everything here fits inside GitHub's free allowance for a private repository
+# (2,000 runner minutes and 500 MB of artifact storage per month).
 #
-# Nothing is published anywhere. The source, the history, the build logs and the
-# installers are all visible only to the owner and any collaborators.
+#   • Tests run on every push. They run on Linux, the cheapest runner, and take
+#     a couple of minutes — a few hundred pushes a month would still fit.
+#
+#   • The Windows installer is built ONLY when you ask for it: press "Run
+#     workflow" on this page, or push a version tag. That matters because each
+#     build produces about 175 MB of installers, and the free storage allowance
+#     is 500 MB — building on every push would fill it within days.
+#
+#   • Installers are kept for 7 days. Download the one you want and hand it out;
+#     it does not need to sit here.
+#
+# You can also skip all of this and build on your own Windows PC for nothing:
+#   npm install && npm run dist:win
 
 on:
   push:
@@ -26,6 +37,8 @@ jobs:
       - run: npm test
 
   build:
+    # Only on a version tag or when started by hand — never on an ordinary push.
+    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
     needs: test
     runs-on: windows-latest
     steps:
@@ -48,7 +61,7 @@ jobs:
           name: MyVault-windows-installer
           path: release/*setup*.exe
           if-no-files-found: error
-          retention-days: 90
+          retention-days: 7
 
       - name: Portable build
         uses: actions/upload-artifact@v4
@@ -56,4 +69,4 @@ jobs:
           name: MyVault-windows-portable
           path: release/*portable*.exe
           if-no-files-found: error
-          retention-days: 90
+          retention-days: 7
