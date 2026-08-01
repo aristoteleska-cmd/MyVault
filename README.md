@@ -144,27 +144,29 @@ file, it keeps the original safe rather than overwriting it.
 
 ## Getting the app
 
-**This repository is private, and stays private** — the source, the history and
-the build logs are visible only to the owner. What the public sees is a separate
-repository containing nothing but a download page and the two `.exe` files.
+**This repository is private and stays private.** The source, the history, the
+build logs and the finished installers are visible only to you. Nothing is
+published anywhere, and the app is handed to shops in person.
 
-| Repository | Visibility | Holds |
-| --- | --- | --- |
-| `aristoteleska-cmd/MyVault` (this one) | Private | Everything: source, history, development |
-| `aristoteleska-cmd/MyVault-Downloads` | Public | A download page and the installers, nothing else |
+### Getting an installer to hand out
 
-Pushing a version tag builds the app here and publishes only the installers
-there. The full instructions — including the one-time setup — are in
-[PUBLISHING.md](PUBLISHING.md), and the download page itself is
-[`publish/README.md`](publish/README.md).
+Every push builds the app on a Windows runner and keeps both installers under
+this repository's **Actions** tab: open the latest *Build Windows app* run and
+download them from the summary page. They are kept for 90 days.
 
-```bash
-git tag v1.0.1 && git push origin v1.0.1   # builds, then publishes the .exe files
-```
+| Download | What it is |
+| --- | --- |
+| `MyVault-windows-installer` | Normal installer. Adds MyVault to the Start menu and desktop. |
+| `MyVault-windows-portable` | Single `.exe`. Runs from anywhere, including a USB stick. |
 
-Every ordinary push also builds the app and keeps the installers under this
-repository's **Actions** tab, privately, so you can test a build before tagging
-it.
+Then copy the `.exe` onto a USB stick, or email it, and give it to the shop.
+[HANDOUT.md](HANDOUT.md) is a short bilingual instruction sheet — installing,
+the Windows "unrecognised program" warning, and the first few steps — meant to
+be passed along with the file.
+
+Windows shows that warning for any program it has not seen before. Getting rid
+of it needs a paid code-signing certificate; when you are handing the file to
+shops yourself, it is not worth it — the handout explains the two clicks past it.
 
 ### Building it yourself
 
@@ -208,7 +210,6 @@ src/               The user interface (React + TypeScript)
   i18n/            Languages: en.ts is the source, one JSON per translation
 tests/             Plain-Node tests, no framework
 build/             App icon, the installer script, and the icon generator
-publish/           The public download page — the only thing users ever see
 ```
 
 The renderer never has access to Node or the file system. It can only call the
