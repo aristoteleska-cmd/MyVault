@@ -80,6 +80,49 @@ store.deleteField(sizeField.id);
 assert.strictEqual(store.db.items[0].custom[sizeField.id], undefined, 'scrubs the value from items');
 ok('deleting a field cleans up item values');
 
+// ------------------------------------------------------- the five-slot limit
+{
+  const limited = new Store(fs.mkdtempSync(path.join(os.tmpdir(), 'myvault-cap-')), '1.0.0');
+  limited.init();
+
+  for (const name of ['Size', 'Colour', 'Brand', 'Shelf', 'Age range']) {
+    limited.addField({ name, type: 'text' });
+  }
+  assert.strictEqual(limited.db.customFields.length, 5);
+  assert.throws(() => limited.addField({ name: 'Material', type: 'text' }), /up to 5/);
+  ok('a sixth extra detail is refused');
+
+  assert.throws(() => limited.addField({ name: 'size', type: 'text' }), /already have a detail/);
+  ok('duplicate detail names are refused');
+
+  limited.deleteField(limited.db.customFields[0].id);
+  limited.addField({ name: 'Material', type: 'text' });
+  assert.strictEqual(limited.db.customFields.length, 5);
+  assert.ok(limited.db.customFields.some((f) => f.name === 'Material'));
+  ok('deleting one frees a slot');
+
+  // A CSV with more new columns than slots must still import the products.
+  const before = limited.db.items.length;
+  const capped = limited.importRows(parseCsv([
+    'Name,Quantity,Material,Fabric,Season',
+    'Linen shirt,4,Linen,Woven,Summer',
+  ].join('\n')));
+  assert.strictEqual(capped.added, 1, 'the product is still imported');
+  assert.strictEqual(limited.db.items.length, before + 1);
+  assert.strictEqual(limited.db.customFields.length, 5, 'no sixth detail is created');
+  assert.deepStrictEqual(capped.droppedColumns.sort(), ['fabric', 'season']);
+  const shirt2 = limited.db.items.find((i) => i.name === 'Linen shirt');
+  const material = limited.db.customFields.find((f) => f.name === 'Material');
+  assert.strictEqual(shirt2.custom[material.id], 'Linen', 'columns that fit are still kept');
+  ok('CSV import stops at the limit but keeps importing products');
+
+  const standardClash = () => limited.addField({ name: 'Barcode', type: 'text' });
+  assert.throws(standardClash, /standard detail/);
+  ok('a standard detail name cannot be reused');
+
+  fs.rmSync(limited.dataDir, { recursive: true, force: true });
+}
+
 // ------------------------------------------------------------ delete + undo
 const removed = store.deleteItems([shirt.id]);
 assert.strictEqual(store.db.items.length, 0);
@@ -88,6 +131,48 @@ assert.strictEqual(store.db.items.length, 1, 'undo puts the item back');
 store.restoreItems(removed);
 assert.strictEqual(store.db.items.length, 1, 'restoring twice does not duplicate');
 ok('delete and undo round-trip');
+
+// ----------------------------------------------------------- staying offline
+{
+  const { isAllowedRequest } = require('../electron/offline.js');
+
+  const blocked = [
+    'https://example.com/anything',
+    'http://example.com/anything',
+    'https://update.myvault.app/latest.json',
+    'ws://example.com/socket',
+    'wss://example.com/socket',
+    'http://127.0.0.1:8080/',
+    'http://localhost:3000/',
+    'ftp://files.example.com/x',
+    'https://localhost:5173/looks-like-dev',
+    '',
+    'not a url',
+  ];
+  for (const url of blocked) {
+    assert.strictEqual(isAllowedRequest(url), false, `should be blocked: ${url}`);
+  }
+  ok('every outbound request is blocked in a packaged build');
+
+  const allowed = [
+    'file:///C:/Program%20Files/MyVault/dist/index.html',
+    'file:///home/user/app/dist/assets/index.js',
+    'data:image/svg+xml,%3Csvg%3E%3C/svg%3E',
+    'blob:file:///abc-123',
+    'devtools://devtools/bundled/inspector.html',
+  ];
+  for (const url of allowed) {
+    assert.strictEqual(isAllowedRequest(url), true, `should be allowed: ${url}`);
+  }
+  ok('the app can still load its own bundled files');
+
+  // The dev server is only ever reachable while developing.
+  assert.strictEqual(isAllowedRequest('http://localhost:5173/src/main.tsx', { isDev: true }), true);
+  assert.strictEqual(isAllowedRequest('http://localhost:5173/src/main.tsx'), false);
+  assert.strictEqual(isAllowedRequest('https://example.com', { isDev: true }), false);
+  assert.strictEqual(isAllowedRequest('http://localhost:5173.evil.com/x', { isDev: true }), false);
+  ok('the dev server exception cannot be abused in a packaged build');
+}
 
 // --------------------------------------------------------------------- csv
 const csv = toCsv(['Name', 'Price', 'Notes'], [
@@ -156,6 +241,86 @@ assert.ok(rescued.db.recoveredFrom, 'reports the rescue');
 assert.ok(fs.existsSync(rescued.db.recoveredFrom), 'parks the unreadable file instead of deleting it');
 assert.strictEqual(rescued.db.items.length, 0);
 ok('an unreadable file is parked, never destroyed');
+
+// --------------------------------------------------- surviving an app update
+{
+  const dir2 = fs.mkdtempSync(path.join(os.tmpdir(), 'myvault-upgrade-'));
+
+  const v1 = new Store(dir2, '1.0.0');
+  v1.init();
+  v1.addField({ name: 'Size', type: 'select', options: ['S', 'M'] });
+  const sizeId = v1.db.customFields[0].id;
+  v1.addItem({ name: 'Wool coat', barcode: '111', quantity: 4, price: 89.9, custom: { [sizeId]: 'M' } });
+  v1.updateSettings({ currency: '£', theme: 'dark', accent: 'purple', density: 'compact', zoom: 1.15 });
+
+  // The next release opens the same folder, exactly as an installed update would.
+  const v2 = new Store(dir2, '1.1.0');
+  v2.init();
+
+  assert.strictEqual(v2.db.items.length, 1, 'items survive the update');
+  assert.strictEqual(v2.db.items[0].name, 'Wool coat');
+  assert.strictEqual(v2.db.items[0].custom[sizeId], 'M', 'custom values survive');
+  assert.strictEqual(v2.db.customFields[0].name, 'Size', 'extra details survive');
+  assert.strictEqual(v2.db.settings.currency, '£', 'settings survive');
+  assert.strictEqual(v2.db.settings.accent, 'purple');
+  assert.strictEqual(v2.db.settings.density, 'compact');
+  assert.strictEqual(v2.db.settings.zoom, 1.15);
+  assert.strictEqual(v2.db.appVersion, '1.1.0', 'the new version is recorded');
+  ok('data, details and settings survive an app update');
+
+  const snapshots = fs
+    .readdirSync(path.join(dir2, 'backups'))
+    .filter((f) => f.includes('before-1.0.0'));
+  assert.strictEqual(snapshots.length, 1, 'a pre-update snapshot is taken');
+  const snapshot = JSON.parse(fs.readFileSync(path.join(dir2, 'backups', snapshots[0]), 'utf8'));
+  assert.strictEqual(snapshot.items.length, 1, 'the snapshot holds the pre-update data');
+  ok('an untouched copy is kept before the new version writes');
+
+  // Re-opening with the same version must not pile up more snapshots.
+  new Store(dir2, '1.1.0').init();
+  const again = fs.readdirSync(path.join(dir2, 'backups')).filter((f) => f.includes('before-'));
+  assert.strictEqual(again.length, 1, 'no snapshot on an ordinary restart');
+  ok('ordinary restarts do not create update snapshots');
+
+  // Rolling backups must never rotate an update snapshot away.
+  const store2 = new Store(dir2, '1.1.0');
+  store2.init();
+  for (let i = 0; i < 14; i += 1) {
+    store2.lastBackupAt = 0;
+    fs.copyFileSync(
+      store2.file,
+      path.join(store2.backupDir, `myvault-auto-2026-01-${String(i + 1).padStart(2, '0')}T00-00-00.json`),
+    );
+  }
+  store2.lastBackupAt = 0;
+  store2.maybeBackup();
+  const kept = fs.readdirSync(store2.backupDir);
+  assert.ok(kept.some((f) => f.includes('before-1.0.0')), 'the update snapshot is still there');
+  assert.ok(
+    kept.filter((f) => f.startsWith('myvault-auto-')).length <= 10,
+    'routine backups still rotate',
+  );
+  ok('update snapshots are never rotated away by routine backups');
+
+  fs.rmSync(dir2, { recursive: true, force: true });
+}
+
+// -------------------------------------------------------- appearance limits
+{
+  const dir3 = fs.mkdtempSync(path.join(os.tmpdir(), 'myvault-style-'));
+  const styled = new Store(dir3, '1.0.0');
+  styled.init();
+
+  assert.strictEqual(styled.updateSettings({ accent: 'not-a-colour' }).accent, 'blue');
+  assert.strictEqual(styled.updateSettings({ density: 'huge' }).density, 'comfortable');
+  assert.strictEqual(styled.updateSettings({ theme: 'neon' }).theme, 'system');
+  assert.strictEqual(styled.updateSettings({ zoom: 99 }).zoom, 1.4, 'zoom is clamped at the top');
+  assert.strictEqual(styled.updateSettings({ zoom: 0.1 }).zoom, 0.8, 'zoom is clamped at the bottom');
+  assert.strictEqual(styled.updateSettings({ accent: 'green' }).accent, 'green');
+  ok('styling settings fall back to something renderable');
+
+  fs.rmSync(dir3, { recursive: true, force: true });
+}
 
 // ------------------------------------------------------------------ backups
 store.lastBackupAt = 0;

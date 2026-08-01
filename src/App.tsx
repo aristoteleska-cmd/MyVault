@@ -54,6 +54,19 @@ export function App() {
     return () => media.removeEventListener('change', apply);
   }, [db.settings.theme]);
 
+  // The rest of the look: accent colour, row density and overall scale.
+  useEffect(() => {
+    document.documentElement.setAttribute('data-accent', db.settings.accent);
+  }, [db.settings.accent]);
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-density', db.settings.density);
+  }, [db.settings.density]);
+
+  useEffect(() => {
+    window.myvault?.setZoom?.(db.settings.zoom);
+  }, [db.settings.zoom]);
+
   useEffect(() => {
     document.title = db.settings.shopName ? `MyVault — ${db.settings.shopName}` : 'MyVault';
   }, [db.settings.shopName]);

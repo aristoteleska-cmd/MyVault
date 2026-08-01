@@ -1,5 +1,5 @@
 import { useVault } from '../state/vault';
-import type { ThemeChoice } from '../types';
+import type { AccentChoice, DensityChoice, ThemeChoice } from '../types';
 import { Icon, type IconName } from './Icon';
 
 const CURRENCIES = ['€', '$', '£', 'CHF', '¥', 'zł', 'lei', 'kr'];
@@ -8,6 +8,29 @@ const THEMES: { value: ThemeChoice; label: string; icon: IconName }[] = [
   { value: 'light', label: 'Light', icon: 'sun' },
   { value: 'dark', label: 'Dark', icon: 'moon' },
   { value: 'system', label: 'Match Windows', icon: 'monitor' },
+];
+
+// The swatch colours here are only for the buttons; the real values live in
+// styles.css so each accent can differ between the light and dark themes.
+const ACCENTS: { value: AccentChoice; label: string; swatch: string }[] = [
+  { value: 'blue', label: 'Blue', swatch: '#2f5fdb' },
+  { value: 'teal', label: 'Teal', swatch: '#0d7d76' },
+  { value: 'green', label: 'Green', swatch: '#1a7f45' },
+  { value: 'purple', label: 'Purple', swatch: '#6b3fc4' },
+  { value: 'orange', label: 'Amber', swatch: '#b45309' },
+  { value: 'graphite', label: 'Graphite', swatch: '#3f4756' },
+];
+
+const DENSITIES: { value: DensityChoice; label: string; hint: string }[] = [
+  { value: 'comfortable', label: 'Comfortable', hint: 'Roomy rows, easier to tap' },
+  { value: 'compact', label: 'Compact', hint: 'More products on screen at once' },
+];
+
+const TEXT_SIZES: { value: number; label: string }[] = [
+  { value: 0.9, label: 'Small' },
+  { value: 1, label: 'Normal' },
+  { value: 1.15, label: 'Large' },
+  { value: 1.3, label: 'Extra large' },
 ];
 
 export function SettingsView() {
@@ -90,9 +113,14 @@ export function SettingsView() {
             </div>
           </div>
 
+        </div>
+
+        <div className="panel">
+          <div className="panel-head">Styling</div>
+
           <div className="setting-row">
             <div className="setting-text">
-              <div className="setting-title">Appearance</div>
+              <div className="setting-title">Theme</div>
               <div className="setting-desc">Dark mode is easier on the eyes in a dim stockroom.</div>
             </div>
             <div className="setting-control">
@@ -106,6 +134,81 @@ export function SettingsView() {
                   >
                     <Icon name={theme.icon} size={15} />
                     {theme.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="setting-row">
+            <div className="setting-text">
+              <div className="setting-title">Colour</div>
+              <div className="setting-desc">
+                Sets the buttons, highlights and selected rows. Pick the one closest to your shop's
+                own colours.
+              </div>
+            </div>
+            <div className="setting-control">
+              <div className="swatch-row" role="radiogroup" aria-label="Accent colour">
+                {ACCENTS.map((accent) => (
+                  <button
+                    key={accent.value}
+                    type="button"
+                    className="swatch-option"
+                    role="radio"
+                    aria-checked={settings.accent === accent.value}
+                    aria-label={accent.label}
+                    title={accent.label}
+                    style={{ '--swatch': accent.swatch } as React.CSSProperties}
+                    onClick={() => void updateSettings({ accent: accent.value })}
+                  >
+                    {settings.accent === accent.value && <Icon name="check" size={15} />}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="setting-row">
+            <div className="setting-text">
+              <div className="setting-title">Row spacing</div>
+              <div className="setting-desc">
+                {DENSITIES.find((d) => d.value === settings.density)?.hint}
+              </div>
+            </div>
+            <div className="setting-control">
+              <div className="segmented">
+                {DENSITIES.map((density) => (
+                  <button
+                    key={density.value}
+                    type="button"
+                    aria-pressed={settings.density === density.value}
+                    onClick={() => void updateSettings({ density: density.value })}
+                  >
+                    {density.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="setting-row">
+            <div className="setting-text">
+              <div className="setting-title">Text size</div>
+              <div className="setting-desc">
+                Scales the whole app. Useful on a small till screen or a large monitor.
+              </div>
+            </div>
+            <div className="setting-control">
+              <div className="segmented">
+                {TEXT_SIZES.map((size) => (
+                  <button
+                    key={size.value}
+                    type="button"
+                    aria-pressed={Math.abs(settings.zoom - size.value) < 0.01}
+                    onClick={() => void updateSettings({ zoom: size.value })}
+                  >
+                    {size.label}
                   </button>
                 ))}
               </div>

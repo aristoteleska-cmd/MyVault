@@ -24,10 +24,15 @@ const PRESETS: { label: string; name: string; type: FieldType; options: string[]
 ];
 
 export function FieldsView() {
-  const { db, addField, updateField, deleteField, moveField } = useVault();
+  const { db, info, addField, updateField, deleteField, moveField } = useVault();
   const [showForm, setShowForm] = useState(false);
   const fields = [...db.customFields].sort((a, b) => a.order - b.order);
   const existing = new Set(fields.map((field) => field.name.toLowerCase()));
+
+  const standard = info?.standardFields ?? ['Name', 'Price', 'Quantity', 'Barcode'];
+  const max = info?.maxCustomFields ?? 5;
+  const remaining = Math.max(0, max - fields.length);
+  const isFull = remaining === 0;
 
   return (
     <div className="view">
@@ -41,6 +46,18 @@ export function FieldsView() {
           </p>
         </header>
 
+        <div className="callout">
+          <Icon name="info" size={18} />
+          <div>
+            Every item always has these four: {standard.map((name, index) => (
+              <span key={name}>
+                <strong>{name}</strong>{index < standard.length - 1 ? ', ' : ''}
+              </span>
+            ))}. If your shop needs more, press <strong>Add a detail</strong> and create your own —
+            up to {max} of them.
+          </div>
+        </div>
+
         {showForm ? (
           <NewFieldForm
             onCancel={() => setShowForm(false)}
@@ -51,11 +68,24 @@ export function FieldsView() {
           />
         ) : (
           <div className="toolbar">
-            <button type="button" className="btn btn-primary" onClick={() => setShowForm(true)}>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => setShowForm(true)}
+              disabled={isFull}
+              title={isFull ? `You already have all ${max} extra details` : undefined}
+            >
               <Icon name="plus" size={16} />
               Add a detail
             </button>
-            <span className="field-hint">Or start from one of the ready-made ones below.</span>
+            <span className="counter-pill" aria-live="polite">
+              {fields.length} of {max} used
+            </span>
+            <span className="field-hint">
+              {isFull
+                ? 'Delete one below to make room for another.'
+                : 'Or start from one of the ready-made ones below.'}
+            </span>
           </div>
         )}
 
@@ -65,8 +95,8 @@ export function FieldsView() {
               <div className="empty-art"><Icon name="fields" size={26} /></div>
               <h3>No extra details yet</h3>
               <p>
-                Items already have a name, barcode, category, quantity and price. Anything else your
-                shop needs, you add here.
+                Items already have {standard.join(', ')} as standard. Anything else your shop
+                needs — size, age range, colour, expiry date — you add here.
               </p>
             </div>
           </div>
@@ -145,7 +175,7 @@ export function FieldsView() {
                 key={preset.label}
                 type="button"
                 className="chip"
-                disabled={existing.has(preset.name.toLowerCase())}
+                disabled={isFull || existing.has(preset.name.toLowerCase())}
                 onClick={() =>
                   void addField({
                     name: preset.name,
@@ -157,7 +187,9 @@ export function FieldsView() {
                 title={
                   existing.has(preset.name.toLowerCase())
                     ? 'Already added'
-                    : `Add "${preset.name}" to every item`
+                    : isFull
+                      ? `You already have all ${max} extra details`
+                      : `Add "${preset.name}" to every item`
                 }
               >
                 <Icon name="plus" size={14} />

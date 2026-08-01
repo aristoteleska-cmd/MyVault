@@ -70,6 +70,9 @@ const emptyDb: Database = {
   settings: {
     currency: '€',
     theme: 'system',
+    accent: 'blue',
+    density: 'comfortable',
+    zoom: 1,
     defaultLowStockThreshold: 5,
     shopName: '',
     dateFormat: 'dd/MM/yyyy',

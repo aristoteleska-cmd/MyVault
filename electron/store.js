@@ -13,15 +13,32 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 
-const SCHEMA_VERSION = 1;
+const SCHEMA_VERSION = 2;
 const MAX_BACKUPS = 10;
 const BACKUP_INTERVAL_MS = 12 * 60 * 60 * 1000; // at most one backup per 12h
 
+/**
+ * Every item always has these four. Anything beyond them is the shop's own
+ * choice, and there is a hard ceiling so the stock list stays readable.
+ */
+const STANDARD_FIELDS = ['Name', 'Price', 'Quantity', 'Barcode'];
+const MAX_CUSTOM_FIELDS = 5;
+
 const FIELD_TYPES = ['text', 'number', 'select', 'date', 'boolean'];
+
+const ACCENTS = ['blue', 'teal', 'green', 'purple', 'orange', 'graphite'];
+const DENSITIES = ['comfortable', 'compact'];
+const THEMES = ['light', 'dark', 'system'];
+
+const MIN_ZOOM = 0.8;
+const MAX_ZOOM = 1.4;
 
 const DEFAULT_SETTINGS = {
   currency: '€',
   theme: 'system',
+  accent: 'blue',
+  density: 'comfortable',
+  zoom: 1,
   defaultLowStockThreshold: 5,
   shopName: '',
   dateFormat: 'dd/MM/yyyy',
@@ -61,9 +78,30 @@ function asString(value, max = 400) {
   return String(value).slice(0, max);
 }
 
+function pickFrom(allowed, value, fallback) {
+  return allowed.includes(value) ? value : fallback;
+}
+
+/** Keeps every appearance setting inside the range the UI can actually render. */
+function normalizeSettings(input) {
+  const settings = { ...DEFAULT_SETTINGS, ...(input || {}) };
+  settings.theme = pickFrom(THEMES, settings.theme, DEFAULT_SETTINGS.theme);
+  settings.accent = pickFrom(ACCENTS, settings.accent, DEFAULT_SETTINGS.accent);
+  settings.density = pickFrom(DENSITIES, settings.density, DEFAULT_SETTINGS.density);
+  settings.currency = asString(settings.currency, 4) || DEFAULT_SETTINGS.currency;
+  settings.shopName = asString(settings.shopName, 80);
+  settings.defaultLowStockThreshold = Math.max(0, clampQuantity(settings.defaultLowStockThreshold));
+
+  const zoom = toNumber(settings.zoom, 1);
+  settings.zoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, Math.round(zoom * 100) / 100));
+
+  return settings;
+}
+
 function emptyDatabase() {
   return {
     schemaVersion: SCHEMA_VERSION,
+    appVersion: '',
     createdAt: nowIso(),
     settings: { ...DEFAULT_SETTINGS },
     categories: [
@@ -77,11 +115,14 @@ function emptyDatabase() {
 class Store {
   /**
    * @param {string} dataDir directory that holds myvault.json and backups/
+   * @param {string} appVersion the running app version, recorded in the file so
+   *   an update can be spotted and a safety copy taken before anything is rewritten
    */
-  constructor(dataDir) {
+  constructor(dataDir, appVersion = '') {
     this.dataDir = dataDir;
     this.backupDir = path.join(dataDir, 'backups');
     this.file = path.join(dataDir, 'myvault.json');
+    this.appVersion = appVersion;
     this.db = emptyDatabase();
     this.lastBackupAt = 0;
   }
@@ -94,13 +135,37 @@ class Store {
 
     if (!fs.existsSync(this.file)) {
       this.db = emptyDatabase();
+      this.db.appVersion = this.appVersion;
       this.persist({ backup: false });
       return this.db;
     }
 
     try {
       const raw = fs.readFileSync(this.file, 'utf8');
-      this.db = this.migrate(JSON.parse(raw));
+      const parsed = JSON.parse(raw);
+      const previousSchema = Number(parsed?.schemaVersion) || 1;
+      const previousApp = asString(parsed?.appVersion, 32);
+
+      // An installer replaces the program, never the data. Whenever the file was
+      // last written by a different build, keep an untouched copy of it before
+      // this version writes anything — that copy is the way back if an update
+      // ever goes wrong.
+      if (previousSchema !== SCHEMA_VERSION || previousApp !== this.appVersion) {
+        this.snapshot(`before-${previousApp || `schema${previousSchema}`}`);
+      }
+
+      this.db = this.migrate(parsed);
+      this.db.appVersion = this.appVersion;
+
+      if (previousSchema > SCHEMA_VERSION) {
+        // Older app, newer file: load it, but make very sure the original survives.
+        this.db.downgradedFrom = previousSchema;
+      }
+
+      if (previousSchema !== SCHEMA_VERSION || previousApp !== this.appVersion) {
+        this.persist({ backup: false });
+      }
+      return this.db;
     } catch (err) {
       // Never destroy data we failed to understand — park it and start clean.
       const rescue = path.join(
@@ -122,11 +187,7 @@ class Store {
     if (!parsed || typeof parsed !== 'object') return db;
 
     db.createdAt = asString(parsed.createdAt) || db.createdAt;
-    db.settings = { ...DEFAULT_SETTINGS, ...(parsed.settings || {}) };
-    db.settings.defaultLowStockThreshold = Math.max(
-      0,
-      clampQuantity(db.settings.defaultLowStockThreshold),
-    );
+    db.settings = normalizeSettings(parsed.settings);
 
     db.categories = Array.isArray(parsed.categories)
       ? parsed.categories
@@ -153,6 +214,10 @@ class Store {
             order: Number.isFinite(f.order) ? f.order : index,
           }))
           .sort((a, b) => a.order - b.order)
+          // A file written before the ceiling existed (or hand-edited) keeps its
+          // first five details rather than being rejected outright.
+          .slice(0, MAX_CUSTOM_FIELDS)
+          .map((f, index) => ({ ...f, order: index }))
       : [];
 
     db.items = Array.isArray(parsed.items)
@@ -216,6 +281,24 @@ class Store {
     return this.db;
   }
 
+  /**
+   * An immediate, labelled copy of the current file — used before an update
+   * rewrites anything, and before a restore replaces everything.
+   */
+  snapshot(label) {
+    if (!fs.existsSync(this.file)) return null;
+    try {
+      fs.mkdirSync(this.backupDir, { recursive: true });
+      const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+      const safeLabel = String(label).replace(/[^a-zA-Z0-9._-]/g, '');
+      const target = path.join(this.backupDir, `myvault-${safeLabel}-${stamp}.json`);
+      fs.copyFileSync(this.file, target);
+      return target;
+    } catch {
+      return null;
+    }
+  }
+
   maybeBackup() {
     if (!fs.existsSync(this.file)) return;
     const elapsed = Date.now() - this.lastBackupAt;
@@ -224,16 +307,20 @@ class Store {
     try {
       fs.mkdirSync(this.backupDir, { recursive: true });
       const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-      fs.copyFileSync(this.file, path.join(this.backupDir, `myvault-${stamp}.json`));
+      fs.copyFileSync(this.file, path.join(this.backupDir, `myvault-auto-${stamp}.json`));
       this.lastBackupAt = Date.now();
       this.pruneBackups();
     } catch { /* backups are best effort, never block a save */ }
   }
 
+  /**
+   * Only the routine timed backups rotate. Labelled snapshots — the copies taken
+   * before an app update or a restore — are never rotated away.
+   */
   pruneBackups() {
     const entries = fs
       .readdirSync(this.backupDir)
-      .filter((f) => f.startsWith('myvault-') && f.endsWith('.json'))
+      .filter((f) => f.startsWith('myvault-auto-') && f.endsWith('.json'))
       .sort();
     while (entries.length > MAX_BACKUPS) {
       const oldest = entries.shift();
@@ -347,6 +434,21 @@ class Store {
   addField({ name, type, options, required, showInTable }) {
     const clean = asString(name, 60).trim();
     if (!clean) throw new Error('Field name is required');
+
+    // Name clashes are reported before the ceiling: telling someone the detail
+    // already exists is more use than telling them they are out of room.
+    if (STANDARD_FIELDS.some((standard) => standard.toLowerCase() === clean.toLowerCase())) {
+      throw new Error(`"${clean}" is already a standard detail on every item.`);
+    }
+    if (this.db.customFields.some((f) => f.name.toLowerCase() === clean.toLowerCase())) {
+      throw new Error(`You already have a detail called "${clean}".`);
+    }
+    if (this.db.customFields.length >= MAX_CUSTOM_FIELDS) {
+      throw new Error(
+        `You can add up to ${MAX_CUSTOM_FIELDS} extra details. Delete one first to make room.`,
+      );
+    }
+
     const field = {
       id: newId(),
       name: clean,
@@ -406,13 +508,7 @@ class Store {
   // ----------------------------------------------------------------- settings
 
   updateSettings(patch) {
-    this.db.settings = { ...this.db.settings, ...patch };
-    if (patch.defaultLowStockThreshold !== undefined) {
-      this.db.settings.defaultLowStockThreshold = Math.max(
-        0,
-        clampQuantity(patch.defaultLowStockThreshold),
-      );
-    }
+    this.db.settings = normalizeSettings({ ...this.db.settings, ...patch });
     this.persist();
     return this.db.settings;
   }
@@ -430,7 +526,11 @@ class Store {
    * shop can bring a spreadsheet across without losing its own columns.
    */
   importRows(rows, { createMissing = true } = {}) {
-    const result = { added: 0, updated: 0, skipped: 0, newCategories: 0, newFields: 0 };
+    const result = {
+      added: 0, updated: 0, skipped: 0, newCategories: 0, newFields: 0,
+      /** Columns that could not become details because the ceiling was reached. */
+      droppedColumns: [],
+    };
     const core = new Set([
       'name', 'barcode', 'sku', 'category', 'quantity', 'price', 'cost',
       'low stock', 'lowstock', 'low stock threshold', 'supplier', 'notes',
@@ -475,6 +575,11 @@ class Store {
         if (core.has(key) || !key) continue;
         if (value === '' || value === null || value === undefined) continue;
         let field = fieldByName.get(key);
+        if (!field && createMissing && this.db.customFields.length >= MAX_CUSTOM_FIELDS) {
+          // Out of detail slots — import the row, just without this column.
+          if (!result.droppedColumns.includes(key)) result.droppedColumns.push(key);
+          continue;
+        }
         if (!field && createMissing) {
           field = {
             id: newId(),
@@ -540,4 +645,14 @@ class Store {
   }
 }
 
-module.exports = { Store, SCHEMA_VERSION, DEFAULT_SETTINGS, FIELD_TYPES, emptyDatabase };
+module.exports = {
+  Store,
+  SCHEMA_VERSION,
+  DEFAULT_SETTINGS,
+  FIELD_TYPES,
+  STANDARD_FIELDS,
+  MAX_CUSTOM_FIELDS,
+  ACCENTS,
+  DENSITIES,
+  emptyDatabase,
+};
