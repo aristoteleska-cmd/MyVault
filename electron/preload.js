@@ -1,0 +1,70 @@
+'use strict';
+
+const { contextBridge, ipcRenderer } = require('electron');
+
+/**
+ * The only bridge between the UI and the file system. The renderer gets a small
+ * fixed list of operations — it can never touch Node or the disk directly.
+ */
+const invoke = (channel, ...args) => ipcRenderer.invoke(channel, ...args);
+
+const menuChannels = [
+  'menu:new-item',
+  'menu:import-csv',
+  'menu:export-csv',
+  'menu:backup',
+  'menu:restore',
+  'menu:focus-search',
+];
+
+contextBridge.exposeInMainWorld('myvault', {
+  getInfo: () => invoke('app:info'),
+  getState: () => invoke('state:get'),
+
+  items: {
+    add: (input) => invoke('items:add', input),
+    update: (id, patch) => invoke('items:update', id, patch),
+    adjust: (id, delta) => invoke('items:adjust', id, delta),
+    remove: (ids) => invoke('items:delete', ids),
+    restore: (items) => invoke('items:restore', items),
+  },
+
+  categories: {
+    add: (input) => invoke('categories:add', input),
+    update: (id, patch) => invoke('categories:update', id, patch),
+    remove: (id) => invoke('categories:delete', id),
+  },
+
+  fields: {
+    add: (input) => invoke('fields:add', input),
+    update: (id, patch) => invoke('fields:update', id, patch),
+    remove: (id) => invoke('fields:delete', id),
+    move: (id, direction) => invoke('fields:move', id, direction),
+  },
+
+  settings: {
+    update: (patch) => invoke('settings:update', patch),
+  },
+
+  data: {
+    exportCsv: () => invoke('data:export-csv'),
+    importCsv: () => invoke('data:import-csv'),
+    backup: () => invoke('data:backup'),
+    restore: () => invoke('data:restore'),
+    openFolder: () => invoke('data:open-folder'),
+  },
+
+  confirmDelete: (count) => invoke('dialog:confirm-delete', count),
+
+  /** Subscribe to menu actions. Returns an unsubscribe function. */
+  onMenu: (handler) => {
+    const listeners = menuChannels.map((channel) => {
+      const listener = () => handler(channel);
+      ipcRenderer.on(channel, listener);
+      return { channel, listener };
+    });
+    return () => listeners.forEach(({ channel, listener }) => {
+      ipcRenderer.removeListener(channel, listener);
+    });
+  },
+});
