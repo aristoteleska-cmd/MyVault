@@ -1,0 +1,96 @@
+MyVault — Free-to-Use Licence
+=============================
+
+Copyright (c) 2026 MyVault. All rights reserved.
+
+    NOTE TO THE OWNER: replace "MyVault" above with your own full legal name
+    or registered company name before publishing or distributing this app.
+    The copyright notice should name the person or company that owns it.
+    This file, and the "author" field in package.json, are the only two
+    places that name needs to appear.
+
+
+1. WHAT YOU MAY DO
+
+   MyVault is free to use. You are granted a personal, non-exclusive,
+   non-transferable licence to install and run the MyVault application, at
+   no cost, on any number of computers you own or control, for any purpose
+   including running a business.
+
+   You may make copies of the application solely as backups for your own use,
+   and you may copy your own data files anywhere you like. Your data is
+   yours; nothing in this licence claims any right over the inventory,
+   products, prices or any other information you enter into the application.
+
+
+2. WHAT YOU MAY NOT DO
+
+   All rights not expressly granted above are reserved by the copyright
+   holder. In particular, without prior written permission you may NOT:
+
+   (a) copy, reproduce, republish or redistribute the application or its
+       source code, in whole or in part, whether modified or unmodified;
+
+   (b) sell, rent, lease, sublicense, or otherwise make the application
+       available to third parties, whether for a fee or free of charge;
+
+   (c) create derivative works, forks, ports, clones or adaptations of the
+       application or its source code;
+
+   (d) reverse engineer, decompile or disassemble the application, except to
+       the limited extent that applicable law expressly permits despite this
+       restriction;
+
+   (e) remove, obscure or alter any copyright, trademark or other proprietary
+       notice contained in the application; or
+
+   (f) use the name "MyVault", or any confusingly similar name, to identify
+       any other product.
+
+   Viewing the source code, where it has been made publicly available, does
+   not grant any of the rights withheld above.
+
+
+3. THIRD-PARTY COMPONENTS
+
+   The application is built on open-source components that are licensed
+   separately by their own authors, and are NOT covered by this licence. Those
+   components remain subject to their own terms, which permit their reuse.
+   They are listed, with their licences, in THIRD-PARTY-NOTICES.md.
+
+   Nothing in this licence restricts any right you have under the licence of
+   any third-party component.
+
+
+4. NO WARRANTY
+
+   THE APPLICATION IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+   OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+   FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+
+
+5. NO LIABILITY
+
+   TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, IN NO EVENT SHALL THE
+   COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+   WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF
+   OR IN CONNECTION WITH THE APPLICATION OR THE USE OR OTHER DEALINGS IN THE
+   APPLICATION, INCLUDING ANY LOSS OF DATA.
+
+   You are responsible for keeping your own backups of your inventory data.
+
+
+6. TERMINATION
+
+   This licence ends automatically if you breach any of its terms. On
+   termination you must stop using the application and delete all copies of
+   it. Your own data files are unaffected and remain yours.
+
+
+7. GENERAL
+
+   This licence is the entire agreement concerning the application. If any
+   provision is held unenforceable, the remaining provisions stay in force.
+
+   Contact the copyright holder for permission to do anything this licence
+   does not allow.

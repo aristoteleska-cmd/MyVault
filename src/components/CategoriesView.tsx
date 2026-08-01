@@ -1,10 +1,12 @@
 import { useMemo, useState } from 'react';
 import { useVault } from '../state/vault';
 import { nextCategoryColor } from '../lib/format';
+import { useT } from '../i18n';
 import { Icon } from './Icon';
 
 export function CategoriesView({ onBrowse }: { onBrowse: (categoryId: string) => void }) {
   const { db, addCategory, updateCategory, deleteCategory } = useVault();
+  const t = useT();
   const [name, setName] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
@@ -39,29 +41,26 @@ export function CategoriesView({ onBrowse }: { onBrowse: (categoryId: string) =>
     <div className="view">
       <div className="view-narrow" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
         <header className="view-header">
-          <h1 className="view-title">Categories</h1>
-          <p className="view-sub">
-            Group your stock the way your shop is laid out — shelves, brands, departments. You can
-            filter and search by category, and every item can belong to one.
-          </p>
+          <h1 className="view-title">{t('categories.title')}</h1>
+          <p className="view-sub">{t('categories.sub')}</p>
         </header>
 
         <div className="toolbar">
           <div className="field" style={{ flex: 1 }}>
-            <label className="visually-hidden" htmlFor="new-category">New category name</label>
+            <label className="visually-hidden" htmlFor="new-category">{t('categories.newLabel')}</label>
             <input
               id="new-category"
               className="input"
               value={name}
               onChange={(e) => setName(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); void onAdd(); } }}
-              placeholder="e.g. Shoes, Drinks, Board games…"
+              placeholder={t('categories.placeholder')}
               autoComplete="off"
             />
           </div>
           <button type="button" className="btn btn-primary" onClick={() => void onAdd()} disabled={!name.trim()}>
             <Icon name="plus" size={16} />
-            Add category
+            {t('categories.add')}
           </button>
         </div>
 
@@ -69,8 +68,8 @@ export function CategoriesView({ onBrowse }: { onBrowse: (categoryId: string) =>
           <div className="panel">
             <div className="empty">
               <div className="empty-art"><Icon name="tag" size={26} /></div>
-              <h3>No categories yet</h3>
-              <p>Add your first category above — for example "Shirts" for a clothes shop or "Puzzles" for a toy shop.</p>
+              <h3>{t('categories.emptyTitle')}</h3>
+              <p>{t('categories.emptyBody')}</p>
             </div>
           </div>
         ) : (
@@ -84,8 +83,8 @@ export function CategoriesView({ onBrowse }: { onBrowse: (categoryId: string) =>
                     className="swatch"
                     value={category.color}
                     onChange={(e) => void updateCategory(category.id, { color: e.target.value })}
-                    aria-label={`Colour for ${category.name}`}
-                    title="Change colour"
+                    aria-label={t('categories.colourAria', { name: category.name })}
+                    title={t('categories.colourTitle')}
                   />
 
                   <div className="record-main">
@@ -99,14 +98,18 @@ export function CategoriesView({ onBrowse }: { onBrowse: (categoryId: string) =>
                           if (e.key === 'Enter') { e.preventDefault(); void commitRename(category.id); }
                           if (e.key === 'Escape') setEditingId(null);
                         }}
-                        aria-label="Category name"
+                        aria-label={t('categories.nameLabel')}
                         autoFocus
                       />
                     ) : (
                       <>
                         <div className="record-title">{category.name}</div>
                         <div className="record-sub">
-                          {count === 0 ? 'No items yet' : count === 1 ? '1 item' : `${count} items`}
+                          {count === 0
+                            ? t('categories.noItems')
+                            : count === 1
+                              ? t('categories.oneItem')
+                              : t('categories.manyItems', { count })}
                         </div>
                       </>
                     )}
@@ -119,15 +122,15 @@ export function CategoriesView({ onBrowse }: { onBrowse: (categoryId: string) =>
                         className="btn btn-sm"
                         onClick={() => onBrowse(category.id)}
                       >
-                        View items
+                        {t('categories.view')}
                       </button>
                     )}
                     <button
                       type="button"
                       className="icon-btn"
                       onClick={() => startRename(category.id, category.name)}
-                      aria-label={`Rename ${category.name}`}
-                      title="Rename"
+                      aria-label={t('categories.renameAria', { name: category.name })}
+                      title={t('categories.rename')}
                     >
                       <Icon name="pencil" size={16} />
                     </button>
@@ -135,8 +138,8 @@ export function CategoriesView({ onBrowse }: { onBrowse: (categoryId: string) =>
                       type="button"
                       className="icon-btn danger"
                       onClick={() => void deleteCategory(category.id)}
-                      aria-label={`Delete ${category.name}`}
-                      title="Delete category"
+                      aria-label={t('categories.deleteAria', { name: category.name })}
+                      title={t('categories.deleteTitle')}
                     >
                       <Icon name="trash" size={16} />
                     </button>
@@ -149,10 +152,7 @@ export function CategoriesView({ onBrowse }: { onBrowse: (categoryId: string) =>
 
         <div className="callout">
           <Icon name="info" size={18} />
-          <div>
-            Deleting a category never deletes products. The items stay in your stock list, just
-            without a category until you give them a new one.
-          </div>
+          <div>{t('categories.note')}</div>
         </div>
       </div>
     </div>

@@ -1,5 +1,6 @@
 import type { Category, CustomField, Item, SortKey, SortState } from '../types';
-import { formatDate, formatFieldValue, formatMoney, stockLabel, stockLevel } from '../lib/format';
+import { formatDate, formatFieldValue, formatMoney, stockLevel } from '../lib/format';
+import { useI18n } from '../i18n';
 import { Icon } from './Icon';
 
 interface ItemTableProps {
@@ -33,6 +34,7 @@ export function ItemTable({
   onDelete,
   onAdjust,
 }: ItemTableProps) {
+  const { t, locale } = useI18n();
   const categoryById = new Map(categories.map((c) => [c.id, c]));
   const allSelected = items.length > 0 && items.every((item) => selected.has(item.id));
   const someSelected = items.some((item) => selected.has(item.id));
@@ -46,7 +48,7 @@ export function ItemTable({
         className="th-sort"
         data-active={sort.key === key}
         onClick={() => onSortChange(key)}
-        title={`Sort by ${label}`}
+        title={t('table.sortByColumn', { label })}
       >
         {label}
         <Icon name={sort.key === key && sort.direction === 'desc' ? 'arrowDown' : 'arrowUp'} size={13} />
@@ -65,20 +67,20 @@ export function ItemTable({
                 checked={allSelected}
                 ref={(el) => { if (el) el.indeterminate = !allSelected && someSelected; }}
                 onChange={(e) => onToggleSelectAll(e.target.checked)}
-                aria-label={allSelected ? 'Clear selection' : 'Select all items on this page'}
+                aria-label={allSelected ? t('table.clearSelection') : t('table.selectAll')}
               />
             </th>
-            {header('name', 'Item', false, 'col-name')}
-            {header('barcode', 'Barcode')}
-            {header('category', 'Category')}
+            {header('name', t('table.item'), false, 'col-name')}
+            {header('barcode', t('table.barcode'))}
+            {header('category', t('table.category'))}
             {fields.filter((field) => field.showInTable).map((field) =>
               header(`custom:${field.id}` as SortKey, field.name))}
-            {header('quantity', 'In stock', true)}
-            {header('price', 'Price', true)}
-            {header('value', 'Stock value', true)}
-            {header('updatedAt', 'Updated', true)}
+            {header('quantity', t('table.inStock'), true)}
+            {header('price', t('table.price'), true)}
+            {header('value', t('table.stockValue'), true)}
+            {header('updatedAt', t('table.updated'), true)}
             <th className="col-actions" scope="col">
-              <span className="visually-hidden">Actions</span>
+              <span className="visually-hidden">{t('table.actions')}</span>
             </th>
           </tr>
         </thead>
@@ -99,7 +101,7 @@ export function ItemTable({
                     type="checkbox"
                     checked={isSelected}
                     onChange={(e) => onToggleSelect(item.id, e.target.checked)}
-                    aria-label={`Select ${item.name}`}
+                    aria-label={t('table.select', { name: item.name })}
                   />
                 </td>
 
@@ -107,7 +109,7 @@ export function ItemTable({
                   <div className="item-name" title={item.name}>{item.name}</div>
                   {(item.sku || item.supplier) && (
                     <div className="item-meta">
-                      {item.sku && <span>SKU {item.sku}</span>}
+                      {item.sku && <span>{t('table.sku', { code: item.sku })}</span>}
                       {item.supplier && <span>{item.supplier}</span>}
                     </div>
                   )}
@@ -128,7 +130,7 @@ export function ItemTable({
 
                 {fields.filter((field) => field.showInTable).map((field) => (
                   <td key={field.id}>
-                    {formatFieldValue(item.custom?.[field.id], field) || (
+                    {formatFieldValue(item.custom?.[field.id], field, t, locale) || (
                       <span style={{ color: 'var(--text-faint)' }}>—</span>
                     )}
                   </td>
@@ -139,15 +141,15 @@ export function ItemTable({
                     {/* Only the exceptions are worth calling out — a badge on every
                         healthy row is noise that costs a lot of column width. */}
                     {level !== 'ok' && (
-                      <span className={`badge badge-${level}`}>{stockLabel[level]}</span>
+                      <span className={`badge badge-${level}`}>{t(`badge.${level}`)}</span>
                     )}
                     <div className="stepper">
                       <button
                         type="button"
                         onClick={() => onAdjust(item.id, -1)}
                         disabled={item.quantity <= 0}
-                        aria-label={`Remove one ${item.name}`}
-                        title="Sold one / remove one"
+                        aria-label={t('table.removeOne', { name: item.name })}
+                        title={t('table.removeOneTitle')}
                       >
                         <Icon name="minus" size={15} />
                       </button>
@@ -155,8 +157,8 @@ export function ItemTable({
                       <button
                         type="button"
                         onClick={() => onAdjust(item.id, 1)}
-                        aria-label={`Add one ${item.name}`}
-                        title="Received one / add one"
+                        aria-label={t('table.addOne', { name: item.name })}
+                        title={t('table.addOneTitle')}
                       >
                         <Icon name="plus" size={15} />
                       </button>
@@ -164,9 +166,9 @@ export function ItemTable({
                   </div>
                 </td>
 
-                <td className="num">{formatMoney(item.price, currency)}</td>
-                <td className="num">{formatMoney(item.price * item.quantity, currency)}</td>
-                <td className="num" style={{ color: 'var(--text-muted)' }}>{formatDate(item.updatedAt)}</td>
+                <td className="num">{formatMoney(item.price, currency, locale)}</td>
+                <td className="num">{formatMoney(item.price * item.quantity, currency, locale)}</td>
+                <td className="num" style={{ color: 'var(--text-muted)' }}>{formatDate(item.updatedAt, locale)}</td>
 
                 <td className="col-actions">
                   <div className="row-actions">
@@ -174,8 +176,8 @@ export function ItemTable({
                       type="button"
                       className="icon-btn"
                       onClick={() => onEdit(item)}
-                      aria-label={`Edit ${item.name}`}
-                      title="Edit"
+                      aria-label={t('table.editItem', { name: item.name })}
+                      title={t('table.edit')}
                     >
                       <Icon name="pencil" size={16} />
                     </button>
@@ -183,8 +185,8 @@ export function ItemTable({
                       type="button"
                       className="icon-btn danger"
                       onClick={() => onDelete([item.id])}
-                      aria-label={`Delete ${item.name}`}
-                      title="Delete"
+                      aria-label={t('table.deleteItem', { name: item.name })}
+                      title={t('table.delete')}
                     >
                       <Icon name="trash" size={16} />
                     </button>

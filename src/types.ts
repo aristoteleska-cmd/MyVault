@@ -7,7 +7,6 @@ export interface CustomField {
   name: string;
   type: FieldType;
   options: string[];
-  required: boolean;
   showInTable: boolean;
   order: number;
 }
@@ -43,6 +42,8 @@ export type DensityChoice = 'comfortable' | 'compact';
 
 export interface Settings {
   currency: string;
+  /** Empty means "follow the installer / Windows language". */
+  language: string;
   theme: ThemeChoice;
   accent: AccentChoice;
   density: DensityChoice;
@@ -74,6 +75,7 @@ export interface AppInfo {
   standardFields: string[];
   maxCustomFields: number;
   offline: boolean;
+  systemLocale: string;
 }
 
 export type ItemDraft = Omit<Item, 'id' | 'createdAt' | 'updatedAt'>;

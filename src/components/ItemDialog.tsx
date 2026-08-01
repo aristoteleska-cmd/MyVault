@@ -2,6 +2,7 @@ import { useMemo, useRef, useState, type FormEvent } from 'react';
 import { useVault } from '../state/vault';
 import type { CustomField, CustomFieldValue, FieldType, Item } from '../types';
 import { nextCategoryColor, normalizeNumberInput } from '../lib/input';
+import { useT, type TranslationKey } from '../i18n';
 import { Icon } from './Icon';
 import { Modal } from './Modal';
 
@@ -42,6 +43,7 @@ function draftFromItem(item: Item | null): Draft {
 
 export function ItemDialog({ item, onClose }: ItemDialogProps) {
   const { db, info, addItem, updateItem, addCategory, addField } = useVault();
+  const t = useT();
   const [draft, setDraft] = useState<Draft>(() => draftFromItem(item));
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
@@ -66,35 +68,27 @@ export function ItemDialog({ item, onClose }: ItemDialogProps) {
   function validate(): Record<string, string> {
     const found: Record<string, string> = {};
 
-    if (!draft.name.trim()) found.name = 'Give the item a name so you can find it later.';
+    if (!draft.name.trim()) found.name = t('form.nameError');
 
     const quantity = Number(draft.quantity);
     if (draft.quantity !== '' && (!Number.isFinite(quantity) || quantity < 0)) {
-      found.quantity = 'Quantity must be 0 or more.';
+      found.quantity = t('form.quantityError');
     }
 
     const price = normalizeNumberInput(draft.price);
     if (draft.price.trim() !== '' && (price === null || price < 0)) {
-      found.price = 'Enter a price like 12.50';
+      found.price = t('form.priceError');
     }
 
     const cost = normalizeNumberInput(draft.cost);
     if (draft.cost.trim() !== '' && (cost === null || cost < 0)) {
-      found.cost = 'Enter a cost like 8.00';
+      found.cost = t('form.costError');
     }
 
     const barcode = draft.barcode.trim();
     if (barcode) {
       const clash = db.items.find((i) => i.barcode === barcode && i.id !== item?.id);
-      if (clash) found.barcode = `"${clash.name}" already uses this barcode.`;
-    }
-
-    for (const field of fields) {
-      if (!field.required) continue;
-      const value = draft.custom[field.id];
-      if (value === undefined || value === '' || value === null) {
-        found[`custom:${field.id}`] = `${field.name} is required.`;
-      }
+      if (clash) found.barcode = t('form.barcodeDuplicate', { name: clash.name });
     }
 
     return found;
@@ -143,24 +137,20 @@ export function ItemDialog({ item, onClose }: ItemDialogProps) {
 
   return (
     <Modal
-      title={isEdit ? 'Edit item' : 'Add a new item'}
-      description={
-        isEdit
-          ? 'Update the details and save. Nothing leaves this computer.'
-          : 'Fill in what you know — you can always come back and add more later.'
-      }
+      title={isEdit ? t('dialog.editTitle') : t('dialog.addTitle')}
+      description={isEdit ? t('dialog.editSub') : t('dialog.addSub')}
       onClose={onClose}
       disableBackdropClose
       footer={
         <>
           <span className="field-hint">
-            {isEdit ? 'Changes are saved to your local file.' : 'Only the name is required.'}
+            {isEdit ? t('dialog.footEdit') : t('dialog.footNew')}
           </span>
           <span className="spacer" />
-          <button type="button" className="btn" onClick={onClose}>Cancel</button>
+          <button type="button" className="btn" onClick={onClose}>{t('dialog.cancel')}</button>
           <button type="submit" form="item-form" className="btn btn-primary" disabled={saving}>
             <Icon name="save" size={16} />
-            {saving ? 'Saving…' : isEdit ? 'Save changes' : 'Add item'}
+            {saving ? t('dialog.saving') : isEdit ? t('dialog.save') : t('action.addItem')}
           </button>
         </>
       }
@@ -169,21 +159,19 @@ export function ItemDialog({ item, onClose }: ItemDialogProps) {
         <div className="fieldset">
           <div className="fieldset-title">
             <Icon name="box" size={16} />
-            The four standard details
+            {t('dialog.standardTitle')}
           </div>
-          <p className="fieldset-hint">
-            Every item in MyVault always has these. Only the name has to be filled in.
-          </p>
+          <p className="fieldset-hint">{t('dialog.standardHint')}</p>
 
           <div className="form-grid">
           <div className="field span-2">
-            <label htmlFor="field-name">Item name</label>
+            <label htmlFor="field-name">{t('form.name')}</label>
             <input
               id="field-name"
               className="input"
               value={draft.name}
               onChange={(e) => set('name', e.target.value)}
-              placeholder="e.g. Cotton T-shirt"
+              placeholder={t('form.namePlaceholder')}
               autoComplete="off"
               aria-invalid={Boolean(errors.name)}
               aria-describedby={errors.name ? 'error-name' : undefined}
@@ -192,24 +180,24 @@ export function ItemDialog({ item, onClose }: ItemDialogProps) {
           </div>
 
           <div className="field">
-            <label htmlFor="field-barcode">Barcode</label>
+            <label htmlFor="field-barcode">{t('form.barcode')}</label>
             <input
               id="field-barcode"
               ref={barcodeRef}
               className="input mono"
               value={draft.barcode}
               onChange={(e) => set('barcode', e.target.value)}
-              placeholder="Scan or type"
+              placeholder={t('form.barcodePlaceholder')}
               autoComplete="off"
               aria-invalid={Boolean(errors.barcode)}
             />
             {errors.barcode
               ? <span className="field-error">{errors.barcode}</span>
-              : <span className="field-hint">Click here, then scan with your barcode reader.</span>}
+              : <span className="field-hint">{t('form.barcodeHint')}</span>}
           </div>
 
           <div className="field">
-            <label htmlFor="field-quantity">Stock quantity</label>
+            <label htmlFor="field-quantity">{t('form.quantity')}</label>
             <input
               id="field-quantity"
               className="input"
@@ -224,7 +212,7 @@ export function ItemDialog({ item, onClose }: ItemDialogProps) {
           </div>
 
           <div className="field">
-            <label htmlFor="field-price">Selling price ({db.settings.currency})</label>
+            <label htmlFor="field-price">{t('form.price', { currency: db.settings.currency })}</label>
             <input
               id="field-price"
               className="input"
@@ -242,22 +230,20 @@ export function ItemDialog({ item, onClose }: ItemDialogProps) {
         <div className="fieldset">
           <div className="fieldset-title">
             <Icon name="tag" size={16} />
-            Optional
+            {t('dialog.optionalTitle')}
           </div>
-          <p className="fieldset-hint">
-            Handy but never required — leave anything here blank if your shop does not use it.
-          </p>
+          <p className="fieldset-hint">{t('dialog.optionalHint')}</p>
 
           <div className="form-grid">
           <div className="field span-2">
-            <label htmlFor="field-category">Category</label>
+            <label htmlFor="field-category">{t('form.category')}</label>
             <select
               id="field-category"
               className="select"
               value={draft.categoryId}
               onChange={(e) => set('categoryId', e.target.value)}
             >
-              <option value="">No category</option>
+              <option value="">{t('form.noCategory')}</option>
               {db.categories.map((category) => (
                 <option key={category.id} value={category.id}>{category.name}</option>
               ))}
@@ -271,8 +257,8 @@ export function ItemDialog({ item, onClose }: ItemDialogProps) {
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') { e.preventDefault(); void onAddCategory(); }
                   }}
-                  placeholder="New category name…"
-                  aria-label="New category name"
+                  placeholder={t('form.newCategory')}
+                  aria-label={t('form.newCategoryAria')}
                   autoComplete="off"
                 />
               </div>
@@ -283,41 +269,41 @@ export function ItemDialog({ item, onClose }: ItemDialogProps) {
                 disabled={!newCategory.trim()}
               >
                 <Icon name="plus" size={16} />
-                Add category
+                {t('form.addCategory')}
               </button>
             </div>
           </div>
 
           <div className="field">
-            <label htmlFor="field-sku">Item code / SKU</label>
+            <label htmlFor="field-sku">{t('form.sku')}</label>
             <input
               id="field-sku"
               className="input"
               value={draft.sku}
               onChange={(e) => set('sku', e.target.value)}
-              placeholder="Your own reference"
+              placeholder={t('form.skuPlaceholder')}
               autoComplete="off"
             />
           </div>
 
           <div className="field">
-            <label htmlFor="field-cost">Cost price ({db.settings.currency})</label>
+            <label htmlFor="field-cost">{t('form.cost', { currency: db.settings.currency })}</label>
             <input
               id="field-cost"
               className="input"
               inputMode="decimal"
               value={draft.cost}
               onChange={(e) => set('cost', e.target.value)}
-              placeholder="Optional"
+              placeholder={t('form.optional')}
               aria-invalid={Boolean(errors.cost)}
             />
             {errors.cost
               ? <span className="field-error">{errors.cost}</span>
-              : <span className="field-hint">What you paid — used for profit totals.</span>}
+              : <span className="field-hint">{t('form.costHint')}</span>}
           </div>
 
           <div className="field">
-            <label htmlFor="field-lowStockThreshold">Warn me below</label>
+            <label htmlFor="field-lowStockThreshold">{t('form.lowStock')}</label>
             <input
               id="field-lowStockThreshold"
               className="input"
@@ -326,29 +312,29 @@ export function ItemDialog({ item, onClose }: ItemDialogProps) {
               step={1}
               value={draft.lowStockThreshold}
               onChange={(e) => set('lowStockThreshold', e.target.value)}
-              placeholder={`Default (${db.settings.defaultLowStockThreshold})`}
+              placeholder={t('form.lowStockPlaceholder', { count: db.settings.defaultLowStockThreshold })}
             />
           </div>
 
           <div className="field">
-            <label htmlFor="field-supplier">Supplier</label>
+            <label htmlFor="field-supplier">{t('form.supplier')}</label>
             <input
               id="field-supplier"
               className="input"
               value={draft.supplier}
               onChange={(e) => set('supplier', e.target.value)}
-              placeholder="Optional"
+              placeholder={t('form.optional')}
               autoComplete="off"
             />
           </div>
           <div className="field span-2">
-            <label htmlFor="field-notes">Notes</label>
+            <label htmlFor="field-notes">{t('form.notes')}</label>
             <textarea
               id="field-notes"
               className="textarea"
               value={draft.notes}
               onChange={(e) => set('notes', e.target.value)}
-              placeholder="Anything you want to remember about this item"
+              placeholder={t('form.notesPlaceholder')}
             />
           </div>
           </div>
@@ -357,14 +343,12 @@ export function ItemDialog({ item, onClose }: ItemDialogProps) {
         <div className="fieldset">
           <div className="fieldset-title">
             <Icon name="fields" size={16} />
-            Your own details
-            <span className="counter-pill">{fields.length} of {maxFields} used</span>
+            {t('dialog.customTitle')}
+            <span className="counter-pill">
+              {t('details.counter', { used: fields.length, max: maxFields })}
+            </span>
           </div>
-          <p className="fieldset-hint">
-            Beyond the four standard ones, you can add up to {maxFields} details of your own — size
-            for clothes, age range for toys, colour, expiry date. They appear on every item and you
-            can search, filter and sort by them.
-          </p>
+          <p className="fieldset-hint">{t('dialog.customHint', { max: maxFields })}</p>
 
           {fields.length > 0 && (
             <div className="form-grid">
@@ -394,12 +378,10 @@ export function ItemDialog({ item, onClose }: ItemDialogProps) {
               className="btn"
               onClick={() => setShowFieldForm(true)}
               disabled={fieldsAreFull}
-              title={fieldsAreFull ? `You already have all ${maxFields} extra details` : undefined}
+              title={fieldsAreFull ? t('details.fullTitle', { max: maxFields }) : undefined}
             >
               <Icon name="plus" size={16} />
-              {fieldsAreFull
-                ? `All ${maxFields} details used`
-                : 'Add a detail (Size, Age, Colour…)'}
+              {fieldsAreFull ? t('dialog.customFull', { max: maxFields }) : t('dialog.customAdd')}
             </button>
           )}
         </div>
@@ -418,8 +400,8 @@ interface CustomFieldInputProps {
 }
 
 export function CustomFieldInput({ field, value, error, onChange }: CustomFieldInputProps) {
+  const t = useT();
   const id = `field-custom:${field.id}`;
-  const label = field.required ? `${field.name} *` : field.name;
 
   if (field.type === 'boolean') {
     return (
@@ -432,7 +414,7 @@ export function CustomFieldInput({ field, value, error, onChange }: CustomFieldI
             checked={Boolean(value)}
             onChange={(e) => onChange(e.target.checked)}
           />
-          Yes
+          {t('common.yes')}
         </label>
       </div>
     );
@@ -440,7 +422,7 @@ export function CustomFieldInput({ field, value, error, onChange }: CustomFieldI
 
   return (
     <div className="field">
-      <label htmlFor={id}>{label}</label>
+      <label htmlFor={id}>{field.name}</label>
       {field.type === 'select' ? (
         <select
           id={id}
@@ -483,6 +465,7 @@ interface NewFieldFormProps {
 }
 
 export function NewFieldForm({ onCancel, onCreate }: NewFieldFormProps) {
+  const t = useT();
   const [name, setName] = useState('');
   const [type, setType] = useState<FieldType>('text');
   const [optionsText, setOptionsText] = useState('');
@@ -497,43 +480,43 @@ export function NewFieldForm({ onCancel, onCreate }: NewFieldFormProps) {
     <div className="fieldset" style={{ background: 'var(--surface)' }}>
       <div className="form-grid">
         <div className="field">
-          <label htmlFor="new-field-name">Detail name</label>
+          <label htmlFor="new-field-name">{t('newField.name')}</label>
           <input
             id="new-field-name"
             className="input"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="e.g. Size"
+            placeholder={t('newField.namePlaceholder')}
             autoComplete="off"
             autoFocus
           />
         </div>
         <div className="field">
-          <label htmlFor="new-field-type">Kind of value</label>
+          <label htmlFor="new-field-type">{t('newField.type')}</label>
           <select
             id="new-field-type"
             className="select"
             value={type}
             onChange={(e) => setType(e.target.value as FieldType)}
           >
-            <option value="text">Text — free typing</option>
-            <option value="select">Choice list — pick from options</option>
-            <option value="number">Number</option>
-            <option value="date">Date</option>
-            <option value="boolean">Yes / No</option>
+            {(['text', 'select', 'number', 'date', 'boolean'] as const).map((option) => (
+              <option key={option} value={option}>
+                {t(`fieldType.${option}` as TranslationKey)}
+              </option>
+            ))}
           </select>
         </div>
         {type === 'select' && (
           <div className="field span-2">
-            <label htmlFor="new-field-options">Options</label>
+            <label htmlFor="new-field-options">{t('newField.options')}</label>
             <textarea
               id="new-field-options"
               className="textarea"
               value={optionsText}
               onChange={(e) => setOptionsText(e.target.value)}
-              placeholder="S, M, L, XL"
+              placeholder={t('newField.optionsPlaceholder')}
             />
-            <span className="field-hint">Separate with commas or new lines.</span>
+            <span className="field-hint">{t('newField.optionsHint')}</span>
           </div>
         )}
       </div>
@@ -544,7 +527,7 @@ export function NewFieldForm({ onCancel, onCreate }: NewFieldFormProps) {
           checked={showInTable}
           onChange={(e) => setShowInTable(e.target.checked)}
         />
-        Show this as a column in the stock list
+        {t('newField.showColumn')}
       </label>
 
       <div className="toolbar-group">
@@ -555,9 +538,9 @@ export function NewFieldForm({ onCancel, onCreate }: NewFieldFormProps) {
           onClick={() => void onCreate({ name: name.trim(), type, options, showInTable })}
         >
           <Icon name="check" size={16} />
-          Create detail
+          {t('newField.create')}
         </button>
-        <button type="button" className="btn" onClick={onCancel}>Cancel</button>
+        <button type="button" className="btn" onClick={onCancel}>{t('newField.cancel')}</button>
       </div>
     </div>
   );

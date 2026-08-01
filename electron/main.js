@@ -42,6 +42,40 @@ function resolveDataDir() {
 let store;
 let mainWindow = null;
 
+/**
+ * The language chosen on the installer's first screen, which it records in the
+ * registry. Read once, on Windows only, and only as a hint — anything unexpected
+ * just falls back to the Windows display language.
+ */
+function installerLanguage() {
+  if (process.platform !== 'win32') return '';
+  try {
+    const { execFileSync } = require('child_process');
+    const out = execFileSync(
+      'reg',
+      ['query', 'HKCU\\Software\\MyVault', '/v', 'InstallerLanguage'],
+      { encoding: 'utf8', timeout: 2000, windowsHide: true },
+    );
+    const match = out.match(/InstallerLanguage\s+REG_SZ\s+(\S+)/i);
+    return match ? LCID_TO_LANGUAGE[Number(match[1])] || '' : '';
+  } catch {
+    return '';
+  }
+}
+
+/** NSIS reports the chosen language as a Windows LCID. */
+const LCID_TO_LANGUAGE = {
+  1033: 'en', 2057: 'en', 3081: 'en', 4105: 'en',
+  2052: 'zh-Hans', 4100: 'zh-Hans',
+  1028: 'zh-Hant', 3076: 'zh-Hant', 5124: 'zh-Hant',
+  1081: 'hi', 1034: 'es', 3082: 'es', 2058: 'es',
+  1036: 'fr', 1025: 'ar', 1093: 'bn',
+  1046: 'pt', 2070: 'pt', 1049: 'ru', 1056: 'ur',
+  1057: 'id', 1031: 'de', 1041: 'ja', 1102: 'mr',
+  1098: 'te', 1055: 'tr', 1097: 'ta', 1066: 'vi',
+  1042: 'ko', 1032: 'el',
+};
+
 // A single instance only — two windows writing the same JSON file would fight.
 const gotTheLock = app.requestSingleInstanceLock();
 if (!gotTheLock) {
@@ -182,6 +216,8 @@ function registerIpc() {
     standardFields: STANDARD_FIELDS,
     maxCustomFields: MAX_CUSTOM_FIELDS,
     offline: true,
+    // Used the first time the app runs, before the shop has picked a language.
+    systemLocale: installerLanguage() || app.getLocale(),
   }));
 
   handle('state:get', () => store.getState());
