@@ -146,7 +146,7 @@ export function SettingsView() {
             <div className="setting-text">
               <div className="setting-title">{t('settings.language')}</div>
               <div className="setting-desc">
-                {t('settings.languageDesc', { count: LANGUAGES.length })}
+                {t('settings.languageDesc', { count: TRANSLATED_LANGUAGES.size })}
               </div>
             </div>
             <div className="setting-control">
@@ -157,11 +157,13 @@ export function SettingsView() {
                 aria-label={t('settings.language')}
               >
                 <option value="">{t('settings.languageAuto', { name: autoName })}</option>
+                {/* Languages without their own catalogue yet fall back to
+                    English, and say so rather than pretending otherwise. */}
                 {LANGUAGES.map((language) => (
                   <option key={language.code} value={language.code}>
                     {language.native}
                     {language.native === language.english ? '' : ` — ${language.english}`}
-                    {TRANSLATED_LANGUAGES.has(language.code) ? '' : ' *'}
+                    {TRANSLATED_LANGUAGES.has(language.code) ? '' : ' (English)'}
                   </option>
                 ))}
               </select>
