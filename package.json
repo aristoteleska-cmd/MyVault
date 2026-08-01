@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "description": "Offline stock and inventory manager for small shops. All data stays on your computer.",
   "author": {
-    "name": "MyVault"
+    "name": "Αριστοτέλης Ν. Κατσιγιάννης"
   },
   "license": "SEE LICENSE IN LICENSE",
   "repository": {
@@ -43,7 +43,7 @@
   "build": {
     "appId": "com.myvault.app",
     "productName": "MyVault",
-    "copyright": "Copyright \u00a9 MyVault",
+    "copyright": "Copyright © 2026 Αριστοτέλης Ν. Κατσιγιάννης. All rights reserved.",
     "directories": {
       "output": "release",
       "buildResources": "build"

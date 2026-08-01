@@ -1,8 +1,14 @@
 name: Build Windows app
 
-# Builds the installer and the portable .exe on a real Windows runner, so a
-# ready-to-run MyVault can be downloaded without owning a build machine.
-# Artifacts appear under the workflow run's "Artifacts" section.
+# Builds MyVault on a real Windows runner.
+#
+# This repository is private, and so is everything it produces: the source, the
+# history and the build artifacts below are visible only to the owner and any
+# collaborators.
+#
+# The public side is a separate, empty-of-source repository that holds nothing
+# but the finished installers. Pushing a version tag (v1.0.1, v1.1.0 …) builds
+# the app here and publishes only the two .exe files there. See PUBLISHING.md.
 
 on:
   push:
@@ -37,25 +43,66 @@ jobs:
 
       - name: Build the Windows installer and portable exe
         run: npm run dist:win
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Upload the installer
+      # Private to this repository — for the owner to test before publishing.
+      - name: Keep the installer for this run
         uses: actions/upload-artifact@v4
         with:
           name: MyVault-windows-installer
           path: release/*setup*.exe
           if-no-files-found: error
 
-      - name: Upload the portable build
+      - name: Keep the portable build for this run
         uses: actions/upload-artifact@v4
         with:
           name: MyVault-windows-portable
           path: release/*portable*.exe
           if-no-files-found: error
 
-      - name: Attach builds to the release
-        if: startsWith(github.ref, 'refs/tags/v')
+  publish:
+    # Only ever runs for a version tag, and only publishes the .exe files.
+    # No source code, no history and no build logs leave this repository.
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Collect the built installers
+        uses: actions/download-artifact@v4
+        with:
+          path: downloads
+          merge-multiple: true
+
+      - name: Check the public release repository is configured
+        id: config
+        run: |
+          if [ -n "${{ secrets.PUBLIC_RELEASE_TOKEN }}" ] && [ -n "${{ vars.PUBLIC_RELEASE_REPO }}" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::PUBLIC_RELEASE_REPO variable or PUBLIC_RELEASE_TOKEN secret is not set — see PUBLISHING.md. The installers are still attached to this run."
+          fi
+
+      - name: Publish the installers for the public to download
+        if: steps.config.outputs.ready == 'true'
         uses: softprops/action-gh-release@v2
         with:
-          files: release/*.exe
+          repository: ${{ vars.PUBLIC_RELEASE_REPO }}
+          token: ${{ secrets.PUBLIC_RELEASE_TOKEN }}
+          tag_name: ${{ github.ref_name }}
+          name: MyVault ${{ github.ref_name }}
+          files: downloads/*.exe
+          fail_on_unmatched_files: true
+          body: |
+            ## MyVault ${{ github.ref_name }}
+
+            Κατεβάστε το **MyVault-…-setup.exe** και τρέξτε το για να
+            εγκαταστήσετε την εφαρμογή, ή το **…-portable.exe** αν θέλετε να
+            τρέχει από στικάκι USB χωρίς εγκατάσταση.
+
+            Download **MyVault-…-setup.exe** and run it to install, or
+            **…-portable.exe** to run it from a USB stick with no installation.
+
+            Το MyVault δουλεύει εντελώς χωρίς internet και όλα τα δεδομένα σας
+            μένουν στον υπολογιστή σας.
+            MyVault works completely offline and all your data stays on your
+            own computer.
