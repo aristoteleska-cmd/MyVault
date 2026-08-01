@@ -144,21 +144,29 @@ file, it keeps the original safe rather than overwriting it.
 
 ## Getting the app
 
-### If you just want to use it
+**This repository is private, and stays private** — the source, the history and
+the build logs are visible only to the owner. What the public sees is a separate
+repository containing nothing but a download page and the two `.exe` files.
 
-Grab a build from the **Actions** tab of this repository: open the latest
-successful *Build Windows app* run and download either artifact.
+| Repository | Visibility | Holds |
+| --- | --- | --- |
+| `aristoteleska-cmd/MyVault` (this one) | Private | Everything: source, history, development |
+| `aristoteleska-cmd/MyVault-Downloads` | Public | A download page and the installers, nothing else |
 
-| Download | What it is |
-| --- | --- |
-| `MyVault-windows-installer` | Normal installer. Adds MyVault to the Start menu and desktop. |
-| `MyVault-windows-portable` | Single `.exe`. Runs from anywhere, including a USB stick. |
+Pushing a version tag builds the app here and publishes only the installers
+there. The full instructions — including the one-time setup — are in
+[PUBLISHING.md](PUBLISHING.md), and the download page itself is
+[`publish/README.md`](publish/README.md).
 
-The portable build keeps its data in a `MyVault-Data` folder next to the `.exe`,
-so the whole inventory travels with the stick. The installed version keeps its
-data in your Windows user folder.
+```bash
+git tag v1.0.1 && git push origin v1.0.1   # builds, then publishes the .exe files
+```
 
-### If you want to build it yourself
+Every ordinary push also builds the app and keeps the installers under this
+repository's **Actions** tab, privately, so you can test a build before tagging
+it.
+
+### Building it yourself
 
 You need [Node.js 20 or newer](https://nodejs.org/).
 
@@ -200,6 +208,7 @@ src/               The user interface (React + TypeScript)
   i18n/            Languages: en.ts is the source, one JSON per translation
 tests/             Plain-Node tests, no framework
 build/             App icon, the installer script, and the icon generator
+publish/           The public download page — the only thing users ever see
 ```
 
 The renderer never has access to Node or the file system. It can only call the
@@ -274,12 +283,10 @@ The open-source components MyVault is built on (Electron, Chromium, Node.js,
 React) keep their own licences, which those terms do not — and cannot — restrict.
 They are listed in [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
 
-> **Before you publish this:** put your own full legal name or company name in the
-> copyright line of `LICENSE` and in the `author` field of `package.json`. Those
-> are the only two places it appears. A copyright notice should name the person
-> or company that owns the work.
->
-> Note also that a restrictive licence stops people *lawfully* reusing the code —
-> it does not hide it. If you do not want the source visible at all, make the
-> GitHub repository private; the built `.exe` works exactly the same either way.
-> This is a plain summary, not legal advice.
+Copyright © 2026 Αριστοτέλης Ν. Κατσιγιάννης. The same name appears in the
+`author` field of `package.json`, which is what Windows shows in the installed
+program's file properties.
+
+> A licence stops people reusing the code *lawfully*; keeping this repository
+> private is what stops them seeing it at all. Both are in place. This is a plain
+> summary, not legal advice.
