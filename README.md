@@ -54,6 +54,7 @@ notes.
 
 **Making it yours**
 
+- 21 languages (see below)
 - Light theme, dark theme, or follow Windows
 - Six accent colours, so the app can match your shop
 - Comfortable or compact rows — compact fits noticeably more products on screen
@@ -65,6 +66,38 @@ notes.
 - Written safely (a crash mid-save can never corrupt the file) with automatic
   rolling backups
 - Backup and restore to a USB stick whenever you like
+
+---
+
+## Languages
+
+MyVault is offered in the twenty most widely spoken languages in the world, plus
+Greek. You pick one **on the installer's first screen**, and can change it at any
+time in **Settings → Language** — the whole app switches instantly. Until you
+choose, MyVault follows the language selected during installation, or your
+Windows display language.
+
+Prices, quantities and dates follow the chosen language too, so a German shop
+sees `1.234,50` where a British one sees `1,234.50`. **Arabic and Urdu lay the
+whole interface out right-to-left.**
+
+**Translated in full** — Arabic, Chinese (Simplified), English, French, German,
+Greek, Hindi, Indonesian, Portuguese, Russian, Spanish, Turkish, Vietnamese.
+
+**Offered but still showing English** — Bengali, Chinese (Traditional), Japanese,
+Korean, Marathi, Tamil, Telugu, Urdu. These are marked `(English)` in the
+language menu rather than pretending to be translated, and the app stays fully
+usable in them.
+
+Finishing one is a single file and no code: copy `src/i18n/locales/en.ts` into
+`src/i18n/locales/<code>.json`, translate the right-hand side, and leave every
+`{placeholder}` in place. `npm test` then checks that the keys and placeholders
+all line up. Anything not yet translated falls back to English, so a partly
+finished language is safe to ship.
+
+The Windows installer itself speaks 16 of the 21. NSIS, which builds the
+installer, has no translation for Bengali, Urdu, Marathi, Telugu or Tamil — those
+five appear inside the app instead, and the installer falls back to English.
 
 ---
 
@@ -145,7 +178,7 @@ executable.
 npm install
 npm run dev        # Vite dev server + Electron with hot reload
 npm start          # production build, then run it
-npm test           # store, CSV, search, filter and sort tests
+npm test           # store, CSV, search, sorting and translation tests
 npm run typecheck  # TypeScript, no emit
 npm run icon       # regenerate build/icon.ico (needs Python 3; use python3 on Linux/macOS)
 ```
@@ -164,8 +197,9 @@ src/               The user interface (React + TypeScript)
   state/vault.tsx  App state and every action the UI can perform
   lib/             Search, sorting, formatting
   hooks/           Barcode-scanner listener
+  i18n/            Languages: en.ts is the source, one JSON per translation
 tests/             Plain-Node tests, no framework
-build/             App icon and the script that generates it
+build/             App icon, the installer script, and the icon generator
 ```
 
 The renderer never has access to Node or the file system. It can only call the
@@ -227,4 +261,25 @@ Prices may be written either way: `12.50` or `12,50`.
 
 ## Licence
 
-MIT.
+**MyVault is free to use** — for your own shop, commercially, on as many of your
+own computers as you like, for as long as you like.
+
+**All rights are reserved.** It may not be copied, redistributed, resold, forked
+or reproduced as another product. Being able to read the source here does not
+grant permission to reuse it. The full terms are in [LICENSE](LICENSE), the
+installer shows them before installing, and they are summarised inside the app
+under **Settings → Licence**.
+
+The open-source components MyVault is built on (Electron, Chromium, Node.js,
+React) keep their own licences, which those terms do not — and cannot — restrict.
+They are listed in [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
+
+> **Before you publish this:** put your own full legal name or company name in the
+> copyright line of `LICENSE` and in the `author` field of `package.json`. Those
+> are the only two places it appears. A copyright notice should name the person
+> or company that owns the work.
+>
+> Note also that a restrictive licence stops people *lawfully* reusing the code —
+> it does not hide it. If you do not want the source visible at all, make the
+> GitHub repository private; the built `.exe` works exactly the same either way.
+> This is a plain summary, not legal advice.
