@@ -1,6 +1,6 @@
 'use strict';
 
-const { contextBridge, ipcRenderer } = require('electron');
+const { contextBridge, ipcRenderer, webFrame } = require('electron');
 
 /**
  * The only bridge between the UI and the file system. The renderer gets a small
@@ -44,6 +44,16 @@ contextBridge.exposeInMainWorld('myvault', {
 
   settings: {
     update: (patch) => invoke('settings:update', patch),
+  },
+
+  /**
+   * Scales the whole interface, the way Windows' own display scaling does, so
+   * the text-size choice stays crisp instead of blurring a zoomed bitmap.
+   */
+  setZoom: (factor) => {
+    const safe = Math.min(1.4, Math.max(0.8, Number(factor) || 1));
+    webFrame.setZoomFactor(safe);
+    return safe;
   },
 
   data: {

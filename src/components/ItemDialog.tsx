@@ -41,7 +41,7 @@ function draftFromItem(item: Item | null): Draft {
 }
 
 export function ItemDialog({ item, onClose }: ItemDialogProps) {
-  const { db, addItem, updateItem, addCategory, addField } = useVault();
+  const { db, info, addItem, updateItem, addCategory, addField } = useVault();
   const [draft, setDraft] = useState<Draft>(() => draftFromItem(item));
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
@@ -54,6 +54,8 @@ export function ItemDialog({ item, onClose }: ItemDialogProps) {
     () => [...db.customFields].sort((a, b) => a.order - b.order),
     [db.customFields],
   );
+  const maxFields = info?.maxCustomFields ?? 5;
+  const fieldsAreFull = fields.length >= maxFields;
 
   const set = <K extends keyof Draft>(key: K, value: Draft[K]) =>
     setDraft((current) => ({ ...current, [key]: value }));
@@ -164,7 +166,16 @@ export function ItemDialog({ item, onClose }: ItemDialogProps) {
       }
     >
       <form id="item-form" className="modal-body" onSubmit={onSubmit} noValidate>
-        <div className="form-grid">
+        <div className="fieldset">
+          <div className="fieldset-title">
+            <Icon name="box" size={16} />
+            The four standard details
+          </div>
+          <p className="fieldset-hint">
+            Every item in MyVault always has these. Only the name has to be filled in.
+          </p>
+
+          <div className="form-grid">
           <div className="field span-2">
             <label htmlFor="field-name">Item name</label>
             <input
@@ -198,32 +209,59 @@ export function ItemDialog({ item, onClose }: ItemDialogProps) {
           </div>
 
           <div className="field">
-            <label htmlFor="field-sku">Item code / SKU</label>
+            <label htmlFor="field-quantity">Stock quantity</label>
             <input
-              id="field-sku"
+              id="field-quantity"
               className="input"
-              value={draft.sku}
-              onChange={(e) => set('sku', e.target.value)}
-              placeholder="Your own reference"
-              autoComplete="off"
+              type="number"
+              min={0}
+              step={1}
+              value={draft.quantity}
+              onChange={(e) => set('quantity', e.target.value)}
+              aria-invalid={Boolean(errors.quantity)}
             />
+            {errors.quantity && <span className="field-error">{errors.quantity}</span>}
           </div>
 
+          <div className="field">
+            <label htmlFor="field-price">Selling price ({db.settings.currency})</label>
+            <input
+              id="field-price"
+              className="input"
+              inputMode="decimal"
+              value={draft.price}
+              onChange={(e) => set('price', e.target.value)}
+              placeholder="0.00"
+              aria-invalid={Boolean(errors.price)}
+            />
+            {errors.price && <span className="field-error">{errors.price}</span>}
+          </div>
+          </div>
+        </div>
+
+        <div className="fieldset">
+          <div className="fieldset-title">
+            <Icon name="tag" size={16} />
+            Optional
+          </div>
+          <p className="fieldset-hint">
+            Handy but never required — leave anything here blank if your shop does not use it.
+          </p>
+
+          <div className="form-grid">
           <div className="field span-2">
             <label htmlFor="field-category">Category</label>
-            <div className="inline-add">
-              <select
-                id="field-category"
-                className="select"
-                value={draft.categoryId}
-                onChange={(e) => set('categoryId', e.target.value)}
-              >
-                <option value="">No category</option>
-                {db.categories.map((category) => (
-                  <option key={category.id} value={category.id}>{category.name}</option>
-                ))}
-              </select>
-            </div>
+            <select
+              id="field-category"
+              className="select"
+              value={draft.categoryId}
+              onChange={(e) => set('categoryId', e.target.value)}
+            >
+              <option value="">No category</option>
+              {db.categories.map((category) => (
+                <option key={category.id} value={category.id}>{category.name}</option>
+              ))}
+            </select>
             <div className="inline-add" style={{ marginTop: 4 }}>
               <div className="field">
                 <input
@@ -251,32 +289,15 @@ export function ItemDialog({ item, onClose }: ItemDialogProps) {
           </div>
 
           <div className="field">
-            <label htmlFor="field-quantity">Stock quantity</label>
+            <label htmlFor="field-sku">Item code / SKU</label>
             <input
-              id="field-quantity"
+              id="field-sku"
               className="input"
-              type="number"
-              min={0}
-              step={1}
-              value={draft.quantity}
-              onChange={(e) => set('quantity', e.target.value)}
-              aria-invalid={Boolean(errors.quantity)}
+              value={draft.sku}
+              onChange={(e) => set('sku', e.target.value)}
+              placeholder="Your own reference"
+              autoComplete="off"
             />
-            {errors.quantity && <span className="field-error">{errors.quantity}</span>}
-          </div>
-
-          <div className="field">
-            <label htmlFor="field-price">Selling price ({db.settings.currency})</label>
-            <input
-              id="field-price"
-              className="input"
-              inputMode="decimal"
-              value={draft.price}
-              onChange={(e) => set('price', e.target.value)}
-              placeholder="0.00"
-              aria-invalid={Boolean(errors.price)}
-            />
-            {errors.price && <span className="field-error">{errors.price}</span>}
           </div>
 
           <div className="field">
@@ -320,17 +341,29 @@ export function ItemDialog({ item, onClose }: ItemDialogProps) {
               autoComplete="off"
             />
           </div>
+          <div className="field span-2">
+            <label htmlFor="field-notes">Notes</label>
+            <textarea
+              id="field-notes"
+              className="textarea"
+              value={draft.notes}
+              onChange={(e) => set('notes', e.target.value)}
+              placeholder="Anything you want to remember about this item"
+            />
+          </div>
+          </div>
         </div>
 
         <div className="fieldset">
           <div className="fieldset-title">
             <Icon name="fields" size={16} />
-            Extra details
+            Your own details
+            <span className="counter-pill">{fields.length} of {maxFields} used</span>
           </div>
           <p className="fieldset-hint">
-            Add your own details so MyVault fits your shop — size for clothes, age range for toys,
-            colour, expiry date, anything. They appear on every item and you can search and sort by
-            them.
+            Beyond the four standard ones, you can add up to {maxFields} details of your own — size
+            for clothes, age range for toys, colour, expiry date. They appear on every item and you
+            can search, filter and sort by them.
           </p>
 
           {fields.length > 0 && (
@@ -356,22 +389,19 @@ export function ItemDialog({ item, onClose }: ItemDialogProps) {
               }}
             />
           ) : (
-            <button type="button" className="btn" onClick={() => setShowFieldForm(true)}>
+            <button
+              type="button"
+              className="btn"
+              onClick={() => setShowFieldForm(true)}
+              disabled={fieldsAreFull}
+              title={fieldsAreFull ? `You already have all ${maxFields} extra details` : undefined}
+            >
               <Icon name="plus" size={16} />
-              Add a detail (Size, Age, Colour…)
+              {fieldsAreFull
+                ? `All ${maxFields} details used`
+                : 'Add a detail (Size, Age, Colour…)'}
             </button>
           )}
-        </div>
-
-        <div className="field">
-          <label htmlFor="field-notes">Notes</label>
-          <textarea
-            id="field-notes"
-            className="textarea"
-            value={draft.notes}
-            onChange={(e) => set('notes', e.target.value)}
-            placeholder="Anything you want to remember about this item"
-          />
         </div>
       </form>
     </Modal>

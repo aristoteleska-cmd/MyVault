@@ -37,9 +37,17 @@ export interface Item {
 
 export type ThemeChoice = 'light' | 'dark' | 'system';
 
+export type AccentChoice = 'blue' | 'teal' | 'green' | 'purple' | 'orange' | 'graphite';
+
+export type DensityChoice = 'comfortable' | 'compact';
+
 export interface Settings {
   currency: string;
   theme: ThemeChoice;
+  accent: AccentChoice;
+  density: DensityChoice;
+  /** Interface scale, 0.8–1.4. Applied through Electron's own zoom factor. */
+  zoom: number;
   defaultLowStockThreshold: number;
   shopName: string;
   dateFormat: string;
@@ -47,12 +55,14 @@ export interface Settings {
 
 export interface Database {
   schemaVersion: number;
+  appVersion?: string;
   createdAt: string;
   settings: Settings;
   categories: Category[];
   customFields: CustomField[];
   items: Item[];
   recoveredFrom?: string;
+  downgradedFrom?: number;
 }
 
 export interface AppInfo {
@@ -60,6 +70,10 @@ export interface AppInfo {
   dataFile: string;
   dataDir: string;
   portable: boolean;
+  /** The four details every item always has. */
+  standardFields: string[];
+  maxCustomFields: number;
+  offline: boolean;
 }
 
 export type ItemDraft = Omit<Item, 'id' | 'createdAt' | 'updatedAt'>;

@@ -1,14 +1,27 @@
 'use strict';
 
-const { app, BrowserWindow, ipcMain, dialog, shell, Menu, nativeTheme } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell, Menu, nativeTheme, session } = require('electron');
 const fs = require('fs');
 const path = require('path');
 
-const { Store } = require('./store');
+const { Store, STANDARD_FIELDS, MAX_CUSTOM_FIELDS } = require('./store');
+const { NETWORK_SWITCHES, DISABLED_FEATURES, enforceOffline } = require('./offline');
 const { parseCsv, toCsv } = require('./csv');
 
 const isDev = process.env.MYVAULT_DEV === '1';
 const ICON_PATH = path.join(__dirname, '..', 'build', 'icon.ico');
+
+/**
+ * MyVault is an offline program and stays that way once installed.
+ *
+ * Two layers enforce it. First, the Chromium services that would otherwise chat
+ * to the network on their own — component updates, safe-browsing lists, metrics,
+ * autofill sync — are switched off before the engine starts. Second, every
+ * request the app makes at runtime is cancelled unless it is loading MyVault's
+ * own bundled files from disk. The rules themselves live in ./offline.js.
+ */
+for (const flag of NETWORK_SWITCHES) app.commandLine.appendSwitch(flag);
+app.commandLine.appendSwitch('disable-features', DISABLED_FEATURES);
 
 /**
  * Where the shop's data lives.
@@ -72,12 +85,9 @@ function createWindow() {
     mainWindow.loadFile(path.join(__dirname, '..', 'dist', 'index.html'));
   }
 
-  // Anything that is not the app itself opens in the real browser, never inside
-  // the app shell.
-  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    if (/^https?:\/\//i.test(url)) shell.openExternal(url);
-    return { action: 'deny' };
-  });
+  // No second windows, and no handing a URL off to a browser either — the app
+  // has no reason to send anyone anywhere.
+  mainWindow.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   mainWindow.webContents.on('will-navigate', (event, url) => {
     const allowed = isDev ? 'http://localhost:5173' : 'file://';
     if (!url.startsWith(allowed)) event.preventDefault();
@@ -169,6 +179,9 @@ function registerIpc() {
     dataFile: store.file,
     dataDir: store.dataDir,
     portable: Boolean(process.env.PORTABLE_EXECUTABLE_DIR),
+    standardFields: STANDARD_FIELDS,
+    maxCustomFields: MAX_CUSTOM_FIELDS,
+    offline: true,
   }));
 
   handle('state:get', () => store.getState());
@@ -289,7 +302,8 @@ function registerIpc() {
     });
     if (confirm.response !== 1) return { canceled: true };
 
-    store.maybeBackup();
+    // Keep the inventory being replaced, in case the backup was the wrong file.
+    store.snapshot('before-restore');
     const state = store.replaceAll(parsed);
     return { canceled: false, state };
   });
@@ -309,7 +323,9 @@ function registerIpc() {
 }
 
 app.whenReady().then(() => {
-  store = new Store(resolveDataDir());
+  enforceOffline(session.defaultSession, { isDev });
+
+  store = new Store(resolveDataDir(), app.getVersion());
   store.init();
 
   const theme = store.getState().settings.theme;

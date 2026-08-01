@@ -71,6 +71,9 @@ export interface MyVaultBridge {
     update(patch: Partial<Settings>): Promise<Result<Settings>>;
   };
 
+  /** Scales the whole interface. Returns the factor actually applied. */
+  setZoom(factor: number): number;
+
   data: {
     exportCsv(): Promise<Result<ExportResult>>;
     importCsv(): Promise<Result<ImportResult>>;

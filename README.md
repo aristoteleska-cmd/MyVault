@@ -13,11 +13,24 @@ No account, no subscription, no internet connection.
 
 **Your products**
 
-- Name, barcode, item code, category, stock quantity, selling price and cost price
-- Your own extra details: **Size** for a clothes shop, **Age range** for a toy
-  shop, **Expiry date** for a mini-market — anything you need. Add them once and
-  they appear on every item.
-- Notes and supplier for each product
+Every item always has the same four standard details:
+
+| Standard detail | |
+| --- | --- |
+| **Name** | what the product is called |
+| **Price** | what you sell it for |
+| **Quantity** | how many you have |
+| **Barcode** | scan it or type it |
+
+If your shop needs more than that, press **Add a detail** and create your own —
+**Size** for a clothes shop, **Age range** for a toy shop, **Expiry date** for a
+mini-market. You can have **up to 5** extra details, and each one can be free
+text, a number, a date, a yes/no, or a list you choose from. They appear on every
+item and you can search, filter and sort by them.
+
+Optional extras are there when you want them and ignorable when you don't:
+category, item code/SKU, cost price, supplier, a per-item low-stock limit and
+notes.
 
 **Finding things**
 
@@ -39,13 +52,60 @@ No account, no subscription, no internet connection.
 - Delete with a one-click **Undo**
 - Import and export CSV so a list you already keep in Excel comes across in one go
 
+**Making it yours**
+
+- Light theme, dark theme, or follow Windows
+- Six accent colours, so the app can match your shop
+- Comfortable or compact rows — compact fits noticeably more products on screen
+- Four text sizes, scaling the whole app for a small till screen or a big monitor
+
 **Your data**
 
 - Everything is in a single file on your computer
 - Written safely (a crash mid-save can never corrupt the file) with automatic
   rolling backups
 - Backup and restore to a USB stick whenever you like
-- Light and dark themes
+
+---
+
+## Completely offline
+
+Once installed, MyVault never touches the internet. This is enforced, not just
+promised:
+
+- Every network request the app could make is **cancelled before it leaves** —
+  only MyVault's own files on your disk are ever loaded.
+- The parts of the browser engine underneath that normally phone home on their
+  own (update checks, safe-browsing lists, crash reports, usage metrics) are
+  **switched off before the engine starts**.
+- The interface is locked to its own bundled files, so nothing external can be
+  pulled in even if it wanted to.
+- Camera, microphone and location permissions are refused outright.
+- There is no account, no login, no sync and no telephone-home. Nothing about
+  your shop is sent anywhere, ever.
+
+The test suite checks this directly: it launches the real app and tries to reach
+the network by five different routes, and every one has to fail.
+
+---
+
+## Updating the app
+
+Installing a newer version replaces **the program only** — your inventory is kept
+somewhere separate and is never touched by the installer. You do not need to
+export anything first.
+
+To update: download the newer installer and run it over the top. Your items,
+categories, extra details and every setting stay exactly as they were.
+
+Extra safety on top of that: the first time a new version opens your file, it
+takes an untouched copy of it first — `myvault-before-1.0.0-…json` in the backups
+folder. If an update ever misbehaves, that copy is the way back. Those snapshots
+are never rotated away by routine backups.
+
+The data file carries a version stamp, so a future release knows how to read a
+file written by an older one. If an older version is ever asked to open a newer
+file, it keeps the original safe rather than overwriting it.
 
 ---
 
@@ -97,6 +157,7 @@ electron/          Main process — the only code that touches the disk
   main.js          Window, native menus, file dialogs, IPC handlers
   preload.js       The narrow bridge exposed to the UI as window.myvault
   store.js         The JSON store: validation, atomic writes, backups, CSV import
+  offline.js       The rules that keep the app off the network
   csv.js           Dependency-free CSV reader/writer
 src/               The user interface (React + TypeScript)
   components/      Screens and widgets
@@ -141,7 +202,9 @@ Only `Name` is required. These column names are understood:
 `Low stock threshold`, `Supplier`, `Notes`
 
 **Any other column becomes one of your extra details automatically** — so a
-`Size` or `Age range` column comes across without you setting anything up first.
+`Size` or `Age range` column comes across without you setting anything up first,
+up to the limit of 5. If a sheet has more columns than that, the products are
+still imported and MyVault tells you which columns it had to leave out.
 Categories that do not exist yet are created. Rows whose barcode matches a
 product you already have update that product instead of duplicating it.
 
