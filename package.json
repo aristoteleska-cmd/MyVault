@@ -1,0 +1,88 @@
+{
+  "name": "myvault",
+  "productName": "MyVault",
+  "version": "1.0.0",
+  "description": "Offline stock and inventory manager for small shops. All data stays on your computer.",
+  "author": {
+    "name": "MyVault"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/aristoteleska-cmd/myvault.git"
+  },
+  "private": true,
+  "main": "electron/main.js",
+  "scripts": {
+    "dev": "concurrently -k -n VITE,ELECTRON -c cyan,magenta \"vite\" \"wait-on tcp:5173 && cross-env MYVAULT_DEV=1 electron .\"",
+    "build": "tsc --noEmit && vite build",
+    "start": "npm run build && electron .",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "dist:win": "npm run build && electron-builder --win --x64",
+    "dist:dir": "npm run build && electron-builder --dir",
+    "test": "node scripts/run-tests.mjs",
+    "icon": "python build/make-icon.py"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@types/react": "^19.2.2",
+    "@types/react-dom": "^19.2.2",
+    "@vitejs/plugin-react": "^5.1.0",
+    "concurrently": "^9.2.1",
+    "cross-env": "^10.1.0",
+    "electron": "^38.0.0",
+    "electron-builder": "^26.0.12",
+    "esbuild": "^0.25.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "typescript": "^5.9.3",
+    "vite": "^7.1.7",
+    "wait-on": "^9.0.1"
+  },
+  "build": {
+    "appId": "com.myvault.app",
+    "productName": "MyVault",
+    "copyright": "Copyright \u00a9 MyVault",
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "artifactName": "MyVault-${version}-setup.${ext}",
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "MyVault",
+      "uninstallDisplayName": "MyVault",
+      "deleteAppDataOnUninstall": false
+    },
+    "portable": {
+      "artifactName": "MyVault-${version}-portable.${ext}"
+    }
+  }
+}
