@@ -22,6 +22,8 @@ export interface ImportResult {
   skipped?: number;
   newCategories?: number;
   newFields?: number;
+  /** Columns that could not become details because the ceiling was reached. */
+  droppedColumns?: string[];
   state?: Database;
 }
 
@@ -59,7 +61,6 @@ export interface MyVaultBridge {
       name: string;
       type: FieldType;
       options?: string[];
-      required?: boolean;
       showInTable?: boolean;
     }): Promise<Result<Database>>;
     update(id: string, patch: Partial<CustomField>): Promise<Result<Database>>;

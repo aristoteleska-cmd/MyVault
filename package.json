@@ -6,7 +6,7 @@
   "author": {
     "name": "MyVault"
   },
-  "license": "MIT",
+  "license": "SEE LICENSE IN LICENSE",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/aristoteleska-cmd/myvault.git"
@@ -19,8 +19,8 @@
     "start": "npm run build && electron .",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
-    "dist:win": "npm run build && electron-builder --win --x64",
-    "dist:dir": "npm run build && electron-builder --dir",
+    "dist:win": "npm run build && node scripts/sync-license.mjs && electron-builder --win --x64",
+    "dist:dir": "npm run build && node scripts/sync-license.mjs && electron-builder --dir",
     "test": "node scripts/run-tests.mjs",
     "icon": "python build/make-icon.py"
   },
@@ -79,7 +79,29 @@
       "createStartMenuShortcut": true,
       "shortcutName": "MyVault",
       "uninstallDisplayName": "MyVault",
-      "deleteAppDataOnUninstall": false
+      "deleteAppDataOnUninstall": false,
+      "include": "build/installer.nsh",
+      "license": "build/license.txt",
+      "multiLanguageInstaller": true,
+      "displayLanguageSelector": true,
+      "installerLanguages": [
+        "en_US",
+        "zh_CN",
+        "zh_TW",
+        "hi_IN",
+        "es_ES",
+        "fr_FR",
+        "ar_SA",
+        "pt_BR",
+        "ru_RU",
+        "id_ID",
+        "de_DE",
+        "ja_JP",
+        "tr_TR",
+        "vi_VN",
+        "ko_KR",
+        "el_GR"
+      ]
     },
     "portable": {
       "artifactName": "MyVault-${version}-portable.${ext}"

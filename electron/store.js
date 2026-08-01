@@ -20,6 +20,9 @@ const BACKUP_INTERVAL_MS = 12 * 60 * 60 * 1000; // at most one backup per 12h
 /**
  * Every item always has these four. Anything beyond them is the shop's own
  * choice, and there is a hard ceiling so the stock list stays readable.
+ *
+ * Only the name is ever mandatory — every other box, standard or custom, can be
+ * left empty so a half-known product can be saved now and finished later.
  */
 const STANDARD_FIELDS = ['Name', 'Price', 'Quantity', 'Barcode'];
 const MAX_CUSTOM_FIELDS = 5;
@@ -35,6 +38,8 @@ const MAX_ZOOM = 1.4;
 
 const DEFAULT_SETTINGS = {
   currency: '€',
+  /** Empty means "follow the language chosen at install / used by Windows". */
+  language: '',
   theme: 'system',
   accent: 'blue',
   density: 'comfortable',
@@ -89,6 +94,7 @@ function normalizeSettings(input) {
   settings.accent = pickFrom(ACCENTS, settings.accent, DEFAULT_SETTINGS.accent);
   settings.density = pickFrom(DENSITIES, settings.density, DEFAULT_SETTINGS.density);
   settings.currency = asString(settings.currency, 4) || DEFAULT_SETTINGS.currency;
+  settings.language = asString(settings.language, 12);
   settings.shopName = asString(settings.shopName, 80);
   settings.defaultLowStockThreshold = Math.max(0, clampQuantity(settings.defaultLowStockThreshold));
 
@@ -209,7 +215,6 @@ class Store {
             options: Array.isArray(f.options)
               ? f.options.map((o) => asString(o, 80)).filter(Boolean)
               : [],
-            required: Boolean(f.required),
             showInTable: f.showInTable !== false,
             order: Number.isFinite(f.order) ? f.order : index,
           }))
@@ -431,7 +436,7 @@ class Store {
 
   // ------------------------------------------------------------ custom fields
 
-  addField({ name, type, options, required, showInTable }) {
+  addField({ name, type, options, showInTable }) {
     const clean = asString(name, 60).trim();
     if (!clean) throw new Error('Field name is required');
 
@@ -454,7 +459,6 @@ class Store {
       name: clean,
       type: FIELD_TYPES.includes(type) ? type : 'text',
       options: Array.isArray(options) ? options.map((o) => asString(o, 80)).filter(Boolean) : [],
-      required: Boolean(required),
       showInTable: showInTable !== false,
       order: this.db.customFields.length,
     };
@@ -477,7 +481,6 @@ class Store {
         ? patch.options.map((o) => asString(o, 80)).filter(Boolean)
         : [];
     }
-    if (patch.required !== undefined) field.required = Boolean(patch.required);
     if (patch.showInTable !== undefined) field.showInTable = Boolean(patch.showInTable);
     this.persist();
     return this.db;
@@ -586,7 +589,6 @@ class Store {
             name: key.replace(/\b\w/g, (m) => m.toUpperCase()),
             type: 'text',
             options: [],
-            required: false,
             showInTable: true,
             order: this.db.customFields.length,
           };

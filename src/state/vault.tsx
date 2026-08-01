@@ -17,13 +17,21 @@ import type {
   Item,
   Settings,
 } from '../types';
-import type { Result } from '../bridge';
+import type { ImportResult, Result } from '../bridge';
+import type { TranslationKey } from '../i18n/locales/en';
 
+/**
+ * A toast holds a translation key rather than a finished sentence, so the text
+ * is produced in the current language at the moment it is shown.
+ */
 export interface Toast {
   id: number;
-  message: string;
+  key: TranslationKey;
+  vars?: Record<string, string | number>;
+  /** Used for messages that come back from the main process already worded. */
+  raw?: string;
   tone: 'info' | 'success' | 'error';
-  action?: { label: string; run: () => void };
+  action?: { labelKey: TranslationKey; run: () => void };
 }
 
 interface VaultValue {
@@ -32,7 +40,17 @@ interface VaultValue {
   db: Database;
   info: AppInfo | null;
   toasts: Toast[];
-  notify: (message: string, tone?: Toast['tone'], action?: Toast['action']) => void;
+  /** Set after a CSV import so the UI can word the summary in its own language. */
+  importSummary: ImportResult | null;
+  clearImportSummary: () => void;
+  /** Shows an already-worded import summary produced by the UI. */
+  notifyImport: (summary: string) => void;
+  notify: (
+    key: TranslationKey,
+    vars?: Record<string, string | number>,
+    tone?: Toast['tone'],
+    action?: Toast['action'],
+  ) => void;
   dismissToast: (id: number) => void;
 
   addItem: (input: Partial<Item>) => Promise<Item | null>;
@@ -48,7 +66,6 @@ interface VaultValue {
     name: string;
     type: FieldType;
     options?: string[];
-    required?: boolean;
     showInTable?: boolean;
   }) => Promise<boolean>;
   updateField: (id: string, patch: Partial<CustomField>) => Promise<void>;
@@ -69,6 +86,7 @@ const emptyDb: Database = {
   createdAt: '',
   settings: {
     currency: '€',
+    language: '',
     theme: 'system',
     accent: 'blue',
     density: 'comfortable',
@@ -90,19 +108,47 @@ export function VaultProvider({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [toasts, setToasts] = useState<Toast[]>([]);
+  const [importSummary, setImportSummary] = useState<ImportResult | null>(null);
   const toastId = useRef(0);
+
+  const clearImportSummary = useCallback(() => setImportSummary(null), []);
 
   const dismissToast = useCallback((id: number) => {
     setToasts((current) => current.filter((toast) => toast.id !== id));
   }, []);
 
   const notify = useCallback(
-    (message: string, tone: Toast['tone'] = 'info', action?: Toast['action']) => {
+    (
+      key: TranslationKey,
+      vars?: Record<string, string | number>,
+      tone: Toast['tone'] = 'info',
+      action?: Toast['action'],
+    ) => {
       toastId.current += 1;
       const id = toastId.current;
-      setToasts((current) => [...current.slice(-3), { id, message, tone, action }]);
+      setToasts((current) => [...current.slice(-3), { id, key, vars, tone, action }]);
       // Give people longer to react when there is a button to press.
       window.setTimeout(() => dismissToast(id), action ? 9000 : 4500);
+    },
+    [dismissToast],
+  );
+
+  const notifyImport = useCallback(
+    (summary: string) => notify('toast.imported', { summary }, 'success'),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
+  );
+
+  /** For text that arrives already worded from the main process. */
+  const notifyRaw = useCallback(
+    (raw: string, tone: Toast['tone'] = 'error') => {
+      toastId.current += 1;
+      const id = toastId.current;
+      setToasts((current) => [
+        ...current.slice(-3),
+        { id, key: 'toast.genericError' as TranslationKey, raw, tone },
+      ]);
+      window.setTimeout(() => dismissToast(id), 6000);
     },
     [dismissToast],
   );
@@ -113,16 +159,17 @@ export function VaultProvider({ children }: { children: ReactNode }) {
       try {
         const result = await promise;
         if (!result?.ok) {
-          notify(result?.error || 'Something went wrong.', 'error');
+          if (result?.error) notifyRaw(result.error);
+          else notify('toast.genericError', undefined, 'error');
           return null;
         }
         return (result.data ?? null) as T | null;
       } catch (error) {
-        notify(error instanceof Error ? error.message : String(error), 'error');
+        notifyRaw(error instanceof Error ? error.message : String(error));
         return null;
       }
     },
-    [notify],
+    [notify, notifyRaw],
   );
 
   useEffect(() => {
@@ -130,7 +177,7 @@ export function VaultProvider({ children }: { children: ReactNode }) {
 
     (async () => {
       if (!window.myvault) {
-        setLoadError('MyVault could not reach its local storage layer. Please restart the app.');
+        setLoadError('splash.noBridge');
         return;
       }
       const [state, appInfo] = await Promise.all([
@@ -140,19 +187,14 @@ export function VaultProvider({ children }: { children: ReactNode }) {
       if (cancelled) return;
 
       if (!state.ok || !state.data) {
-        setLoadError(state.error || 'Could not open your inventory file.');
+        setLoadError(state.error || 'splash.noFile');
         return;
       }
       setDb(state.data);
       if (appInfo.ok && appInfo.data) setInfo(appInfo.data);
       setReady(true);
 
-      if (state.data.recoveredFrom) {
-        notify(
-          'Your data file could not be read, so a fresh one was created. The old file is kept in the backups folder.',
-          'error',
-        );
-      }
+      if (state.data.recoveredFrom) notify('toast.recovered', undefined, 'error');
     })();
 
     return () => { cancelled = true; };
@@ -175,7 +217,7 @@ export function VaultProvider({ children }: { children: ReactNode }) {
       const item = await run(window.myvault.items.add(input));
       if (item) {
         replaceItem(item);
-        notify(`"${item.name}" added to your inventory.`, 'success');
+        notify('toast.added', { name: item.name }, 'success');
       }
       return item;
     },
@@ -187,7 +229,7 @@ export function VaultProvider({ children }: { children: ReactNode }) {
       const item = await run(window.myvault.items.update(id, patch));
       if (item) {
         replaceItem(item);
-        notify(`"${item.name}" saved.`, 'success');
+        notify('toast.saved', { name: item.name }, 'success');
       }
       return item;
     },
@@ -217,15 +259,16 @@ export function VaultProvider({ children }: { children: ReactNode }) {
       }));
 
       notify(
-        removed.length === 1 ? `"${removed[0].name}" deleted.` : `${removed.length} items deleted.`,
+        removed.length === 1 ? 'toast.deleted' : 'toast.deletedMany',
+        removed.length === 1 ? { name: removed[0].name } : { count: removed.length },
         'info',
         {
-          label: 'Undo',
+          labelKey: 'toast.undo',
           run: async () => {
             const restored = await run(window.myvault.items.restore(removed));
             if (restored) {
               setDb((current) => ({ ...current, items: [...current.items, ...restored] }));
-              notify('Restored.', 'success');
+              notify('toast.restored', undefined, 'success');
             }
           },
         },
@@ -269,7 +312,7 @@ export function VaultProvider({ children }: { children: ReactNode }) {
       const state = await run(window.myvault.categories.remove(id));
       if (state) {
         setDb(state);
-        notify('Category removed. Its items are still here, just uncategorised.', 'info');
+        notify('toast.categoryRemoved', undefined, 'info');
       }
     },
     [run, notify],
@@ -282,13 +325,12 @@ export function VaultProvider({ children }: { children: ReactNode }) {
       name: string;
       type: FieldType;
       options?: string[];
-      required?: boolean;
       showInTable?: boolean;
     }) => {
       const state = await run(window.myvault.fields.add(input));
       if (state) {
         setDb(state);
-        notify(`"${input.name}" is now available on every item.`, 'success');
+        notify('toast.detailAdded', { name: input.name }, 'success');
         return true;
       }
       return false;
@@ -309,7 +351,7 @@ export function VaultProvider({ children }: { children: ReactNode }) {
       const state = await run(window.myvault.fields.remove(id));
       if (state) {
         setDb(state);
-        notify('Detail removed from all items.', 'info');
+        notify('toast.detailRemoved', undefined, 'info');
       }
     },
     [run, notify],
@@ -338,7 +380,7 @@ export function VaultProvider({ children }: { children: ReactNode }) {
   const exportCsv = useCallback(async () => {
     const result = await run(window.myvault.data.exportCsv());
     if (result && !result.canceled) {
-      notify(`${result.count} items exported to ${result.filePath}`, 'success');
+      notify('toast.exported', { count: result.count ?? 0, path: result.filePath ?? '' }, 'success');
     }
   }, [run, notify]);
 
@@ -346,23 +388,20 @@ export function VaultProvider({ children }: { children: ReactNode }) {
     const result = await run(window.myvault.data.importCsv());
     if (result && !result.canceled) {
       if (result.state) setDb(result.state);
-      const parts = [`${result.added ?? 0} added`, `${result.updated ?? 0} updated`];
-      if (result.skipped) parts.push(`${result.skipped} skipped`);
-      if (result.newFields) parts.push(`${result.newFields} new details`);
-      notify(`Import finished — ${parts.join(', ')}.`, 'success');
+      setImportSummary(result);
     }
   }, [run, notify]);
 
   const backup = useCallback(async () => {
     const result = await run(window.myvault.data.backup());
-    if (result && !result.canceled) notify(`Backup saved to ${result.filePath}`, 'success');
+    if (result && !result.canceled) notify('toast.backupSaved', { path: result.filePath ?? '' }, 'success');
   }, [run, notify]);
 
   const restore = useCallback(async () => {
     const result = await run(window.myvault.data.restore());
     if (result && !result.canceled && result.state) {
       setDb(result.state);
-      notify('Backup restored.', 'success');
+      notify('toast.restoreDone', undefined, 'success');
     }
   }, [run, notify]);
 
@@ -377,6 +416,9 @@ export function VaultProvider({ children }: { children: ReactNode }) {
       db,
       info,
       toasts,
+      importSummary,
+      clearImportSummary,
+      notifyImport,
       notify,
       dismissToast,
       addItem,
@@ -398,7 +440,8 @@ export function VaultProvider({ children }: { children: ReactNode }) {
       openDataFolder,
     }),
     [
-      ready, loadError, db, info, toasts, notify, dismissToast,
+      ready, loadError, db, info, toasts, importSummary, clearImportSummary, notifyImport,
+      notify, dismissToast,
       addItem, updateItem, adjustStock, deleteItems,
       addCategory, updateCategory, deleteCategory,
       addField, updateField, deleteField, moveField,

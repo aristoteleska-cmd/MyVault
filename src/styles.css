@@ -344,7 +344,7 @@ button { font: inherit; color: inherit; }
   gap: var(--space-5);
   padding: var(--space-5) var(--space-3) var(--space-4);
   background: var(--surface);
-  border-right: 1px solid var(--border);
+  border-inline-end: 1px solid var(--border);
   overflow-y: auto;
 }
 
@@ -399,7 +399,7 @@ button { font: inherit; color: inherit; }
   font-weight: 650;
 }
 .nav-count {
-  margin-left: auto;
+  margin-inline-start: auto;
   font-size: 12px;
   font-weight: 600;
   color: var(--text-faint);
@@ -705,7 +705,7 @@ table.items tbody tr[data-selected="true"] { background: var(--accent-soft); }
 .col-actions {
   width: 92px;
   position: sticky;
-  right: 0;
+  inset-inline-end: 0;
   background: var(--surface);
   box-shadow: -1px 0 0 var(--border);
 }
@@ -713,7 +713,7 @@ thead th.col-actions { background: var(--surface-2); z-index: 3; }
 table.items tbody tr:hover .col-actions { background: var(--surface-2); }
 table.items tbody tr[data-selected="true"] .col-actions { background: var(--accent-soft); }
 .col-name { min-width: 210px; max-width: 340px; }
-.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.num { text-align: end; font-variant-numeric: tabular-nums; white-space: nowrap; }
 th.num .th-sort { justify-content: flex-end; }
 
 /* Long values shorten with an ellipsis rather than pushing the row taller. */
@@ -937,7 +937,7 @@ table.items tbody td > .item-meta { overflow: hidden; text-overflow: ellipsis; }
   color: var(--text-muted);
   white-space: nowrap;
 }
-.fieldset-title .counter-pill { margin-left: auto; }
+.fieldset-title .counter-pill { margin-inline-start: auto; }
 
 .inline-add { display: flex; gap: var(--space-2); align-items: flex-end; }
 .inline-add .field { flex: 1; }
@@ -1125,7 +1125,7 @@ table.items tbody td > .item-meta { overflow: hidden; text-overflow: ellipsis; }
 
 .toast-stack {
   position: fixed;
-  right: var(--space-5);
+  inset-inline-end: var(--space-5);
   bottom: var(--space-5);
   z-index: 90;
   display: flex;
@@ -1139,15 +1139,15 @@ table.items tbody td > .item-meta { overflow: hidden; text-overflow: ellipsis; }
   gap: var(--space-3);
   padding: var(--space-3) var(--space-3) var(--space-3) var(--space-4);
   border: 1px solid var(--border);
-  border-left: 3px solid var(--accent);
+  border-inline-start: 3px solid var(--accent);
   border-radius: var(--radius-md);
   background: var(--surface);
   box-shadow: var(--shadow-md);
   font-size: 14px;
   animation: slide-in 180ms var(--ease);
 }
-.toast.success { border-left-color: var(--success); }
-.toast.error { border-left-color: var(--danger); }
+.toast.success { border-inline-start-color: var(--success); }
+.toast.error { border-inline-start-color: var(--danger); }
 .toast-message { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .toast-action {
   border: 0;
@@ -1206,4 +1206,32 @@ table.items tbody td > .item-meta { overflow: hidden; text-overflow: ellipsis; }
   .topbar { flex-wrap: wrap; }
   .setting-row { flex-direction: column; align-items: flex-start; }
   .setting-control { width: 100%; }
+}
+
+/* ------------------------------------------------------------------- RTL
+   Arabic and Urdu run right-to-left. Most of the layout already uses flexbox
+   and logical properties, so only the handful of things that are genuinely
+   directional need flipping. */
+
+[dir="rtl"] .select {
+  padding-right: var(--space-3);
+  padding-left: 32px;
+  background-position: 17px 17px, 12px 17px;
+}
+[dir="rtl"] .scope-select {
+  padding-right: var(--space-2);
+  padding-left: 26px;
+  background-position: 14px 13px, 9px 13px;
+}
+[dir="rtl"] .col-actions { box-shadow: 1px 0 0 var(--border); }
+[dir="rtl"] .toast { animation-name: slide-in-rtl; }
+[dir="rtl"] .mono, [dir="rtl"] .num { direction: ltr; }
+
+/* Barcodes, prices and quantities stay left-to-right even in an RTL layout —
+   that is how digits are written and read in Arabic and Urdu too. */
+[dir="rtl"] td.num, [dir="rtl"] td.mono { text-align: left; }
+
+@keyframes slide-in-rtl {
+  from { opacity: 0; transform: translateX(-16px); }
+  to { opacity: 1; transform: none; }
 }

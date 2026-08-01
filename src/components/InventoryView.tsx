@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useVault } from '../state/vault';
 import { computeTotals, filterAndSort } from '../lib/search';
 import { formatMoney, formatNumber } from '../lib/format';
+import { useI18n, type TranslationKey } from '../i18n';
 import type { Filters, Item, SortKey, SortState, StockFilter } from '../types';
 import { Icon } from './Icon';
 import { ItemTable } from './ItemTable';
@@ -19,11 +20,11 @@ interface InventoryViewProps {
 
 const PAGE_SIZES = [25, 50, 100, 250];
 
-const STOCK_FILTERS: { value: StockFilter; label: string }[] = [
-  { value: 'all', label: 'All' },
-  { value: 'in-stock', label: 'In stock' },
-  { value: 'low', label: 'Low' },
-  { value: 'out', label: 'Out' },
+const STOCK_FILTERS: { value: StockFilter; labelKey: TranslationKey }[] = [
+  { value: 'all', labelKey: 'filters.all' },
+  { value: 'in-stock', labelKey: 'filters.inStock' },
+  { value: 'low', labelKey: 'filters.low' },
+  { value: 'out', labelKey: 'filters.out' },
 ];
 
 export function InventoryView({
@@ -37,6 +38,7 @@ export function InventoryView({
   onGoToFields,
 }: InventoryViewProps) {
   const { db, deleteItems, adjustStock, importCsv, exportCsv } = useVault();
+  const { t, locale } = useI18n();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState(50);
@@ -89,14 +91,14 @@ export function InventoryView({
   const selectFields = db.customFields.filter((field) => field.type === 'select');
 
   const sortOptions: { value: SortKey; label: string }[] = [
-    { value: 'name', label: 'Name' },
-    { value: 'quantity', label: 'Stock quantity' },
-    { value: 'price', label: 'Price' },
-    { value: 'value', label: 'Stock value' },
-    { value: 'category', label: 'Category' },
-    { value: 'barcode', label: 'Barcode' },
-    { value: 'updatedAt', label: 'Last updated' },
-    { value: 'createdAt', label: 'Date added' },
+    { value: 'name', label: t('sort.name') },
+    { value: 'quantity', label: t('sort.quantity') },
+    { value: 'price', label: t('sort.price') },
+    { value: 'value', label: t('sort.value') },
+    { value: 'category', label: t('sort.category') },
+    { value: 'barcode', label: t('sort.barcode') },
+    { value: 'updatedAt', label: t('sort.updated') },
+    { value: 'createdAt', label: t('sort.created') },
     ...db.customFields.map((field) => ({
       value: `custom:${field.id}` as SortKey,
       label: field.name,
@@ -155,8 +157,8 @@ export function InventoryView({
             type="search"
             value={filters.query}
             onChange={(e) => setFilters((current) => ({ ...current, query: e.target.value }))}
-            placeholder="Search by name, barcode or category…"
-            aria-label="Search your stock"
+            placeholder={t('search.placeholder')}
+            aria-label={t('search.aria')}
             autoComplete="off"
           />
           {filters.query && (
@@ -167,12 +169,12 @@ export function InventoryView({
                 setFilters((current) => ({ ...current, query: '' }));
                 searchRef.current?.focus();
               }}
-              aria-label="Clear search"
+              aria-label={t('search.clear')}
             >
               <Icon name="close" size={16} />
             </button>
           )}
-          <label className="visually-hidden" htmlFor="search-scope">Search in</label>
+          <label className="visually-hidden" htmlFor="search-scope">{t('search.in')}</label>
           <select
             id="search-scope"
             className="select scope-select"
@@ -181,69 +183,69 @@ export function InventoryView({
               setFilters((current) => ({ ...current, scope: e.target.value as Filters['scope'] }))
             }
           >
-            <option value="all">Everything</option>
-            <option value="name">Name only</option>
-            <option value="barcode">Barcode only</option>
-            <option value="category">Category only</option>
+            <option value="all">{t('scope.all')}</option>
+            <option value="name">{t('scope.name')}</option>
+            <option value="barcode">{t('scope.barcode')}</option>
+            <option value="category">{t('scope.category')}</option>
           </select>
         </div>
 
         <button type="button" className="btn btn-primary btn-lg" onClick={onNewItem}>
           <Icon name="plus" />
-          Add item
+          {t('action.addItem')}
         </button>
       </div>
 
       <div className="view">
-        <section className="stats" aria-label="Stock summary">
+        <section className="stats" aria-label={t('stats.aria')}>
           <div className="stat">
-            <span className="stat-label"><Icon name="box" size={14} />Different items</span>
-            <span className="stat-value">{formatNumber(totals.skus)}</span>
-            <span className="stat-foot">{formatNumber(totals.units)} pieces in total</span>
+            <span className="stat-label"><Icon name="box" size={14} />{t('stats.differentItems')}</span>
+            <span className="stat-value">{formatNumber(totals.skus, locale)}</span>
+            <span className="stat-foot">{t('stats.pieces', { count: formatNumber(totals.units, locale) })}</span>
           </div>
           <div className="stat">
-            <span className="stat-label"><Icon name="tag" size={14} />Stock value</span>
-            <span className="stat-value">{formatMoney(totals.retailValue, db.settings.currency)}</span>
+            <span className="stat-label"><Icon name="tag" size={14} />{t('stats.stockValue')}</span>
+            <span className="stat-value">{formatMoney(totals.retailValue, db.settings.currency, locale)}</span>
             <span className="stat-foot">
-              at cost {formatMoney(totals.costValue, db.settings.currency)}
+              {t('stats.atCost', { value: formatMoney(totals.costValue, db.settings.currency, locale) })}
             </span>
           </div>
           <div className={totals.lowStock ? 'stat is-warning' : 'stat'}>
-            <span className="stat-label"><Icon name="alert" size={14} />Running low</span>
-            <span className="stat-value">{formatNumber(totals.lowStock)}</span>
+            <span className="stat-label"><Icon name="alert" size={14} />{t('stats.runningLow')}</span>
+            <span className="stat-value">{formatNumber(totals.lowStock, locale)}</span>
             {totals.lowStock > 0 ? (
               <button
                 type="button"
                 className="stat-action"
                 onClick={() => setFilters((current) => ({ ...current, stock: 'low' }))}
               >
-                Show these items
+                {t('stats.showThese')}
               </button>
             ) : (
-              <span className="stat-foot">Everything is above its limit</span>
+              <span className="stat-foot">{t('stats.allAbove')}</span>
             )}
           </div>
           <div className={totals.outOfStock ? 'stat is-danger' : 'stat'}>
-            <span className="stat-label"><Icon name="alert" size={14} />Out of stock</span>
-            <span className="stat-value">{formatNumber(totals.outOfStock)}</span>
+            <span className="stat-label"><Icon name="alert" size={14} />{t('stats.outOfStock')}</span>
+            <span className="stat-value">{formatNumber(totals.outOfStock, locale)}</span>
             {totals.outOfStock > 0 ? (
               <button
                 type="button"
                 className="stat-action"
                 onClick={() => setFilters((current) => ({ ...current, stock: 'out' }))}
               >
-                Show these items
+                {t('stats.showThese')}
               </button>
             ) : (
-              <span className="stat-foot">Nothing has run out</span>
+              <span className="stat-foot">{t('stats.nothingOut')}</span>
             )}
           </div>
         </section>
 
-        <section className="toolbar" aria-label="Filters and sorting">
+        <section className="toolbar" aria-label={t('filters.aria')}>
           <div className="toolbar-group">
             <Icon name="filter" size={16} />
-            <span className="toolbar-label">Stock</span>
+            <span className="toolbar-label">{t('filters.stock')}</span>
             <div className="segmented">
               {STOCK_FILTERS.map((option) => (
                 <button
@@ -252,7 +254,7 @@ export function InventoryView({
                   aria-pressed={filters.stock === option.value}
                   onClick={() => setFilters((current) => ({ ...current, stock: option.value }))}
                 >
-                  {option.label}
+                  {t(option.labelKey)}
                 </button>
               ))}
             </div>
@@ -261,7 +263,7 @@ export function InventoryView({
           <div className="toolbar-divider" aria-hidden="true" />
 
           <div className="toolbar-group">
-            <label className="toolbar-label" htmlFor="sort-key">Sort by</label>
+            <label className="toolbar-label" htmlFor="sort-key">{t('filters.sortBy')}</label>
             <select
               id="sort-key"
               className="select"
@@ -277,10 +279,10 @@ export function InventoryView({
               type="button"
               className="btn btn-sm"
               onClick={() => setSort({ ...sort, direction: sort.direction === 'asc' ? 'desc' : 'asc' })}
-              title={sort.direction === 'asc' ? 'Ascending — click for descending' : 'Descending — click for ascending'}
+              title={sort.direction === 'asc' ? t('filters.ascTitle') : t('filters.descTitle')}
             >
               <Icon name={sort.direction === 'asc' ? 'arrowUp' : 'arrowDown'} size={15} />
-              {sort.direction === 'asc' ? 'A → Z' : 'Z → A'}
+              {sort.direction === 'asc' ? t('filters.asc') : t('filters.desc')}
             </button>
           </div>
 
@@ -301,7 +303,7 @@ export function InventoryView({
                   }))
                 }
               >
-                <option value="">Any</option>
+                <option value="">{t('filters.any')}</option>
                 {field.options.map((option) => (
                   <option key={option} value={option}>{option}</option>
                 ))}
@@ -314,20 +316,20 @@ export function InventoryView({
           {isFiltered && (
             <button type="button" className="btn btn-sm" onClick={resetFilters}>
               <Icon name="close" size={15} />
-              Clear filters
+              {t('filters.clear')}
             </button>
           )}
         </section>
 
         {db.categories.length > 0 && (
-          <div className="chip-scroller" role="group" aria-label="Filter by category">
+          <div className="chip-scroller" role="group" aria-label={t('filters.byCategory')}>
             <button
               type="button"
               className="chip"
               aria-pressed={filters.categoryIds.length === 0}
               onClick={() => setFilters((current) => ({ ...current, categoryIds: [] }))}
             >
-              All categories
+              {t('filters.allCategories')}
             </button>
             {db.categories.map((category) => (
               <button
@@ -347,7 +349,7 @@ export function InventoryView({
               aria-pressed={filters.categoryIds.includes('__none__')}
               onClick={() => toggleCategory('__none__')}
             >
-              Uncategorised
+              {t('filters.uncategorised')}
             </button>
           </div>
         )}
@@ -355,7 +357,7 @@ export function InventoryView({
         <div className="table-card">
           {selected.size > 0 && (
             <div className="bulk-bar">
-              <span>{selected.size} selected</span>
+              <span>{t('bulk.selected', { count: selected.size })}</span>
               <button
                 type="button"
                 className="btn btn-sm btn-danger"
@@ -365,10 +367,10 @@ export function InventoryView({
                 }}
               >
                 <Icon name="trash" size={15} />
-                Delete selected
+                {t('bulk.delete')}
               </button>
               <button type="button" className="btn btn-sm" onClick={() => setSelected(new Set())}>
-                Clear selection
+                {t('bulk.clear')}
               </button>
             </div>
           )}
@@ -376,35 +378,29 @@ export function InventoryView({
           {db.items.length === 0 ? (
             <div className="empty">
               <div className="empty-art"><Icon name="box" size={28} /></div>
-              <h3>Your shop is empty — let's fill it</h3>
-              <p>
-                Add your products one by one, or bring in a list you already have in Excel.
-                Everything stays on this computer.
-              </p>
+              <h3>{t('empty.noItemsTitle')}</h3>
+              <p>{t('empty.noItemsBody')}</p>
               <div className="empty-actions">
                 <button type="button" className="btn btn-primary btn-lg" onClick={onNewItem}>
                   <Icon name="plus" />
-                  Add your first item
+                  {t('empty.addFirst')}
                 </button>
                 <button type="button" className="btn btn-lg" onClick={() => void importCsv()}>
                   <Icon name="upload" />
-                  Import from CSV
+                  {t('tools.import')}
                 </button>
               </div>
             </div>
           ) : visible.length === 0 ? (
             <div className="empty">
               <div className="empty-art"><Icon name="search" size={28} /></div>
-              <h3>Nothing matches that search</h3>
-              <p>
-                Try a shorter word, check the search mode next to the search box, or clear the
-                filters to see everything again.
-              </p>
+              <h3>{t('empty.noMatchTitle')}</h3>
+              <p>{t('empty.noMatchBody')}</p>
               <div className="empty-actions">
-                <button type="button" className="btn" onClick={resetFilters}>Clear filters</button>
+                <button type="button" className="btn" onClick={resetFilters}>{t('filters.clear')}</button>
                 <button type="button" className="btn btn-primary" onClick={onNewItem}>
                   <Icon name="plus" size={16} />
-                  Add it as a new item
+                  {t('empty.addAsNew')}
                 </button>
               </div>
             </div>
@@ -442,11 +438,18 @@ export function InventoryView({
 
               <div className="table-foot">
                 <span>
-                  Showing {formatNumber(pageItems.length)} of {formatNumber(visible.length)}
-                  {isFiltered ? ` matching items · ${formatMoney(visibleTotals.retailValue, db.settings.currency)} value` : ' items'}
+                  {t('foot.showing', {
+                    shown: formatNumber(pageItems.length, locale),
+                    total: formatNumber(visible.length, locale),
+                  })}{' '}
+                  {isFiltered
+                    ? t('foot.matching', {
+                        value: formatMoney(visibleTotals.retailValue, db.settings.currency, locale),
+                      })
+                    : t('foot.items')}
                 </span>
 
-                <label className="visually-hidden" htmlFor="page-size">Items per page</label>
+                <label className="visually-hidden" htmlFor="page-size">{t('foot.perPageLabel')}</label>
                 <select
                   id="page-size"
                   className="select"
@@ -455,7 +458,7 @@ export function InventoryView({
                   onChange={(e) => setPageSize(Number(e.target.value))}
                 >
                   {PAGE_SIZES.map((size) => (
-                    <option key={size} value={size}>{size} per page</option>
+                    <option key={size} value={size}>{t('foot.perPage', { size })}</option>
                   ))}
                 </select>
 
@@ -466,19 +469,19 @@ export function InventoryView({
                       className="icon-btn"
                       onClick={() => setPage((p) => Math.max(0, p - 1))}
                       disabled={safePage === 0}
-                      aria-label="Previous page"
+                      aria-label={t('foot.prev')}
                     >
                       <Icon name="chevronLeft" size={16} />
                     </button>
                     <span style={{ padding: '0 8px' }}>
-                      Page {safePage + 1} of {pageCount}
+                      {t('foot.page', { page: safePage + 1, pages: pageCount })}
                     </span>
                     <button
                       type="button"
                       className="icon-btn"
                       onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))}
                       disabled={safePage >= pageCount - 1}
-                      aria-label="Next page"
+                      aria-label={t('foot.next')}
                     >
                       <Icon name="chevronRight" size={16} />
                     </button>
@@ -493,25 +496,24 @@ export function InventoryView({
           <div className="toolbar-group">
             <button type="button" className="btn btn-sm" onClick={() => void importCsv()}>
               <Icon name="upload" size={15} />
-              Import CSV
+              {t('tools.import')}
             </button>
             <button type="button" className="btn btn-sm" onClick={() => void exportCsv()}>
               <Icon name="download" size={15} />
-              Export CSV
+              {t('tools.export')}
             </button>
             <button type="button" className="btn btn-sm" onClick={onGoToFields}>
               <Icon name="fields" size={15} />
-              Manage extra details
+              {t('tools.manageDetails')}
             </button>
           </div>
           <span className="field-hint">
-            Tip: <kbd>Ctrl</kbd> + <kbd>N</kbd> adds an item, <kbd>Ctrl</kbd> + <kbd>F</kbd> jumps to search,
-            double-clicking a row edits it. Scanning a barcode anywhere finds the item.
+            {t('tools.tip', { new: 'Ctrl + N', find: 'Ctrl + F' })}
           </span>
         </div>
 
         <div className="visually-hidden" role="status" aria-live="polite" ref={liveRegion}>
-          {visible.length} items match your search.
+          {t('tools.matchCount', { count: visible.length })}
         </div>
       </div>
     </>

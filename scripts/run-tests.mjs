@@ -20,6 +20,7 @@ const scratch = mkdtempSync(join(tmpdir(), 'myvault-tests-'));
 const suites = [
   { name: 'store + CSV', file: 'tests/store.test.js', typescript: false },
   { name: 'search + sort', file: 'tests/search.test.ts', typescript: true },
+  { name: 'translations', file: 'tests/i18n.test.ts', typescript: true },
 ];
 
 let failed = false;
@@ -37,6 +38,7 @@ try {
         bundle: true,
         platform: 'node',
         format: 'cjs',
+        loader: { '.json': 'json' },
         logLevel: 'error',
       });
     }

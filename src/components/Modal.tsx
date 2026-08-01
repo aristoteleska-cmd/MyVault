@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, type ReactNode } from 'react';
+import { useT } from '../i18n';
 import { Icon } from './Icon';
 
 const FOCUSABLE =
@@ -24,6 +25,7 @@ export function Modal({
   size = 'md',
   disableBackdropClose = false,
 }: ModalProps) {
+  const t = useT();
   const dialogRef = useRef<HTMLDivElement>(null);
   const titleId = useId();
   const descriptionId = useId();
@@ -85,7 +87,7 @@ export function Modal({
             <h2 id={titleId}>{title}</h2>
             {description && <p id={descriptionId}>{description}</p>}
           </div>
-          <button type="button" className="icon-btn" onClick={onClose} aria-label="Close">
+          <button type="button" className="icon-btn" onClick={onClose} aria-label={t('dialog.close')}>
             <Icon name="close" />
           </button>
         </div>

@@ -1,73 +1,100 @@
+import { useEffect } from 'react';
 import { useVault } from '../state/vault';
 import type { AccentChoice, DensityChoice, ThemeChoice } from '../types';
+import { LANGUAGES, resolveLanguage, useI18n, type TranslationKey } from '../i18n';
+import { TRANSLATED_LANGUAGES } from '../i18n/catalogues';
 import { Icon, type IconName } from './Icon';
 
 const CURRENCIES = ['€', '$', '£', 'CHF', '¥', 'zł', 'lei', 'kr'];
 
-const THEMES: { value: ThemeChoice; label: string; icon: IconName }[] = [
-  { value: 'light', label: 'Light', icon: 'sun' },
-  { value: 'dark', label: 'Dark', icon: 'moon' },
-  { value: 'system', label: 'Match Windows', icon: 'monitor' },
+const THEMES: { value: ThemeChoice; labelKey: TranslationKey; icon: IconName }[] = [
+  { value: 'light', labelKey: 'theme.light', icon: 'sun' },
+  { value: 'dark', labelKey: 'theme.dark', icon: 'moon' },
+  { value: 'system', labelKey: 'theme.system', icon: 'monitor' },
 ];
 
 // The swatch colours here are only for the buttons; the real values live in
 // styles.css so each accent can differ between the light and dark themes.
-const ACCENTS: { value: AccentChoice; label: string; swatch: string }[] = [
-  { value: 'blue', label: 'Blue', swatch: '#2f5fdb' },
-  { value: 'teal', label: 'Teal', swatch: '#0d7d76' },
-  { value: 'green', label: 'Green', swatch: '#1a7f45' },
-  { value: 'purple', label: 'Purple', swatch: '#6b3fc4' },
-  { value: 'orange', label: 'Amber', swatch: '#b45309' },
-  { value: 'graphite', label: 'Graphite', swatch: '#3f4756' },
+const ACCENTS: { value: AccentChoice; labelKey: TranslationKey; swatch: string }[] = [
+  { value: 'blue', labelKey: 'accent.blue', swatch: '#2f5fdb' },
+  { value: 'teal', labelKey: 'accent.teal', swatch: '#0d7d76' },
+  { value: 'green', labelKey: 'accent.green', swatch: '#1a7f45' },
+  { value: 'purple', labelKey: 'accent.purple', swatch: '#6b3fc4' },
+  { value: 'orange', labelKey: 'accent.orange', swatch: '#b45309' },
+  { value: 'graphite', labelKey: 'accent.graphite', swatch: '#3f4756' },
 ];
 
-const DENSITIES: { value: DensityChoice; label: string; hint: string }[] = [
-  { value: 'comfortable', label: 'Comfortable', hint: 'Roomy rows, easier to tap' },
-  { value: 'compact', label: 'Compact', hint: 'More products on screen at once' },
+const DENSITIES: { value: DensityChoice; labelKey: TranslationKey; hintKey: TranslationKey }[] = [
+  { value: 'comfortable', labelKey: 'density.comfortable', hintKey: 'density.comfortableHint' },
+  { value: 'compact', labelKey: 'density.compact', hintKey: 'density.compactHint' },
 ];
 
-const TEXT_SIZES: { value: number; label: string }[] = [
-  { value: 0.9, label: 'Small' },
-  { value: 1, label: 'Normal' },
-  { value: 1.15, label: 'Large' },
-  { value: 1.3, label: 'Extra large' },
+const TEXT_SIZES: { value: number; labelKey: TranslationKey }[] = [
+  { value: 0.9, labelKey: 'size.small' },
+  { value: 1, labelKey: 'size.normal' },
+  { value: 1.15, labelKey: 'size.large' },
+  { value: 1.3, labelKey: 'size.xlarge' },
 ];
 
 export function SettingsView() {
-  const { db, info, updateSettings, exportCsv, importCsv, backup, restore, openDataFolder } = useVault();
+  const {
+    db, info, updateSettings, exportCsv, importCsv, backup, restore, openDataFolder,
+    importSummary, clearImportSummary, notifyImport,
+  } = useVault();
+  const { t } = useI18n();
   const { settings } = db;
+
+  // The import result comes back as counts; the wording belongs here, where the
+  // translator is available.
+  useEffect(() => {
+    if (!importSummary) return;
+    const parts = [
+      t('toast.importAdded', { count: importSummary.added ?? 0 }),
+      t('toast.importUpdated', { count: importSummary.updated ?? 0 }),
+    ];
+    if (importSummary.skipped) parts.push(t('toast.importSkipped', { count: importSummary.skipped }));
+    if (importSummary.newFields) parts.push(t('toast.importNewFields', { count: importSummary.newFields }));
+    if (importSummary.droppedColumns?.length) {
+      parts.push(t('toast.importDropped', { names: importSummary.droppedColumns.join(', ') }));
+    }
+    notifyImport(parts.join(', '));
+    clearImportSummary();
+  }, [importSummary, t, notifyImport, clearImportSummary]);
+
+  const autoLanguage = resolveLanguage(info?.systemLocale);
+  const autoName = LANGUAGES.find((l) => l.code === autoLanguage)?.native ?? 'English';
 
   return (
     <div className="view">
       <div className="view-narrow" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
         <header className="view-header">
-          <h1 className="view-title">Settings</h1>
-          <p className="view-sub">Make MyVault match your shop, and look after your data.</p>
+          <h1 className="view-title">{t('settings.title')}</h1>
+          <p className="view-sub">{t('settings.sub')}</p>
         </header>
 
         <div className="panel">
-          <div className="panel-head">Your shop</div>
+          <div className="panel-head">{t('settings.shopPanel')}</div>
 
           <div className="setting-row">
             <div className="setting-text">
-              <div className="setting-title">Shop name</div>
-              <div className="setting-desc">Shown in the corner of the app. Optional.</div>
+              <div className="setting-title">{t('settings.shopName')}</div>
+              <div className="setting-desc">{t('settings.shopNameDesc')}</div>
             </div>
             <div className="setting-control">
               <input
                 className="input"
                 value={settings.shopName}
                 onChange={(e) => void updateSettings({ shopName: e.target.value })}
-                placeholder="e.g. Maria's Boutique"
-                aria-label="Shop name"
+                placeholder={t('settings.shopNamePlaceholder')}
+                aria-label={t('settings.shopName')}
               />
             </div>
           </div>
 
           <div className="setting-row">
             <div className="setting-text">
-              <div className="setting-title">Currency symbol</div>
-              <div className="setting-desc">Used everywhere prices and stock value are shown.</div>
+              <div className="setting-title">{t('settings.currency')}</div>
+              <div className="setting-desc">{t('settings.currencyDesc')}</div>
             </div>
             <div className="setting-control">
               <input
@@ -76,7 +103,7 @@ export function SettingsView() {
                 value={settings.currency}
                 maxLength={4}
                 onChange={(e) => void updateSettings({ currency: e.target.value })}
-                aria-label="Currency symbol"
+                aria-label={t('settings.currency')}
               />
               {CURRENCIES.map((symbol) => (
                 <button
@@ -94,11 +121,8 @@ export function SettingsView() {
 
           <div className="setting-row">
             <div className="setting-text">
-              <div className="setting-title">Low stock warning</div>
-              <div className="setting-desc">
-                Items at or below this quantity are flagged as running low. You can set a different
-                limit on any single item.
-              </div>
+              <div className="setting-title">{t('settings.lowStock')}</div>
+              <div className="setting-desc">{t('settings.lowStockDesc')}</div>
             </div>
             <div className="setting-control">
               <input
@@ -108,7 +132,7 @@ export function SettingsView() {
                 step={1}
                 value={settings.defaultLowStockThreshold}
                 onChange={(e) => void updateSettings({ defaultLowStockThreshold: Number(e.target.value) })}
-                aria-label="Default low stock quantity"
+                aria-label={t('settings.lowStockAria')}
               />
             </div>
           </div>
@@ -116,12 +140,38 @@ export function SettingsView() {
         </div>
 
         <div className="panel">
-          <div className="panel-head">Styling</div>
+          <div className="panel-head">{t('settings.stylingPanel')}</div>
 
           <div className="setting-row">
             <div className="setting-text">
-              <div className="setting-title">Theme</div>
-              <div className="setting-desc">Dark mode is easier on the eyes in a dim stockroom.</div>
+              <div className="setting-title">{t('settings.language')}</div>
+              <div className="setting-desc">
+                {t('settings.languageDesc', { count: LANGUAGES.length })}
+              </div>
+            </div>
+            <div className="setting-control">
+              <select
+                className="select"
+                value={settings.language}
+                onChange={(e) => void updateSettings({ language: e.target.value })}
+                aria-label={t('settings.language')}
+              >
+                <option value="">{t('settings.languageAuto', { name: autoName })}</option>
+                {LANGUAGES.map((language) => (
+                  <option key={language.code} value={language.code}>
+                    {language.native}
+                    {language.native === language.english ? '' : ` — ${language.english}`}
+                    {TRANSLATED_LANGUAGES.has(language.code) ? '' : ' *'}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="setting-row">
+            <div className="setting-text">
+              <div className="setting-title">{t('settings.theme')}</div>
+              <div className="setting-desc">{t('settings.themeDesc')}</div>
             </div>
             <div className="setting-control">
               <div className="segmented">
@@ -133,7 +183,7 @@ export function SettingsView() {
                     onClick={() => void updateSettings({ theme: theme.value })}
                   >
                     <Icon name={theme.icon} size={15} />
-                    {theme.label}
+                    {t(theme.labelKey)}
                   </button>
                 ))}
               </div>
@@ -142,14 +192,11 @@ export function SettingsView() {
 
           <div className="setting-row">
             <div className="setting-text">
-              <div className="setting-title">Colour</div>
-              <div className="setting-desc">
-                Sets the buttons, highlights and selected rows. Pick the one closest to your shop's
-                own colours.
-              </div>
+              <div className="setting-title">{t('settings.colour')}</div>
+              <div className="setting-desc">{t('settings.colourDesc')}</div>
             </div>
             <div className="setting-control">
-              <div className="swatch-row" role="radiogroup" aria-label="Accent colour">
+              <div className="swatch-row" role="radiogroup" aria-label={t('settings.colourAria')}>
                 {ACCENTS.map((accent) => (
                   <button
                     key={accent.value}
@@ -157,8 +204,8 @@ export function SettingsView() {
                     className="swatch-option"
                     role="radio"
                     aria-checked={settings.accent === accent.value}
-                    aria-label={accent.label}
-                    title={accent.label}
+                    aria-label={t(accent.labelKey)}
+                    title={t(accent.labelKey)}
                     style={{ '--swatch': accent.swatch } as React.CSSProperties}
                     onClick={() => void updateSettings({ accent: accent.value })}
                   >
@@ -171,9 +218,9 @@ export function SettingsView() {
 
           <div className="setting-row">
             <div className="setting-text">
-              <div className="setting-title">Row spacing</div>
+              <div className="setting-title">{t('settings.density')}</div>
               <div className="setting-desc">
-                {DENSITIES.find((d) => d.value === settings.density)?.hint}
+                {t(DENSITIES.find((d) => d.value === settings.density)?.hintKey ?? 'density.comfortableHint')}
               </div>
             </div>
             <div className="setting-control">
@@ -185,7 +232,7 @@ export function SettingsView() {
                     aria-pressed={settings.density === density.value}
                     onClick={() => void updateSettings({ density: density.value })}
                   >
-                    {density.label}
+                    {t(density.labelKey)}
                   </button>
                 ))}
               </div>
@@ -194,10 +241,8 @@ export function SettingsView() {
 
           <div className="setting-row">
             <div className="setting-text">
-              <div className="setting-title">Text size</div>
-              <div className="setting-desc">
-                Scales the whole app. Useful on a small till screen or a large monitor.
-              </div>
+              <div className="setting-title">{t('settings.textSize')}</div>
+              <div className="setting-desc">{t('settings.textSizeDesc')}</div>
             </div>
             <div className="setting-control">
               <div className="segmented">
@@ -208,7 +253,7 @@ export function SettingsView() {
                     aria-pressed={Math.abs(settings.zoom - size.value) < 0.01}
                     onClick={() => void updateSettings({ zoom: size.value })}
                   >
-                    {size.label}
+                    {t(size.labelKey)}
                   </button>
                 ))}
               </div>
@@ -217,62 +262,65 @@ export function SettingsView() {
         </div>
 
         <div className="panel">
-          <div className="panel-head">Your data</div>
+          <div className="panel-head">{t('settings.dataPanel')}</div>
 
           <div className="setting-row">
             <div className="setting-text">
-              <div className="setting-title">Spreadsheets</div>
-              <div className="setting-desc">
-                Bring in a product list from Excel, or send your stock out to one. Columns MyVault
-                does not recognise become extra details automatically.
-              </div>
+              <div className="setting-title">{t('settings.spreadsheets')}</div>
+              <div className="setting-desc">{t('settings.spreadsheetsDesc')}</div>
             </div>
             <div className="setting-control">
               <button type="button" className="btn" onClick={() => void importCsv()}>
                 <Icon name="upload" size={16} />
-                Import
+                {t('settings.import')}
               </button>
               <button type="button" className="btn" onClick={() => void exportCsv()}>
                 <Icon name="download" size={16} />
-                Export
+                {t('settings.export')}
               </button>
             </div>
           </div>
 
           <div className="setting-row">
             <div className="setting-text">
-              <div className="setting-title">Backup and restore</div>
-              <div className="setting-desc">
-                Save a copy of everything to a USB stick or another folder. MyVault also keeps
-                automatic backups in its own folder.
-              </div>
+              <div className="setting-title">{t('settings.backup')}</div>
+              <div className="setting-desc">{t('settings.backupDesc')}</div>
             </div>
             <div className="setting-control">
               <button type="button" className="btn" onClick={() => void backup()}>
                 <Icon name="save" size={16} />
-                Backup
+                {t('settings.backupBtn')}
               </button>
               <button type="button" className="btn" onClick={() => void restore()}>
                 <Icon name="folder" size={16} />
-                Restore
+                {t('settings.restoreBtn')}
               </button>
             </div>
           </div>
 
           <div className="setting-row">
             <div className="setting-text">
-              <div className="setting-title">Where your data is kept</div>
+              <div className="setting-title">{t('settings.location')}</div>
               <div className="setting-desc">
-                MyVault has no account, no cloud and no internet connection. Everything lives in
-                this one file on this computer.
+                {t('settings.locationDesc')}
                 {info?.dataFile && <span className="path">{info.dataFile}</span>}
               </div>
             </div>
             <div className="setting-control">
               <button type="button" className="btn" onClick={() => void openDataFolder()}>
                 <Icon name="folder" size={16} />
-                Open folder
+                {t('settings.openFolder')}
               </button>
+            </div>
+          </div>
+        </div>
+
+        <div className="panel">
+          <div className="panel-head">{t('settings.legalPanel')}</div>
+          <div className="setting-row">
+            <div className="setting-text">
+              <div className="setting-title">{t('settings.legalTitle')}</div>
+              <div className="setting-desc">{t('settings.legalBody')}</div>
             </div>
           </div>
         </div>
@@ -281,9 +329,13 @@ export function SettingsView() {
           <Icon name="info" size={18} />
           <div>
             <strong>MyVault {info?.version ? `v${info.version}` : ''}</strong>
-            {info?.portable && ' — running in portable mode, data travels with the app.'}
+            {info?.portable && ` — ${t('settings.portable')}`}
             <br />
-            {db.items.length} items · {db.categories.length} categories · {db.customFields.length} extra details.
+            {t('settings.counts', {
+              items: db.items.length,
+              categories: db.categories.length,
+              details: db.customFields.length,
+            })}
           </div>
         </div>
       </div>

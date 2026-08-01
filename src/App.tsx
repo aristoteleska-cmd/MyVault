@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useVault } from './state/vault';
+import { useI18n } from './i18n';
 import { useBarcodeScanner } from './hooks/useBarcodeScanner';
 import type { Filters, Item, SortState } from './types';
 import { Icon, type IconName } from './components/Icon';
@@ -12,11 +13,11 @@ import { Toasts } from './components/Toasts';
 
 type ViewName = 'inventory' | 'categories' | 'fields' | 'settings';
 
-const NAV: { id: ViewName; label: string; icon: IconName }[] = [
-  { id: 'inventory', label: 'Stock', icon: 'box' },
-  { id: 'categories', label: 'Categories', icon: 'tag' },
-  { id: 'fields', label: 'Extra details', icon: 'fields' },
-  { id: 'settings', label: 'Settings', icon: 'settings' },
+const NAV: { id: ViewName; labelKey: 'nav.stock' | 'nav.categories' | 'nav.details' | 'nav.settings'; icon: IconName }[] = [
+  { id: 'inventory', labelKey: 'nav.stock', icon: 'box' },
+  { id: 'categories', labelKey: 'nav.categories', icon: 'tag' },
+  { id: 'fields', labelKey: 'nav.details', icon: 'fields' },
+  { id: 'settings', labelKey: 'nav.settings', icon: 'settings' },
 ];
 
 const initialFilters: Filters = {
@@ -29,6 +30,7 @@ const initialFilters: Filters = {
 
 export function App() {
   const { ready, loadError, db, info, notify } = useVault();
+  const { t, rtl } = useI18n();
   const [view, setView] = useState<ViewName>('inventory');
   const [filters, setFilters] = useState<Filters>(initialFilters);
   const [sort, setSort] = useState<SortState>({ key: 'name', direction: 'asc' });
@@ -71,6 +73,11 @@ export function App() {
     document.title = db.settings.shopName ? `MyVault — ${db.settings.shopName}` : 'MyVault';
   }, [db.settings.shopName]);
 
+  // Arabic and Urdu lay the whole interface out right-to-left.
+  useEffect(() => {
+    document.documentElement.dir = rtl ? 'rtl' : 'ltr';
+  }, [rtl]);
+
   const openNewItem = useCallback(() => {
     setDialogItem(null);
     setDialogOpen(true);
@@ -94,10 +101,8 @@ export function App() {
     setView('inventory');
     setFilters((current) => ({ ...current, query: code, scope: 'barcode' }));
     const match = db.items.find((item) => item.barcode === code);
-    notify(
-      match ? `Scanned: ${match.name} — ${match.quantity} in stock.` : `No item found for ${code}.`,
-      match ? 'success' : 'error',
-    );
+    if (match) notify('toast.scanned', { name: match.name, count: match.quantity }, 'success');
+    else notify('toast.scanMissing', { code }, 'error');
   }, !dialogOpen);
 
   // Keyboard shortcuts, matching the ones advertised in the File menu.
@@ -139,8 +144,12 @@ export function App() {
       <div className="splash">
         <div className="splash-inner">
           <div className="empty-art"><Icon name="alert" size={26} /></div>
-          <h2>MyVault could not start</h2>
-          <p style={{ maxWidth: '46ch' }}>{loadError}</p>
+          <h2>{t('splash.errorTitle')}</h2>
+          <p style={{ maxWidth: '46ch' }}>
+            {loadError === 'splash.noBridge' || loadError === 'splash.noFile'
+              ? t(loadError)
+              : loadError}
+          </p>
         </div>
       </div>
     );
@@ -151,7 +160,7 @@ export function App() {
       <div className="splash">
         <div className="splash-inner">
           <div className="brand-mark"><Icon name="vault" size={22} /></div>
-          <p>Opening your inventory…</p>
+          <p>{t('splash.opening')}</p>
         </div>
       </div>
     );
@@ -164,12 +173,12 @@ export function App() {
           <div className="brand-mark"><Icon name="vault" size={22} /></div>
           <div className="brand-text">
             <div className="brand-name">MyVault</div>
-            <div className="brand-sub">{db.settings.shopName || 'Stock manager'}</div>
+            <div className="brand-sub">{db.settings.shopName || t('brand.tagline')}</div>
           </div>
         </div>
 
         <nav className="nav" aria-label="Main">
-          <div className="nav-heading">Shop</div>
+          <div className="nav-heading">{t('nav.section')}</div>
           {NAV.map((entry) => (
             <button
               key={entry.id}
@@ -177,10 +186,10 @@ export function App() {
               className="nav-item"
               aria-current={view === entry.id ? 'page' : undefined}
               onClick={() => setView(entry.id)}
-              title={entry.label}
+              title={t(entry.labelKey)}
             >
               <Icon name={entry.icon} />
-              <span className="nav-label">{entry.label}</span>
+              <span className="nav-label">{t(entry.labelKey)}</span>
               {entry.id === 'inventory' && <span className="nav-count">{db.items.length}</span>}
               {entry.id === 'categories' && <span className="nav-count">{db.categories.length}</span>}
               {entry.id === 'fields' && <span className="nav-count">{db.customFields.length}</span>}
@@ -192,11 +201,10 @@ export function App() {
           <div className="storage-note">
             <Icon name="folder" size={16} />
             <span>
-              <strong>Saved on this PC only.</strong> No internet, no accounts — your stock list
-              never leaves this computer.
+              <strong>{t('sidebar.localTitle')}</strong> {t('sidebar.localBody')}
             </span>
           </div>
-          {info?.version && <span className="field-hint">Version {info.version}</span>}
+          {info?.version && <span className="field-hint">{t('sidebar.version', { version: info.version })}</span>}
         </div>
       </aside>
 
