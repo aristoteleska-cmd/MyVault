@@ -142,6 +142,31 @@ file, it keeps the original safe rather than overwriting it.
 
 ---
 
+## What it costs to run
+
+Nothing, permanently, on the GitHub Free plan.
+
+MyVault is a desktop program, not a website, so there is nothing to deploy to a
+server and no monthly bill behind it:
+
+| A web app would need | MyVault needs |
+| --- | --- |
+| A server running all the time | Nothing — it runs on the shop's own PC |
+| A database | One file, on that same PC |
+| A domain and hosting | Nothing — you hand over an `.exe` |
+| Paying every month, forever | Paying nothing, ever |
+
+Everything it is built from — Electron, React, Vite, electron-builder, NSIS — is
+free and open source. See [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
+
+The only thing that ever costs money is **optional**: a Windows code-signing
+certificate (roughly €200–400 a year) to stop Windows calling the program
+"unrecognised" on first run. While you are handing the file to shops yourself it
+is not worth buying — [HANDOUT.md](HANDOUT.md) shows the two clicks past the
+warning. It becomes worth considering only if you ever distribute widely.
+
+---
+
 ## Getting the app
 
 **This repository is private and stays private.** The source, the history, the
