@@ -1,7 +1,8 @@
 ﻿MyVault — Free-to-Use Licence
 =============================
 
-Copyright (c) 2026 Αριστοτέλης Ν. Κατσιγιάννης. All rights reserved.
+Copyright (c) 2026 Aristotelis Katsigiannis (Αριστοτέλης Ν. Κατσιγιάννης).
+All rights reserved.
 
 
 1. WHAT YOU MAY DO

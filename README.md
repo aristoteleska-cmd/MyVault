@@ -333,9 +333,12 @@ The open-source components MyVault is built on (Electron, Chromium, Node.js,
 React) keep their own licences, which those terms do not — and cannot — restrict.
 They are listed in [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
 
-Copyright © 2026 Αριστοτέλης Ν. Κατσιγιάννης. The same name appears in the
-`author` field of `package.json`, which is what Windows shows in the installed
-program's file properties.
+Copyright © 2026 Aristotelis Katsigiannis (Αριστοτέλης Ν. Κατσιγιάννης).
+
+The Latin spelling is the one in `package.json`, because that is what Windows
+shows as the publisher — and non-ASCII does not survive the trip into the
+installer's metadata, where the Greek came out as `???st?t????`. The Greek stays
+in `LICENSE`, which the installer renders as UTF-8 and gets right.
 
 > A licence stops people reusing the code *lawfully*; keeping this repository
 > private is what stops them seeing it at all. Both are in place. This is a plain
