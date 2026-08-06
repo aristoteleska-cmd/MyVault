@@ -100,7 +100,8 @@
         "vi_VN",
         "ko_KR",
         "el_GR"
-      ]
+      ],
+      "warningsAsErrors": false
     },
     "portable": {
       "artifactName": "MyVault-${version}-portable.${ext}"

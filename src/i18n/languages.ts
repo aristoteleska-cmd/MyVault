@@ -7,6 +7,12 @@
  * Marathi, Telugu or Tamil, and the Hindi one it does ship is broken — those six
  * are offered inside the app instead, and the installer falls back to English
  * for them.
+ *
+ * Even among the fifteen it does support, a stray string here and there has no
+ * translation and falls back to English — the install-mode heading in Greek, for
+ * one. That is why `warningsAsErrors` is off for NSIS in package.json: those
+ * gaps are cosmetic, and treating them as build failures would mean dropping
+ * whole languages over a single missing line.
  */
 export interface LanguageMeta {
   code: string;
