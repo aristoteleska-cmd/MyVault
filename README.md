@@ -95,9 +95,11 @@ Finishing one is a single file and no code: copy `src/i18n/locales/en.ts` into
 all line up. Anything not yet translated falls back to English, so a partly
 finished language is safe to ship.
 
-The Windows installer itself speaks 16 of the 21. NSIS, which builds the
-installer, has no translation for Bengali, Urdu, Marathi, Telugu or Tamil — those
-five appear inside the app instead, and the installer falls back to English.
+The Windows installer itself speaks 15 of the 21. NSIS, which builds the
+installer, ships no translation for Bengali, Urdu, Marathi, Telugu or Tamil, and
+the Hindi file it does ship is malformed — it aborts the build outright, so Hindi
+is app-only too. Those six appear inside the app, where they work normally, and
+the installer falls back to English for them.
 
 ---
 

@@ -4,8 +4,9 @@
  *
  * `installer` marks the ones the Windows installer itself can also be shown in.
  * NSIS, which builds the installer, has no translation for Bengali, Urdu,
- * Marathi, Telugu or Tamil — those five are offered inside the app instead, and
- * the installer falls back to English for them.
+ * Marathi, Telugu or Tamil, and the Hindi one it does ship is broken — those six
+ * are offered inside the app instead, and the installer falls back to English
+ * for them.
  */
 export interface LanguageMeta {
   code: string;
@@ -19,7 +20,9 @@ export interface LanguageMeta {
 export const LANGUAGES: LanguageMeta[] = [
   { code: 'en', native: 'English', english: 'English', installer: 'en_US' },
   { code: 'zh-Hans', native: '简体中文', english: 'Chinese (Simplified)', installer: 'zh_CN' },
-  { code: 'hi', native: 'हिन्दी', english: 'Hindi', installer: 'hi_IN' },
+  // No installer entry: the Hindi language file shipped with NSIS is malformed
+  // ("unterminated string" at Hindi.nsh:128) and aborts the installer build.
+  { code: 'hi', native: 'हिन्दी', english: 'Hindi' },
   { code: 'es', native: 'Español', english: 'Spanish', installer: 'es_ES' },
   { code: 'fr', native: 'Français', english: 'French', installer: 'fr_FR' },
   { code: 'ar', native: 'العربية', english: 'Arabic', rtl: true, installer: 'ar_SA' },

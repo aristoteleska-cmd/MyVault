@@ -101,7 +101,11 @@ ok('right-to-left languages are marked');
 const installerCodes = LANGUAGES.filter((l) => l.installer).map((l) => l.installer);
 assert.strictEqual(new Set(installerCodes).size, installerCodes.length, 'no duplicate installer locales');
 assert.ok(installerCodes.includes('el_GR'), 'Greek can be picked in the installer');
-assert.ok(installerCodes.length >= 16, 'the installer offers most of the languages');
+assert.ok(installerCodes.length >= 15, 'the installer offers most of the languages');
+assert.ok(
+  !installerCodes.includes('hi_IN'),
+  "Hindi is app-only: NSIS's own Hindi language file is malformed and breaks the build",
+);
 ok(`${installerCodes.length} languages can also be chosen during installation`);
 
 console.log('\n' + passed + ' checks passed.');
