@@ -19,8 +19,8 @@
     "start": "npm run build && electron .",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
-    "dist:win": "npm run build && node scripts/sync-license.mjs && electron-builder --win --x64",
-    "dist:dir": "npm run build && node scripts/sync-license.mjs && electron-builder --dir",
+    "dist:win": "npm run build && node scripts/sync-license.mjs && electron-builder --win --x64 --publish never",
+    "dist:dir": "npm run build && node scripts/sync-license.mjs && electron-builder --dir --publish never",
     "test": "node scripts/run-tests.mjs",
     "icon": "python build/make-icon.py"
   },
