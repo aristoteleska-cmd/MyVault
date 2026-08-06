@@ -204,12 +204,16 @@ the Windows build is not left running on every push:
 | | Runs on | Costs roughly |
 | --- | --- | --- |
 | Tests | every push | ~2 Linux minutes |
-| Windows build | only a version tag, or **Run workflow** | ~5 Windows minutes and ~175 MB |
+| Windows build | every push | ~5 Windows minutes, no storage |
+| Keeping the installers | only a version tag, or **Run workflow** | ~175 MB for 7 days |
 
-That 175 MB is the one to watch: an Electron app bundles its whole runtime into
-each `.exe`, so two builds sitting around would nearly fill the 500 MB. The
-installers are therefore kept for 7 days, not months — download the one you want
-and it can expire.
+Minutes are the plentiful allowance, so the installer is *built* on every push —
+that is what catches a break in the NSIS script, the icon or the licence
+encoding, none of which the Linux tests can see. Storage is the scarce one: an
+Electron app bundles its whole runtime into each `.exe`, so two builds sitting
+around would nearly fill the 500 MB. An ordinary push therefore builds, checks
+both `.exe` files exist, and throws them away; only a tag or a manual run keeps
+them, for 7 days.
 
 Building locally uses none of this at all.
 [HANDOUT.md](HANDOUT.md) is a short bilingual instruction sheet — installing,
