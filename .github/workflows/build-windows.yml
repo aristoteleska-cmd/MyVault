@@ -56,6 +56,10 @@ jobs:
       - name: Build the Windows installer and portable exe
         run: npm run dist:win
 
+      # NSIS prints a warning for every installer string a language has no
+      # translation for and falls back to English on. They are cosmetic, so
+      # warningsAsErrors is off — but that means the log is the only place a
+      # genuine packaging warning would show up. Worth a glance when it changes.
       - name: Confirm both installers were produced
         shell: pwsh
         run: |
