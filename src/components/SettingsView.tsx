@@ -333,6 +333,10 @@ export function SettingsView() {
             <strong>MyVault {info?.version ? `v${info.version}` : ''}</strong>
             {info?.portable && ` — ${t('settings.portable')}`}
             <br />
+            {/* A name needs no translation, so crediting the creator here costs
+                nothing in the languages that are not translated yet. */}
+            Aristotelis Katsigiannis
+            <br />
             {t('settings.counts', {
               items: db.items.length,
               categories: db.categories.length,

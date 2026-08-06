@@ -89,4 +89,4 @@ Go to **Settings → Backup** to save a copy onto a USB stick. Do this regularly
 Free to use, for as long as you like, including in your shop. All rights
 reserved — it may not be copied, redistributed or resold.
 
-© 2026 Αριστοτέλης Ν. Κατσιγιάννης
+© 2026 Aristotelis Katsigiannis — Αριστοτέλης Ν. Κατσιγιάννης
