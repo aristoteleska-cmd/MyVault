@@ -1,0 +1,70 @@
+{
+  "meta": {
+    "name": "Climate Crisis Resilience Fee (Τέλος Ανθεκτικότητας στην Κλιματική Κρίση — ΤΑΚ)",
+    "version": "2026.08",
+    "currency": "EUR",
+    "basis": "Per night, per room or apartment unit",
+    "in_force_since": "2024-01-01",
+    "rates_last_changed": "2025-01-01",
+    "applies_to_year": 2026,
+    "collection": "Collected from the guest by the accommodation provider, documented on a special receipt",
+    "declaration_deadline": "Last day of the month following the month the receipt was issued",
+    "seasons": {
+      "high": { "months": [4, 5, 6, 7, 8, 9, 10], "label_en": "April–October", "label_el": "Απρίλιος–Οκτώβριος" },
+      "low":  { "months": [11, 12, 1, 2, 3],      "label_en": "November–March", "label_el": "Νοέμβριος–Μάρτιος" }
+    },
+    "disclaimer": "Compiled from public secondary sources in August 2026. Verify against AADE before billing guests or filing declarations. Rates increased in January 2025 and are reported unchanged for 2026, but this is exactly the kind of figure that moves with each budget."
+  },
+
+  "rates": [
+    {
+      "code": "STR_STANDARD",
+      "label_en": "Short-term rental (standard)",
+      "label_el": "Βραχυχρόνια μίσθωση (κανονική)",
+      "match": { "type": ["apartment"], "max_sqm": null },
+      "high": 8.0,
+      "low": 2.0
+    },
+    {
+      "code": "STR_DETACHED",
+      "label_en": "Short-term rental — detached house 80 m²+",
+      "label_el": "Βραχυχρόνια μίσθωση — μονοκατοικία 80 τ.μ.+",
+      "match": { "type": ["detached"], "min_sqm": 80 },
+      "high": 15.0,
+      "low": 4.0
+    },
+    {
+      "code": "HOLIDAY_HOME_SMALL",
+      "label_en": "Holiday home under 80 m²",
+      "label_el": "Εξοχική κατοικία κάτω των 80 τ.μ.",
+      "match": { "type": ["detached"], "max_sqm": 80 },
+      "high": 8.0,
+      "low": 2.0
+    },
+    {
+      "code": "VILLA",
+      "label_en": "Tourist villa",
+      "label_el": "Τουριστική βίλα",
+      "match": { "type": ["villa"] },
+      "high": 15.0,
+      "low": 4.0
+    },
+    {
+      "code": "FURNISHED_ROOMS",
+      "label_en": "Furnished rooms / apartments (licensed)",
+      "label_el": "Επιπλωμένα δωμάτια / διαμερίσματα",
+      "match": { "type": ["rooms"] },
+      "high": 2.0,
+      "low": 0.5
+    }
+  ],
+
+  "hotel_rates_reference": [
+    { "stars": "1-2", "high": 2.0,  "low": 0.5 },
+    { "stars": "3",   "high": 5.0,  "low": 1.5 },
+    { "stars": "4",   "high": 10.0, "low": 3.0 },
+    { "stars": "5",   "high": 15.0, "low": 4.0 }
+  ],
+
+  "product_note": "Hotel rates are included for reference only. Hotels are explicitly out of scope for the MVP (see docs/03-product-spec.md) — different law, different buyer, different sales motion."
+}

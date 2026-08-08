@@ -1,0 +1,893 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Fakelos — Greek short-term rental compliance check</title>
+<style>
+/* ── Tokens: light is the base, both dark paths redefine only tokens ───────── */
+:root{
+  --ground:#F2F4F7; --surface:#FFFFFF; --surface-2:#FAFBFC; --surface-3:#EEF1F6;
+  --ink:#10192B; --ink-2:#46536B; --ink-3:#7A879E;
+  --rule:#DDE3EC; --rule-strong:#C3CCDA;
+  --accent:#1D3E7A; --accent-ink:#FFFFFF; --accent-soft:#E5EBF6;
+  --ok:#1B7A4B; --ok-bg:#E4F3EA;
+  --warn:#9C6708; --warn-bg:#FBEFD8;
+  --crit:#B3261E; --crit-bg:#FBE6E4;
+  --shadow:0 1px 2px rgba(16,25,43,.06), 0 8px 24px -12px rgba(16,25,43,.18);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ground:#0C1220; --surface:#131B2C; --surface-2:#182236; --surface-3:#1E2941;
+    --ink:#E8EDF6; --ink-2:#A7B3C8; --ink-3:#6F7D96;
+    --rule:#263148; --rule-strong:#33415E;
+    --accent:#7FA5E8; --accent-ink:#0C1220; --accent-soft:#1B2740;
+    --ok:#4CC98A; --ok-bg:#123024;
+    --warn:#E0A93C; --warn-bg:#33260C;
+    --crit:#F0736A; --crit-bg:#3A1614;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -12px rgba(0,0,0,.6);
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#0C1220; --surface:#131B2C; --surface-2:#182236; --surface-3:#1E2941;
+  --ink:#E8EDF6; --ink-2:#A7B3C8; --ink-3:#6F7D96;
+  --rule:#263148; --rule-strong:#33415E;
+  --accent:#7FA5E8; --accent-ink:#0C1220; --accent-soft:#1B2740;
+  --ok:#4CC98A; --ok-bg:#123024;
+  --warn:#E0A93C; --warn-bg:#33260C;
+  --crit:#F0736A; --crit-bg:#3A1614;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -12px rgba(0,0,0,.6);
+}
+
+:root{
+  --display:"Helvetica Neue",Helvetica,Arial,"Liberation Sans",sans-serif;
+  --body:system-ui,-apple-system,"Segoe UI",Roboto,"Liberation Sans",sans-serif;
+  --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
+}
+
+*{box-sizing:border-box}
+/* A class-level `display` beats the UA's [hidden] rule, so the tab panels would
+   otherwise stack on top of each other. Keep this above the component styles. */
+[hidden]{display:none !important}
+body{
+  margin:0; background:var(--ground); color:var(--ink);
+  font-family:var(--body); font-size:15px; line-height:1.55;
+  -webkit-font-smoothing:antialiased;
+}
+h1,h2,h3{font-family:var(--display); text-wrap:balance; margin:0}
+button,input,select{font:inherit; color:inherit}
+:focus-visible{outline:2px solid var(--accent); outline-offset:2px; border-radius:3px}
+
+/* ── Shell ─────────────────────────────────────────────────────────────────── */
+.masthead{
+  border-bottom:1px solid var(--rule); background:var(--surface);
+  position:sticky; top:0; z-index:20;
+}
+.masthead-in{
+  max-width:1240px; margin:0 auto; padding:14px 24px;
+  display:flex; align-items:center; gap:16px; flex-wrap:wrap;
+}
+.wordmark{display:flex; align-items:baseline; gap:10px; margin-right:auto}
+.wordmark b{
+  font-family:var(--display); font-size:21px; font-weight:800;
+  letter-spacing:-.025em;
+}
+.wordmark span{
+  font-family:var(--mono); font-size:10.5px; letter-spacing:.12em;
+  text-transform:uppercase; color:var(--ink-3);
+}
+.seg{display:flex; border:1px solid var(--rule-strong); border-radius:7px; overflow:hidden}
+.seg button{
+  background:var(--surface); border:0; padding:6px 12px; cursor:pointer;
+  font-family:var(--mono); font-size:11px; letter-spacing:.06em; color:var(--ink-2);
+}
+.seg button+button{border-left:1px solid var(--rule-strong)}
+.seg button[aria-pressed="true"]{background:var(--accent); color:var(--accent-ink)}
+
+.wrap{max-width:1240px; margin:0 auto; padding:26px 24px 80px}
+
+.lede{
+  display:grid; gap:10px; max-width:60ch; margin-bottom:26px;
+}
+.lede h1{font-size:clamp(25px,3.4vw,36px); font-weight:800; letter-spacing:-.03em; line-height:1.12}
+.lede p{margin:0; color:var(--ink-2)}
+.lede .law{
+  font-family:var(--mono); font-size:11px; letter-spacing:.07em; text-transform:uppercase;
+  color:var(--accent); display:flex; align-items:center; gap:8px;
+}
+.lede .law::before{content:""; width:22px; height:1px; background:var(--accent)}
+
+.cols{display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.25fr); gap:22px; align-items:start}
+@media (max-width:960px){ .cols{grid-template-columns:minmax(0,1fr)} }
+
+.card{
+  background:var(--surface); border:1px solid var(--rule); border-radius:12px;
+  box-shadow:var(--shadow); overflow:hidden;
+}
+.card-hd{
+  padding:13px 18px; border-bottom:1px solid var(--rule); background:var(--surface-2);
+  display:flex; align-items:center; gap:10px;
+}
+.card-hd h2{font-size:13px; font-weight:700; letter-spacing:.02em}
+.card-hd .idx{
+  font-family:var(--mono); font-size:10px; color:var(--ink-3);
+  letter-spacing:.1em; margin-left:auto;
+}
+.card-bd{padding:18px}
+
+/* ── Form ──────────────────────────────────────────────────────────────────── */
+.fields{display:grid; grid-template-columns:1fr 1fr; gap:14px}
+.field{display:grid; gap:5px; min-width:0}
+.field.wide{grid-column:1/-1}
+.field label{
+  font-family:var(--mono); font-size:10px; letter-spacing:.09em;
+  text-transform:uppercase; color:var(--ink-3);
+}
+.field input,.field select{
+  width:100%; padding:8px 10px; background:var(--surface-2);
+  border:1px solid var(--rule-strong); border-radius:7px;
+}
+.field input[type="number"]{font-family:var(--mono); font-variant-numeric:tabular-nums}
+.hint{font-size:11.5px; color:var(--ink-3); grid-column:1/-1; margin-top:-2px}
+
+/* ── Seal ──────────────────────────────────────────────────────────────────── */
+.verdict{display:flex; gap:20px; align-items:center; flex-wrap:wrap}
+.seal{position:relative; flex:0 0 auto; width:132px; height:132px}
+.seal svg{display:block; transform:rotate(-90deg)}
+.seal-mid{
+  position:absolute; inset:0; display:grid; place-content:center; text-align:center; gap:1px;
+}
+.seal-num{
+  font-family:var(--mono); font-size:34px; font-weight:700; line-height:1;
+  font-variant-numeric:tabular-nums; letter-spacing:-.02em;
+}
+.seal-cap{font-family:var(--mono); font-size:9px; letter-spacing:.14em; text-transform:uppercase; color:var(--ink-3)}
+.verdict-txt{flex:1 1 220px; min-width:0; display:grid; gap:9px}
+.verdict-txt h3{font-size:18px; font-weight:800; letter-spacing:-.02em}
+.verdict-txt p{margin:0; color:var(--ink-2); font-size:13.5px}
+
+.exposure{
+  display:flex; align-items:baseline; gap:9px; padding:11px 13px; border-radius:9px;
+  background:var(--crit-bg); border:1px solid color-mix(in srgb, var(--crit) 30%, transparent);
+}
+.exposure.clear{background:var(--ok-bg); border-color:color-mix(in srgb, var(--ok) 30%, transparent)}
+.exposure b{font-family:var(--mono); font-size:21px; font-weight:700; color:var(--crit); font-variant-numeric:tabular-nums}
+.exposure.clear b{color:var(--ok)}
+.exposure span{font-size:12px; color:var(--ink-2); line-height:1.35}
+
+.stats{display:grid; grid-template-columns:repeat(3,1fr); gap:1px; background:var(--rule); border-top:1px solid var(--rule)}
+.stat{background:var(--surface); padding:13px 16px; display:grid; gap:3px}
+.stat b{font-family:var(--mono); font-size:19px; font-weight:700; font-variant-numeric:tabular-nums; letter-spacing:-.02em}
+.stat span{font-family:var(--mono); font-size:9.5px; letter-spacing:.09em; text-transform:uppercase; color:var(--ink-3)}
+@media (max-width:520px){ .stats{grid-template-columns:1fr 1fr} }
+
+/* ── Tabs ──────────────────────────────────────────────────────────────────── */
+.tabs{display:flex; gap:2px; border-bottom:1px solid var(--rule); background:var(--surface-2); padding:0 8px; overflow-x:auto}
+.tabs button{
+  background:none; border:0; border-bottom:2px solid transparent; cursor:pointer;
+  padding:11px 13px; white-space:nowrap; color:var(--ink-3);
+  font-size:12.5px; font-weight:600;
+}
+.tabs button[aria-selected="true"]{color:var(--ink); border-bottom-color:var(--accent)}
+
+/* ── Requirement rows ──────────────────────────────────────────────────────── */
+.reqs{display:grid}
+.req{
+  display:grid; grid-template-columns:8px 1fr auto; gap:13px; align-items:start;
+  padding:13px 18px; border-bottom:1px solid var(--rule);
+}
+.req:last-child{border-bottom:0}
+.req.na{opacity:.5}
+.stripe{width:3px; border-radius:2px; align-self:stretch; min-height:34px; background:var(--rule-strong); margin-left:3px}
+.req[data-s="ok"] .stripe{background:var(--ok)}
+.req[data-s="expiring"] .stripe{background:var(--warn)}
+.req[data-s="missing"] .stripe{background:var(--crit)}
+.req-main{min-width:0; display:grid; gap:3px}
+.req-title{font-size:13.5px; font-weight:600; display:flex; gap:8px; align-items:baseline; flex-wrap:wrap}
+.code{font-family:var(--mono); font-size:9.5px; letter-spacing:.06em; color:var(--ink-3)}
+.req-note{font-size:12px; color:var(--ink-2); margin:0}
+.req-meta{display:flex; gap:6px; flex-wrap:wrap; margin-top:3px}
+.chip{
+  font-family:var(--mono); font-size:9.5px; letter-spacing:.05em; padding:2.5px 6px;
+  border-radius:4px; background:var(--surface-3); color:var(--ink-2); white-space:nowrap;
+}
+.chip.ok{background:var(--ok-bg); color:var(--ok)}
+.chip.warn{background:var(--warn-bg); color:var(--warn)}
+.chip.crit{background:var(--crit-bg); color:var(--crit)}
+.req-act{display:grid; gap:5px; justify-items:end}
+.tri{display:flex; border:1px solid var(--rule-strong); border-radius:6px; overflow:hidden}
+.tri button{
+  background:var(--surface-2); border:0; cursor:pointer; padding:5px 9px;
+  font-family:var(--mono); font-size:10.5px; color:var(--ink-2);
+}
+.tri button+button{border-left:1px solid var(--rule-strong)}
+.tri button[aria-pressed="true"]{background:var(--accent); color:var(--accent-ink)}
+.req-act input[type="date"]{
+  padding:4px 7px; border:1px solid var(--rule-strong); border-radius:6px;
+  background:var(--surface-2); font-family:var(--mono); font-size:11px;
+}
+
+/* ── Winter plan timeline ──────────────────────────────────────────────────── */
+.plan{padding:6px 0}
+.mon{padding:14px 18px 6px; display:flex; align-items:baseline; gap:10px}
+.mon h4{margin:0; font-family:var(--display); font-size:12px; font-weight:800; letter-spacing:.08em; text-transform:uppercase}
+.mon i{flex:1; height:1px; background:var(--rule); font-style:normal}
+.mon em{font-family:var(--mono); font-size:10px; color:var(--ink-3); font-style:normal}
+.task{
+  display:grid; grid-template-columns:70px 1fr auto; gap:13px; align-items:baseline;
+  padding:9px 18px; border-bottom:1px solid var(--rule);
+}
+.task:last-child{border-bottom:0}
+.task time{font-family:var(--mono); font-size:11px; color:var(--accent); font-variant-numeric:tabular-nums}
+.task .t{font-size:13px; min-width:0}
+.task .t small{display:block; color:var(--ink-3); font-size:11.5px}
+.task .c{font-family:var(--mono); font-size:11.5px; color:var(--ink-2); font-variant-numeric:tabular-nums; white-space:nowrap}
+.overdue time{color:var(--crit)}
+
+/* ── ΤΑΚ ───────────────────────────────────────────────────────────────────── */
+.tak-grid{display:grid; grid-template-columns:1fr 1fr; gap:1px; background:var(--rule)}
+.tak-cell{background:var(--surface); padding:15px 18px; display:grid; gap:4px}
+.tak-cell.hi{background:var(--accent-soft)}
+.tak-cell b{font-family:var(--mono); font-size:23px; font-weight:700; font-variant-numeric:tabular-nums; letter-spacing:-.02em}
+.tak-cell span{font-family:var(--mono); font-size:9.5px; letter-spacing:.09em; text-transform:uppercase; color:var(--ink-3)}
+.tak-cell small{font-size:11.5px; color:var(--ink-2)}
+.tak-note{padding:14px 18px; border-top:1px solid var(--rule); font-size:12.5px; color:var(--ink-2)}
+
+table.rates{width:100%; border-collapse:collapse; font-size:12.5px}
+table.rates th,table.rates td{padding:7px 18px; text-align:left; border-bottom:1px solid var(--rule)}
+table.rates th{
+  font-family:var(--mono); font-size:9.5px; letter-spacing:.09em; text-transform:uppercase;
+  color:var(--ink-3); font-weight:500;
+}
+table.rates td.n{text-align:right; font-family:var(--mono); font-variant-numeric:tabular-nums}
+table.rates tr.on td{background:var(--accent-soft); font-weight:600}
+.scroll-x{overflow-x:auto}
+
+/* ── Actions / footer ──────────────────────────────────────────────────────── */
+.actions{display:flex; gap:10px; flex-wrap:wrap; padding:16px 18px; border-top:1px solid var(--rule); background:var(--surface-2)}
+.btn{
+  border:1px solid var(--rule-strong); background:var(--surface); color:var(--ink);
+  padding:9px 15px; border-radius:8px; cursor:pointer; font-size:13px; font-weight:600;
+}
+.btn.primary{background:var(--accent); border-color:var(--accent); color:var(--accent-ink)}
+.btn:hover{border-color:var(--accent)}
+
+.foot{
+  max-width:1240px; margin:34px auto 0; padding:20px 24px 0; border-top:1px solid var(--rule);
+  color:var(--ink-3); font-size:12px; display:grid; gap:8px;
+}
+.foot code{font-family:var(--mono); font-size:11px}
+.disclaim{
+  border-left:3px solid var(--warn); background:var(--warn-bg); color:var(--ink-2);
+  padding:11px 14px; border-radius:0 8px 8px 0; font-size:12.5px; max-width:78ch;
+}
+
+@media (prefers-reduced-motion:no-preference){
+  .seal circle.val{transition:stroke-dashoffset .5s cubic-bezier(.4,0,.2,1)}
+}
+@media print{
+  .masthead,.actions,.tabs,.req-act,.seg{display:none !important}
+  body{background:#fff}
+  .card{box-shadow:none; break-inside:avoid}
+}
+</style>
+</head>
+<body>
+
+<header class="masthead">
+  <div class="masthead-in">
+    <div class="wordmark">
+      <b>Fakelos</b>
+      <span data-t="tagline">Property file · always inspection-ready</span>
+    </div>
+    <div class="seg" role="group" aria-label="Language">
+      <button type="button" data-lang="el" aria-pressed="false">ΕΛ</button>
+      <button type="button" data-lang="en" aria-pressed="true">EN</button>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="lede">
+    <p class="law" data-t="eyebrow">Law 5170/2025 · in force since 1 October 2025</p>
+    <h1 data-t="h1">Is your Greek rental legal — and can you prove it in 10 days?</h1>
+    <p data-t="sub">Inspectors from the Ministry of Tourism and AADE give ten days' notice. The first fine is €5,000. Answer six questions about your property and see exactly where you stand, what it costs to fix, and when to do each job this winter.</p>
+  </div>
+
+  <div class="cols">
+    <!-- LEFT: input -->
+    <section class="card">
+      <div class="card-hd"><h2 data-t="c1">Your property</h2><span class="idx">01</span></div>
+      <div class="card-bd">
+        <div class="fields">
+          <div class="field wide">
+            <label for="f-name" data-t="l-name">Property name</label>
+            <input id="f-name" type="text" value="Paros — town flat" />
+          </div>
+          <div class="field">
+            <label for="f-type" data-t="l-type">Type</label>
+            <select id="f-type">
+              <option value="apartment" data-t="o-apt">Apartment</option>
+              <option value="detached" data-t="o-det">Detached house</option>
+              <option value="villa" data-t="o-vil">Tourist villa</option>
+              <option value="rooms" data-t="o-rms">Furnished rooms</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="f-size" data-t="l-size">Size (m²)</label>
+            <input id="f-size" type="number" min="10" max="800" step="1" value="72" />
+          </div>
+          <div class="field">
+            <label for="f-beds" data-t="l-beds">Bedrooms</label>
+            <input id="f-beds" type="number" min="0" max="12" step="1" value="2" />
+          </div>
+          <div class="field">
+            <label for="f-alt" data-t="l-alt">Altitude (m)</label>
+            <input id="f-alt" type="number" min="0" max="2500" step="10" value="40" />
+          </div>
+          <div class="field wide">
+            <label for="f-open" data-t="l-open">Season opens</label>
+            <input id="f-open" type="date" />
+          </div>
+          <p class="hint" data-t="hint-alt">Above 600 m the air-conditioning requirement does not apply — set the altitude honestly, it changes your list.</p>
+        </div>
+      </div>
+      <div class="card-hd" style="border-top:1px solid var(--rule)">
+        <h2 data-t="c2">Occupancy for the fee estimate</h2><span class="idx">02</span>
+      </div>
+      <div class="card-bd">
+        <div class="fields">
+          <div class="field">
+            <label for="f-hi" data-t="l-hi">Nights let, Apr–Oct</label>
+            <input id="f-hi" type="number" min="0" max="214" step="1" value="95" />
+          </div>
+          <div class="field">
+            <label for="f-lo" data-t="l-lo">Nights let, Nov–Mar</label>
+            <input id="f-lo" type="number" min="0" max="151" step="1" value="18" />
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- RIGHT: verdict -->
+    <section class="card">
+      <div class="card-hd"><h2 data-t="c3">Verdict</h2><span class="idx">03</span></div>
+      <div class="card-bd">
+        <div class="verdict">
+          <div class="seal">
+            <svg width="132" height="132" viewBox="0 0 132 132" aria-hidden="true">
+              <circle cx="66" cy="66" r="62" fill="none" stroke="var(--rule)" stroke-width="1"/>
+              <circle cx="66" cy="66" r="52" fill="none" stroke="var(--rule)" stroke-width="8"/>
+              <circle class="val" id="seal-arc" cx="66" cy="66" r="52" fill="none"
+                      stroke="var(--ok)" stroke-width="8" stroke-linecap="round"
+                      stroke-dasharray="326.7" stroke-dashoffset="326.7"/>
+            </svg>
+            <div class="seal-mid">
+              <div class="seal-num" id="seal-num">0</div>
+              <div class="seal-cap" data-t="seal-cap">Ready</div>
+            </div>
+          </div>
+          <div class="verdict-txt">
+            <h3 id="v-head">—</h3>
+            <p id="v-body">—</p>
+            <div class="exposure" id="v-exp">
+              <b id="v-exp-n">€0</b>
+              <span id="v-exp-t"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="stats">
+        <div class="stat"><b id="s-gaps">0</b><span data-t="s-gaps">Open gaps</span></div>
+        <div class="stat"><b id="s-cost">€0</b><span data-t="s-cost">Est. cost to fix</span></div>
+        <div class="stat"><b id="s-next">—</b><span data-t="s-next">First job due</span></div>
+      </div>
+    </section>
+  </div>
+
+  <!-- TABS -->
+  <section class="card" style="margin-top:22px">
+    <div class="tabs" role="tablist">
+      <button role="tab" aria-selected="true"  data-tab="reqs" data-t="t-reqs">Requirements</button>
+      <button role="tab" aria-selected="false" data-tab="plan" data-t="t-plan">Winter work plan</button>
+      <button role="tab" aria-selected="false" data-tab="tak"  data-t="t-tak">Climate fee (ΤΑΚ)</button>
+    </div>
+
+    <div id="p-reqs" class="reqs"></div>
+
+    <div id="p-plan" class="plan" hidden></div>
+
+    <div id="p-tak" hidden>
+      <div class="tak-grid">
+        <div class="tak-cell hi">
+          <span data-t="tak-hi">Apr–Oct · per night</span>
+          <b id="tak-hi-rate">€0</b>
+          <small id="tak-hi-tot"></small>
+        </div>
+        <div class="tak-cell">
+          <span data-t="tak-lo">Nov–Mar · per night</span>
+          <b id="tak-lo-rate">€0</b>
+          <small id="tak-lo-tot"></small>
+        </div>
+      </div>
+      <div class="scroll-x">
+        <table class="rates">
+          <thead><tr>
+            <th data-t="th-type">Property type</th>
+            <th class="n" data-t="th-hi">Apr–Oct</th>
+            <th class="n" data-t="th-lo">Nov–Mar</th>
+          </tr></thead>
+          <tbody id="tak-rows"></tbody>
+        </table>
+      </div>
+      <p class="tak-note" data-t="tak-note">You collect this from the guest per night and remit it by monthly declaration, due the last day of the month following the receipt. The rate switches on 1 April and 1 November — the two dates people reliably get wrong.</p>
+    </div>
+
+    <div class="actions">
+      <button class="btn primary" id="btn-print" data-t="b-print">Print inspection pack</button>
+      <button class="btn" id="btn-reset" data-t="b-reset">Reset</button>
+    </div>
+  </section>
+
+  <div class="foot">
+    <p class="disclaim" data-t="disclaim"><b>Not legal advice.</b> This prototype was compiled from public secondary sources in August 2026. Greek short-term rental law changed in 2024, 2025 and 2026 and continues to move. Verify every requirement, rate and deadline with AADE, the Ministry of Tourism and a Greek accountant before relying on it.</p>
+    <p>Rule set <code>v2026.08</code> · 16 requirements · <span data-t="foot">Prototype for the Fakelos MVP — see <code>docs/</code> in this repository.</span></p>
+  </div>
+</main>
+
+<script>
+"use strict";
+
+/* ── Rule catalog (mirrors data/compliance-rules.json) ─────────────────────── */
+const RULES = [
+  {code:"AMA_REGISTRATION", cat:"registration", sev:"critical", el:"Αριθμός Μητρώου Ακινήτου (ΑΜΑ)", en:"Property Registry Number (AMA)",
+   nel:"Από το Μητρώο Βραχυχρόνιας Διαμονής της ΑΑΔΕ, σε κάθε καταχώρηση.", nen:"From AADE's short-term rental registry, shown on every listing.",
+   applies:()=>true, months:null, cost:[0,0], lead:14},
+  {code:"LIABILITY_INSURANCE", cat:"insurance", sev:"critical", el:"Ασφαλιστήριο αστικής ευθύνης", en:"Civil liability insurance",
+   nel:"Από αδειοδοτημένη ελληνική ασφαλιστική εταιρεία.", nen:"From a licensed Greek insurer, covering guests and third parties.",
+   applies:()=>true, months:12, cost:[60,180], lead:7},
+  {code:"ELECTRICAL_DECLARATION", cat:"electrical", sev:"critical", el:"Υπεύθυνη Δήλωση Εγκαταστάτη (ΥΔΕ)", en:"Electrician's declaration (ΥΔΕ)",
+   nel:"Πιστοποιεί ρελέ διαφυγής σε λειτουργία. Ο μεγαλύτερος χρόνος αναμονής.", nen:"Confirms a working residual-current device. Longest lead time on the list.",
+   applies:()=>true, months:168, cost:[80,250], lead:21},
+  {code:"PEST_CONTROL", cat:"hygiene", sev:"critical", el:"Πιστοποιητικό απεντόμωσης", en:"Pest control certificate",
+   nel:"Σε ισχύ, από αδειοδοτημένη εταιρεία.", nen:"Valid certificate from an authorised company.",
+   applies:()=>true, months:12, cost:[40,120], lead:10},
+  {code:"FIRE_EXTINGUISHER", cat:"fire", sev:"critical", el:"Πυροσβεστήρες 6kg", en:"Fire extinguishers (6 kg)",
+   nel:"Ένας ανά 100 τ.μ., με ετήσιο έλεγχο.", nen:"One per 100 m² of gross floor area, serviced annually.",
+   applies:()=>true, months:12, cost:[25,60], lead:5, qty:p=>Math.max(1,Math.ceil(p.size/100))},
+  {code:"SMOKE_DETECTORS", cat:"fire", sev:"critical", el:"Ανιχνευτές καπνού", en:"Smoke detectors",
+   nel:"Σε κάθε υπνοδωμάτιο και στην κουζίνα.", nen:"In every bedroom and in the kitchen.",
+   applies:()=>true, months:12, cost:[12,30], lead:3, qty:p=>Math.max(1,p.beds+1)},
+  {code:"EMERGENCY_LIGHTING", cat:"fire", sev:"high", el:"Φωτισμός ασφαλείας", en:"Emergency lighting",
+   nel:"Σε όλα τα σημεία εξόδου, λειτουργεί σε διακοπή ρεύματος.", nen:"At all exit points, working during a power cut.",
+   applies:()=>true, months:12, cost:[25,80], lead:5},
+  {code:"ESCAPE_SIGNAGE", cat:"fire", sev:"medium", el:"Σήμανση οδεύσεων διαφυγής", en:"Escape route signage",
+   nel:"Ευκρινής σήμανση εντός του ακινήτου.", nen:"Clearly marked throughout the property.",
+   applies:()=>true, months:null, cost:[10,40], lead:3},
+  {code:"FIRST_AID_KIT", cat:"hygiene", sev:"medium", el:"Φαρμακείο πρώτων βοηθειών", en:"First-aid kit",
+   nel:"Με σήμανση στα ελληνικά και αγγλικά. Τα περιεχόμενα λήγουν.", nen:"Labelled in Greek and English. Contents expire, so this recurs.",
+   applies:()=>true, months:12, cost:[20,45], lead:3},
+  {code:"EMERGENCY_CONTACTS", cat:"guest", sev:"medium", el:"Τηλέφωνα έκτακτης ανάγκης", en:"Emergency contact list",
+   nel:"Αναρτημένος πίνακας: αστυνομία, πυροσβεστική, ασθενοφόρο, νοσοκομείο, ταξί.", nen:"Posted visibly: police, fire, ambulance, hospital, taxi.",
+   applies:()=>true, months:null, cost:[0,15], lead:1},
+  {code:"AIR_CONDITIONING", cat:"habitability", sev:"high", el:"Κλιματισμός", en:"Air conditioning",
+   nel:"Υποχρεωτικός — εκτός ορεινών περιοχών άνω των 600 μ.", nen:"Mandatory, except in mountain areas above 600 m.",
+   applies:p=>p.alt<=600, months:null, cost:[400,900], lead:30},
+  {code:"CEILING_HEIGHT", cat:"habitability", sev:"critical", el:"Ύψος οροφής ≥ 2,5 μ.", en:"Ceiling height ≥ 2.5 m",
+   nel:"Δομικό — δεν διορθώνεται με χαρτιά.", nen:"Structural. If this fails, no paperwork fixes it.",
+   applies:()=>true, months:null, cost:[0,0], lead:1},
+  {code:"NATURAL_LIGHT", cat:"habitability", sev:"critical", el:"Φυσικός φωτισμός ≥ 10%", en:"Bedroom natural light ≥ 10%",
+   nel:"Παράθυρα ≥ 10% της επιφάνειας δαπέδου κάθε υπνοδωματίου.", nen:"Windows covering ≥ 10% of each bedroom's floor area.",
+   applies:()=>true, months:null, cost:[0,0], lead:1},
+  {code:"VENTILATION", cat:"habitability", sev:"critical", el:"Φυσικός αερισμός ≥ 5%", en:"Natural ventilation ≥ 5%",
+   nel:"Ανοίγματα ≥ 5% της επιφάνειας δαπέδου.", nen:"Openings covering ≥ 5% of the floor area.",
+   applies:()=>true, months:null, cost:[0,0], lead:1},
+  {code:"PRIMARY_USE_SPACE", cat:"habitability", sev:"critical", el:"Μόνο χώροι κύριας χρήσης", en:"Primary-use spaces only",
+   nel:"Απαγορεύονται αποθήκες, υπόγεια, χώροι στάθμευσης.", nen:"Storage rooms, basements and garages may not be let.",
+   applies:()=>true, months:null, cost:[0,0], lead:1},
+  {code:"TAK_DECLARATION", cat:"tax", sev:"high", el:"Δήλωση ΤΑΚ", en:"ΤΑΚ monthly declaration",
+   nel:"Μηνιαία δήλωση έως την τελευταία ημέρα του επόμενου μήνα.", nen:"Filed by the last day of the month following the receipt.",
+   applies:()=>true, months:1, cost:[0,0], lead:1}
+];
+
+const TAK = [
+  {code:"STR_STANDARD",  el:"Βραχυχρόνια μίσθωση (κανονική)", en:"Short-term rental (standard)", hi:8,  lo:2,
+   match:p=>p.type==="apartment"},
+  {code:"STR_DETACHED",  el:"Μονοκατοικία 80 τ.μ.+",          en:"Detached house 80 m²+",         hi:15, lo:4,
+   match:p=>p.type==="detached" && p.size>=80},
+  {code:"HOLIDAY_SMALL", el:"Εξοχική κατοικία < 80 τ.μ.",     en:"Holiday home under 80 m²",      hi:8,  lo:2,
+   match:p=>p.type==="detached" && p.size<80},
+  {code:"VILLA",         el:"Τουριστική βίλα",                en:"Tourist villa",                 hi:15, lo:4,
+   match:p=>p.type==="villa"},
+  {code:"ROOMS",         el:"Επιπλωμένα δωμάτια",             en:"Furnished rooms / apartments",  hi:2,  lo:0.5,
+   match:p=>p.type==="rooms"}
+];
+
+const SEV_W = {critical:3, high:2, medium:1};
+
+/* ── i18n ──────────────────────────────────────────────────────────────────── */
+const I18N = {
+  en:{
+    tagline:"Property file · always inspection-ready",
+    eyebrow:"Law 5170/2025 · in force since 1 October 2025",
+    h1:"Is your Greek rental legal — and can you prove it in 10 days?",
+    sub:"Inspectors from the Ministry of Tourism and AADE give ten days' notice. The first fine is €5,000. Answer six questions about your property and see exactly where you stand, what it costs to fix, and when to do each job this winter.",
+    c1:"Your property", c2:"Occupancy for the fee estimate", c3:"Verdict",
+    "l-name":"Property name","l-type":"Type","l-size":"Size (m²)","l-beds":"Bedrooms",
+    "l-alt":"Altitude (m)","l-open":"Season opens","l-hi":"Nights let, Apr–Oct","l-lo":"Nights let, Nov–Mar",
+    "o-apt":"Apartment","o-det":"Detached house","o-vil":"Tourist villa","o-rms":"Furnished rooms",
+    "hint-alt":"Above 600 m the air-conditioning requirement does not apply — set the altitude honestly, it changes your list.",
+    "seal-cap":"Ready","s-gaps":"Open gaps","s-cost":"Est. cost to fix","s-next":"First job due",
+    "t-reqs":"Requirements","t-plan":"Winter work plan","t-tak":"Climate fee (ΤΑΚ)",
+    "tak-hi":"Apr–Oct · per night","tak-lo":"Nov–Mar · per night",
+    "th-type":"Property type","th-hi":"Apr–Oct","th-lo":"Nov–Mar",
+    "tak-note":"You collect this from the guest per night and remit it by monthly declaration, due the last day of the month following the receipt. The rate switches on 1 April and 1 November — the two dates people reliably get wrong.",
+    "b-print":"Print inspection pack","b-reset":"Reset",
+    disclaim:"<b>Not legal advice.</b> This prototype was compiled from public secondary sources in August 2026. Greek short-term rental law changed in 2024, 2025 and 2026 and continues to move. Verify every requirement, rate and deadline with AADE, the Ministry of Tourism and a Greek accountant before relying on it.",
+    foot:"Prototype for the Fakelos MVP — see <code>docs/</code> in this repository.",
+    have:"Have", need:"Need", na:"n/a",
+    expires:"expires", noexp:"no expiry", lead:"lead time", days:"d", setDate:"add expiry date",
+    heads:{
+      clear:["You are inspection-ready","Everything on the current rule set is in place. Keep the expiry dates fed and you stay this way."],
+      close:["Nearly there","A short list stands between you and a clean inspection. None of it is structural."],
+      mid:["Gaps that would be found","An inspector arriving with ten days' notice would find these. Most are cheap; the electrician is not fast."],
+      bad:["Not ready to let","Several critical requirements are missing. Start with the longest lead times, not the cheapest items."]
+    },
+    expText:(n)=>`first-offence exposure — ${n} critical requirement${n===1?"":"s"} missing`,
+    expClear:"no critical gaps on the current rule set",
+    fixBy:"fix by", overdue:"overdue", perUnit:"each", tot:"total",
+    planEmpty:"Nothing outstanding — your winter is free. Re-check when your next certificate approaches expiry.",
+    planHead:(d)=>`Working backwards from your season opening on ${d}, longest lead times first.`,
+    nights:(n)=>`${n} nights`, none:"—"
+  },
+  el:{
+    tagline:"Ο φάκελος του ακινήτου · πάντα έτοιμος",
+    eyebrow:"Νόμος 5170/2025 · σε ισχύ από 1 Οκτωβρίου 2025",
+    h1:"Είναι νόμιμο το ακίνητό σου — και μπορείς να το αποδείξεις σε 10 μέρες;",
+    sub:"Οι έλεγχοι από το Υπουργείο Τουρισμού και την ΑΑΔΕ προαναγγέλλονται 10 μέρες πριν. Το πρώτο πρόστιμο είναι €5.000. Απάντησε σε έξι ερωτήσεις και δες πού ακριβώς βρίσκεσαι, τι κοστίζει να διορθωθεί και πότε να κάνεις κάθε δουλειά φέτος τον χειμώνα.",
+    c1:"Το ακίνητό σου", c2:"Πληρότητα για τον υπολογισμό του τέλους", c3:"Ετυμηγορία",
+    "l-name":"Ονομασία ακινήτου","l-type":"Τύπος","l-size":"Εμβαδόν (τ.μ.)","l-beds":"Υπνοδωμάτια",
+    "l-alt":"Υψόμετρο (μ.)","l-open":"Έναρξη σεζόν","l-hi":"Διανυκτερεύσεις Απρ–Οκτ","l-lo":"Διανυκτερεύσεις Νοε–Μαρ",
+    "o-apt":"Διαμέρισμα","o-det":"Μονοκατοικία","o-vil":"Τουριστική βίλα","o-rms":"Επιπλωμένα δωμάτια",
+    "hint-alt":"Πάνω από τα 600 μ. δεν ισχύει η υποχρέωση κλιματισμού — δήλωσε σωστό υψόμετρο, αλλάζει τη λίστα σου.",
+    "seal-cap":"Ετοιμότητα","s-gaps":"Ανοιχτά κενά","s-cost":"Εκτ. κόστος","s-next":"Πρώτη εργασία",
+    "t-reqs":"Υποχρεώσεις","t-plan":"Χειμερινό πλάνο","t-tak":"Τέλος ΤΑΚ",
+    "tak-hi":"Απρ–Οκτ · ανά διαν.","tak-lo":"Νοε–Μαρ · ανά διαν.",
+    "th-type":"Τύπος ακινήτου","th-hi":"Απρ–Οκτ","th-lo":"Νοε–Μαρ",
+    "tak-note":"Το εισπράττεις από τον επισκέπτη ανά διανυκτέρευση και το αποδίδεις με μηνιαία δήλωση, έως την τελευταία ημέρα του επόμενου μήνα. Ο συντελεστής αλλάζει την 1η Απριλίου και την 1η Νοεμβρίου — οι δύο ημερομηνίες που ξεχνιούνται.",
+    "b-print":"Εκτύπωση φακέλου","b-reset":"Επαναφορά",
+    disclaim:"<b>Δεν αποτελεί νομική συμβουλή.</b> Το πρωτότυπο συντάχθηκε από δημόσιες δευτερογενείς πηγές τον Αύγουστο 2026. Η νομοθεσία άλλαξε το 2024, 2025 και 2026 και συνεχίζει να αλλάζει. Επιβεβαίωσε κάθε υποχρέωση, συντελεστή και προθεσμία με την ΑΑΔΕ, το Υπουργείο Τουρισμού και τον λογιστή σου.",
+    foot:"Πρωτότυπο για το MVP του Fakelos — δες τον φάκελο <code>docs/</code>.",
+    have:"Έχω", need:"Λείπει", na:"δ/ε",
+    expires:"λήγει", noexp:"χωρίς λήξη", lead:"χρόνος", days:"ημ", setDate:"συμπλήρωσε λήξη",
+    heads:{
+      clear:["Είσαι έτοιμος για έλεγχο","Όλα τα σημεία του κανονισμού καλύπτονται. Κράτα ενημερωμένες τις ημερομηνίες λήξης."],
+      close:["Σχεδόν εκεί","Λίγα πράγματα σε χωρίζουν από έναν καθαρό έλεγχο. Κανένα δεν είναι δομικό."],
+      mid:["Κενά που θα εντοπιστούν","Ένας ελεγκτής με προειδοποίηση 10 ημερών θα τα βρει. Τα περισσότερα είναι φθηνά — ο ηλεκτρολόγος όμως δεν είναι γρήγορος."],
+      bad:["Δεν είσαι έτοιμος για μίσθωση","Λείπουν κρίσιμες υποχρεώσεις. Ξεκίνα από αυτές με τον μεγαλύτερο χρόνο αναμονής, όχι από τις φθηνότερες."]
+    },
+    expText:(n)=>`έκθεση πρώτου προστίμου — λείπουν ${n} κρίσιμες υποχρεώσεις`,
+    expClear:"καμία κρίσιμη έλλειψη βάσει του τρέχοντος κανονισμού",
+    fixBy:"έως", overdue:"εκπρόθεσμο", perUnit:"τεμ.", tot:"σύνολο",
+    planEmpty:"Δεν εκκρεμεί τίποτα — ο χειμώνας σου είναι ελεύθερος. Ξαναέλεγξε όταν πλησιάσει η επόμενη λήξη.",
+    planHead:(d)=>`Αντίστροφα από την έναρξη της σεζόν στις ${d}, με πρώτες τις εργασίες που αργούν.`,
+    nights:(n)=>`${n} διανυκτερεύσεις`, none:"—"
+  }
+};
+
+const MONTHS = {
+  en:["January","February","March","April","May","June","July","August","September","October","November","December"],
+  el:["Ιανουάριος","Φεβρουάριος","Μάρτιος","Απρίλιος","Μάιος","Ιούνιος","Ιούλιος","Αύγουστος","Σεπτέμβριος","Οκτώβριος","Νοέμβριος","Δεκέμβριος"]
+};
+
+/* ── State ─────────────────────────────────────────────────────────────────── */
+let lang = "en";
+let tab  = "reqs";
+const state = {};                       // code -> {have:bool, exp:"YYYY-MM-DD"|""}
+RULES.forEach(r => state[r.code] = {have:false, exp:""});
+// A plausible starting position rather than an empty form: most hosts have some of this.
+["AMA_REGISTRATION","FIRE_EXTINGUISHER","AIR_CONDITIONING","CEILING_HEIGHT",
+ "NATURAL_LIGHT","VENTILATION","PRIMARY_USE_SPACE"].forEach(c => state[c].have = true);
+
+const $ = s => document.querySelector(s);
+const T = () => I18N[lang];
+
+function defaultSeasonOpen(){
+  const now = new Date();
+  const y = now.getMonth() >= 3 ? now.getFullYear() + 1 : now.getFullYear();
+  return `${y}-04-01`;
+}
+function readProp(){
+  return {
+    name : $("#f-name").value.trim(),
+    type : $("#f-type").value,
+    size : Math.max(1, +$("#f-size").value || 0),
+    beds : Math.max(0, +$("#f-beds").value || 0),
+    alt  : Math.max(0, +$("#f-alt").value  || 0),
+    open : $("#f-open").value || defaultSeasonOpen(),
+    hiN  : Math.max(0, +$("#f-hi").value || 0),
+    loN  : Math.max(0, +$("#f-lo").value || 0)
+  };
+}
+const eur = n => "€" + Math.round(n).toLocaleString(lang === "el" ? "el-GR" : "en-IE");
+// Per-night fees need their cents: the furnished-rooms low-season band is €0.50.
+const rate = n => "€" + n.toLocaleString(lang === "el" ? "el-GR" : "en-IE",
+                     {minimumFractionDigits:2, maximumFractionDigits:2});
+const dayMs = 86400000;
+const addDays = (d, n) => new Date(d.getTime() + n * dayMs);
+function fmtDate(d){
+  return d.toLocaleDateString(lang === "el" ? "el-GR" : "en-GB", {day:"2-digit", month:"short"});
+}
+function midCost(r, p){
+  const q = r.qty ? r.qty(p) : 1;
+  return ((r.cost[0] + r.cost[1]) / 2) * q;
+}
+
+/* ── Evaluation ────────────────────────────────────────────────────────────── */
+function evaluate(p){
+  const today = new Date(); today.setHours(0,0,0,0);
+  const items = RULES.filter(r => r.applies(p)).map(r => {
+    const st = state[r.code];
+    let status = "missing", days = null;
+    if (st.have){
+      if (r.months && st.exp){
+        days = Math.round((new Date(st.exp) - today) / dayMs);
+        // Scale the warning window to the renewal cycle. A flat 60 days would leave the
+        // monthly ΤΑΚ declaration permanently amber, capping the score below 100 forever.
+        const warnAt = Math.min(60, Math.max(7, r.months * 5));
+        status = days < 0 ? "missing" : (days <= warnAt ? "expiring" : "ok");
+      } else {
+        status = "ok";
+      }
+    }
+    return {rule:r, status, days, qty: r.qty ? r.qty(p) : 1};
+  });
+
+  const naCodes = RULES.filter(r => !r.applies(p)).map(r => r.code);
+  const wTot = items.reduce((a,i) => a + SEV_W[i.rule.sev], 0);
+  const wGot = items.reduce((a,i) => a + (i.status === "ok" ? SEV_W[i.rule.sev]
+                                        : i.status === "expiring" ? SEV_W[i.rule.sev] * 0.5 : 0), 0);
+  const score = wTot ? Math.round((wGot / wTot) * 100) : 100;
+
+  const open = items.filter(i => i.status !== "ok");
+  const critMissing = items.filter(i => i.status === "missing" && i.rule.sev === "critical").length;
+  const cost = open.reduce((a,i) => a + midCost(i.rule, p), 0);
+
+  return {items, naCodes, score, open, critMissing, cost};
+}
+
+/* ── Winter plan ───────────────────────────────────────────────────────────── */
+// Spreading the work across the whole off-season is the point of the feature. Scheduling
+// every job at its own last-possible date just stacks the entire list into the final
+// fortnight, which is exactly the panic the product exists to prevent. So: order by
+// severity then lead time, spread those evenly over the winter window, and only then
+// clamp anything that would land too late to still finish before opening.
+function buildPlan(p, ev){
+  const openDate = new Date(p.open + "T00:00:00");
+  const today = new Date(); today.setHours(0,0,0,0);
+
+  const winterStart = Math.max(today.getTime(), addDays(openDate, -150).getTime());
+  const spanEnd = addDays(openDate, -7).getTime();
+  const span = Math.max(0, spanEnd - winterStart);
+
+  const ordered = [...ev.open].sort((a,b) =>
+    SEV_W[b.rule.sev] - SEV_W[a.rule.sev] || b.rule.lead - a.rule.lead);
+
+  return ordered
+    .map((i, idx) => {
+      const slot = winterStart + span * (idx / Math.max(1, ordered.length));
+      const latest = addDays(openDate, -(i.rule.lead + 7)).getTime();
+      return {...i, due: new Date(Math.min(slot, latest))};
+    })
+    .sort((a,b) => a.due - b.due || SEV_W[b.rule.sev] - SEV_W[a.rule.sev])
+    .map(i => ({...i, overdue: i.due < today}));
+}
+
+/* ── Render ────────────────────────────────────────────────────────────────── */
+function render(){
+  const p  = readProp();
+  const ev = evaluate(p);
+  const t  = T();
+
+  // seal
+  const C = 2 * Math.PI * 52;
+  const arc = $("#seal-arc");
+  arc.setAttribute("stroke-dasharray", C.toFixed(1));
+  arc.setAttribute("stroke-dashoffset", (C * (1 - ev.score / 100)).toFixed(1));
+  arc.setAttribute("stroke", ev.score >= 90 ? "var(--ok)" : ev.score >= 60 ? "var(--warn)" : "var(--crit)");
+  $("#seal-num").textContent = ev.score;
+
+  const key = ev.score >= 100 ? "clear" : ev.score >= 85 ? "close" : ev.score >= 55 ? "mid" : "bad";
+  $("#v-head").textContent = t.heads[key][0];
+  $("#v-body").textContent = t.heads[key][1];
+
+  const expEl = $("#v-exp");
+  if (ev.critMissing > 0){
+    expEl.classList.remove("clear");
+    $("#v-exp-n").textContent = eur(5000);
+    $("#v-exp-t").textContent = t.expText(ev.critMissing);
+  } else {
+    expEl.classList.add("clear");
+    $("#v-exp-n").textContent = eur(0);
+    $("#v-exp-t").textContent = t.expClear;
+  }
+
+  const plan = buildPlan(p, ev);
+  $("#s-gaps").textContent = ev.open.length;
+  $("#s-cost").textContent = eur(ev.cost);
+  $("#s-next").textContent = plan.length ? fmtDate(plan[0].due) : t.none;
+
+  renderReqs(p, ev);
+  renderPlan(p, plan);
+  renderTak(p);
+}
+
+function renderReqs(p, ev){
+  const t = T();
+  // Rebuilding this list detaches whatever the user was editing, which drops focus
+  // mid-keystroke on the expiry dates. Note what was focused and hand it back after.
+  const act = document.activeElement;
+  const keep = act && (act.dataset.exp ? {sel:`[data-exp="${act.dataset.exp}"]`}
+             : act.dataset.set ? {sel:`[data-set="${act.dataset.set}"][data-v="${act.dataset.v}"]`}
+             : null);
+
+  const rows = RULES.map(r => {
+    const applies = r.applies(p);
+    const it = ev.items.find(i => i.rule.code === r.code);
+    const st = state[r.code];
+    const status = applies ? it.status : "na";
+
+    const chips = [];
+    if (!applies){
+      chips.push(`<span class="chip">${t.na}</span>`);
+    } else {
+      if (it.qty > 1) chips.push(`<span class="chip">×${it.qty}</span>`);
+      if (status === "ok" && r.months && st.exp)
+        chips.push(`<span class="chip ok">${t.expires} ${fmtDate(new Date(st.exp))}</span>`);
+      if (status === "ok" && !r.months)
+        chips.push(`<span class="chip ok">${t.noexp}</span>`);
+      // Held, renews, but no date on file — the dossier is incomplete even though
+      // nothing is technically missing. Say so rather than showing a bare row.
+      if (status === "ok" && r.months && !st.exp)
+        chips.push(`<span class="chip warn">${t.setDate}</span>`);
+      if (status === "expiring")
+        chips.push(`<span class="chip warn">${t.expires} ${it.days}${t.days}</span>`);
+      if (status === "missing"){
+        const c = midCost(r, p);
+        chips.push(`<span class="chip crit">${c > 0 ? eur(c) : t.need}</span>`);
+        if (r.lead > 3) chips.push(`<span class="chip">${t.lead} ~${r.lead}${t.days}</span>`);
+      }
+    }
+
+    const needsDate = applies && st.have && r.months;
+    return `
+      <div class="req${applies ? "" : " na"}" data-s="${status}">
+        <span class="stripe"></span>
+        <div class="req-main">
+          <div class="req-title">${lang === "el" ? r.el : r.en}<span class="code">${r.code}</span></div>
+          <p class="req-note">${lang === "el" ? r.nel : r.nen}</p>
+          <div class="req-meta">${chips.join("")}</div>
+        </div>
+        <div class="req-act">
+          <div class="tri" role="group">
+            <button type="button" data-set="${r.code}" data-v="1" aria-pressed="${st.have}"
+              ${applies ? "" : "disabled"}>${t.have}</button>
+            <button type="button" data-set="${r.code}" data-v="0" aria-pressed="${!st.have}"
+              ${applies ? "" : "disabled"}>${t.need}</button>
+          </div>
+          ${needsDate ? `<input type="date" data-exp="${r.code}" value="${st.exp}" aria-label="${t.expires}" />` : ""}
+        </div>
+      </div>`;
+  }).join("");
+  $("#p-reqs").innerHTML = rows;
+  if (keep){ const back = $(keep.sel); if (back) back.focus(); }
+}
+
+function renderPlan(p, plan){
+  const t = T();
+  if (!plan.length){ $("#p-plan").innerHTML = `<p class="tak-note">${t.planEmpty}</p>`; return; }
+
+  const openTxt = new Date(p.open + "T00:00:00")
+    .toLocaleDateString(lang === "el" ? "el-GR" : "en-GB", {day:"numeric", month:"long", year:"numeric"});
+
+  let html = `<p class="tak-note" style="border-top:0">${t.planHead(openTxt)}</p>`;
+  let curKey = "";
+  plan.forEach(i => {
+    const key = i.due.getFullYear() + "-" + i.due.getMonth();
+    if (key !== curKey){
+      curKey = key;
+      const inMonth = plan.filter(x => x.due.getFullYear() + "-" + x.due.getMonth() === key);
+      const sum = inMonth.reduce((a,x) => a + midCost(x.rule, p), 0);
+      html += `<div class="mon"><h4>${MONTHS[lang][i.due.getMonth()]} ${i.due.getFullYear()}</h4><i></i><em>${eur(sum)}</em></div>`;
+    }
+    const c = midCost(i.rule, p);
+    html += `
+      <div class="task${i.overdue ? " overdue" : ""}">
+        <time>${i.overdue ? t.overdue : fmtDate(i.due)}</time>
+        <div class="t">${lang === "el" ? i.rule.el : i.rule.en}
+          <small>${lang === "el" ? i.rule.nel : i.rule.nen}</small>
+        </div>
+        <div class="c">${c > 0 ? eur(c) : "—"}</div>
+      </div>`;
+  });
+  $("#p-plan").innerHTML = html;
+}
+
+function renderTak(p){
+  const t = T();
+  const band = TAK.find(b => b.match(p)) || TAK[0];
+  $("#tak-hi-rate").textContent = rate(band.hi);
+  $("#tak-lo-rate").textContent = rate(band.lo);
+  $("#tak-hi-tot").textContent = `${t.nights(p.hiN)} · ${eur(band.hi * p.hiN)} ${t.tot}`;
+  $("#tak-lo-tot").textContent = `${t.nights(p.loN)} · ${eur(band.lo * p.loN)} ${t.tot}`;
+
+  $("#tak-rows").innerHTML = TAK.map(b => `
+    <tr class="${b.code === band.code ? "on" : ""}">
+      <td>${lang === "el" ? b.el : b.en}</td>
+      <td class="n">${rate(b.hi)}</td>
+      <td class="n">${rate(b.lo)}</td>
+    </tr>`).join("");
+}
+
+function applyLang(){
+  const t = T();
+  document.documentElement.lang = lang;
+  document.querySelectorAll("[data-t]").forEach(el => {
+    const v = t[el.dataset.t];
+    if (v == null) return;
+    if (/<[a-z]/i.test(v)) el.innerHTML = v; else el.textContent = v;
+  });
+  document.querySelectorAll("[data-lang]").forEach(b =>
+    b.setAttribute("aria-pressed", String(b.dataset.lang === lang)));
+  render();
+}
+
+function showTab(name){
+  tab = name;
+  document.querySelectorAll("[data-tab]").forEach(b =>
+    b.setAttribute("aria-selected", String(b.dataset.tab === name)));
+  $("#p-reqs").hidden = name !== "reqs";
+  $("#p-plan").hidden = name !== "plan";
+  $("#p-tak").hidden  = name !== "tak";
+}
+
+/* ── Wiring ────────────────────────────────────────────────────────────────── */
+$("#f-open").value = defaultSeasonOpen();
+
+document.addEventListener("input", e => {
+  if (e.target.closest(".fields")) render();
+  const c = e.target.dataset.exp;
+  if (c){ state[c].exp = e.target.value; render(); }
+});
+document.addEventListener("change", e => { if (e.target.matches("#f-type")) render(); });
+
+document.addEventListener("click", e => {
+  const set = e.target.closest("[data-set]");
+  if (set){
+    const s = state[set.dataset.set];
+    s.have = set.dataset.v === "1";
+    // Seed a sensible expiry the first time someone marks an annual item as held.
+    const rule = RULES.find(r => r.code === set.dataset.set);
+    if (s.have && rule.months && rule.months <= 24 && !s.exp){
+      const d = new Date(); d.setMonth(d.getMonth() + rule.months);
+      s.exp = d.toISOString().slice(0,10);
+    }
+    render(); return;
+  }
+  const tb = e.target.closest("[data-tab]");
+  if (tb){ showTab(tb.dataset.tab); return; }
+  const lb = e.target.closest("[data-lang]");
+  if (lb){ lang = lb.dataset.lang; applyLang(); return; }
+});
+
+$("#btn-print").addEventListener("click", () => window.print());
+$("#btn-reset").addEventListener("click", () => {
+  RULES.forEach(r => { state[r.code] = {have:false, exp:""}; });
+  render();
+});
+
+showTab("reqs");
+applyLang();
+</script>
+</body>
+</html>
