@@ -1,0 +1,95 @@
+import type {
+  AppInfo,
+  Category,
+  CustomField,
+  Database,
+  FieldType,
+  Item,
+  Settings,
+} from './types';
+
+/** Every call crosses the preload bridge and comes back in this envelope. */
+export interface Result<T> {
+  ok: boolean;
+  data?: T;
+  error?: string;
+}
+
+export interface ImportResult {
+  canceled: boolean;
+  added?: number;
+  updated?: number;
+  skipped?: number;
+  newCategories?: number;
+  newFields?: number;
+  /** Columns that could not become details because the ceiling was reached. */
+  droppedColumns?: string[];
+  state?: Database;
+}
+
+export interface ExportResult {
+  canceled: boolean;
+  filePath?: string;
+  count?: number;
+}
+
+export interface RestoreResult {
+  canceled: boolean;
+  state?: Database;
+}
+
+export interface MyVaultBridge {
+  getInfo(): Promise<Result<AppInfo>>;
+  getState(): Promise<Result<Database>>;
+
+  items: {
+    add(input: Partial<Item>): Promise<Result<Item>>;
+    update(id: string, patch: Partial<Item>): Promise<Result<Item>>;
+    adjust(id: string, delta: number): Promise<Result<Item>>;
+    remove(ids: string[]): Promise<Result<Item[]>>;
+    restore(items: Item[]): Promise<Result<Item[]>>;
+  };
+
+  categories: {
+    add(input: { name: string; color?: string }): Promise<Result<Category>>;
+    update(id: string, patch: Partial<Category>): Promise<Result<Category>>;
+    remove(id: string): Promise<Result<Database>>;
+  };
+
+  fields: {
+    add(input: {
+      name: string;
+      type: FieldType;
+      options?: string[];
+      showInTable?: boolean;
+    }): Promise<Result<Database>>;
+    update(id: string, patch: Partial<CustomField>): Promise<Result<Database>>;
+    remove(id: string): Promise<Result<Database>>;
+    move(id: string, direction: 'up' | 'down'): Promise<Result<Database>>;
+  };
+
+  settings: {
+    update(patch: Partial<Settings>): Promise<Result<Settings>>;
+  };
+
+  /** Scales the whole interface. Returns the factor actually applied. */
+  setZoom(factor: number): number;
+
+  data: {
+    exportCsv(): Promise<Result<ExportResult>>;
+    importCsv(): Promise<Result<ImportResult>>;
+    backup(): Promise<Result<ExportResult>>;
+    restore(): Promise<Result<RestoreResult>>;
+    openFolder(): Promise<Result<string>>;
+  };
+
+  confirmDelete(count: number): Promise<Result<boolean>>;
+
+  onMenu(handler: (channel: string) => void): () => void;
+}
+
+declare global {
+  interface Window {
+    myvault: MyVaultBridge;
+  }
+}
