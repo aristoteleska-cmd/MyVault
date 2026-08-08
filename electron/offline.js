@@ -1,0 +1,72 @@
+'use strict';
+
+/**
+ * The rules that keep MyVault offline once installed.
+ *
+ * Kept in its own module — with no dependency on Electron — so the policy can be
+ * tested directly rather than only observed through a running window.
+ */
+
+/** Chromium services that would otherwise reach the network on their own. */
+const NETWORK_SWITCHES = [
+  'disable-background-networking',
+  'disable-component-update',
+  'disable-domain-reliability',
+  'disable-breakpad',
+  'disable-sync',
+  'no-pings',
+  'disable-client-side-phishing-detection',
+];
+
+const DISABLED_FEATURES = [
+  'MediaRouter',
+  'OptimizationHints',
+  'AutofillServerCommunication',
+  'SafeBrowsing',
+  'NetworkTimeServiceQuerying',
+].join(',');
+
+/** Schemes that only ever read what is already on this machine. */
+const OFFLINE_SCHEMES = new Set(['file:', 'data:', 'blob:', 'devtools:', 'chrome-extension:']);
+
+const DEV_SERVER = /^(https?|wss?):\/\/localhost:5173(\/|$|\?)/;
+
+/**
+ * True only for requests that stay on this computer.
+ *
+ * @param {string} url
+ * @param {{ isDev?: boolean }} [options] in development the local Vite server is
+ *   allowed, because that is where the interface is being served from. It is
+ *   never allowed in a packaged build.
+ */
+function isAllowedRequest(url, { isDev = false } = {}) {
+  if (typeof url !== 'string' || url === '') return false;
+  if (isDev && DEV_SERVER.test(url)) return true;
+  try {
+    return OFFLINE_SCHEMES.has(new URL(url).protocol);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Applies the policy to a session: cancels every request that would leave this
+ * machine, and refuses every device permission.
+ */
+function enforceOffline(targetSession, { isDev = false } = {}) {
+  targetSession.webRequest.onBeforeRequest((details, callback) => {
+    callback({ cancel: !isAllowedRequest(details.url, { isDev }) });
+  });
+
+  // Nothing in a stock list needs the camera, the microphone or your location.
+  targetSession.setPermissionRequestHandler((_contents, _permission, callback) => callback(false));
+  targetSession.setPermissionCheckHandler(() => false);
+}
+
+module.exports = {
+  NETWORK_SWITCHES,
+  DISABLED_FEATURES,
+  OFFLINE_SCHEMES,
+  isAllowedRequest,
+  enforceOffline,
+};

@@ -1,0 +1,89 @@
+name: Build Windows app
+
+# Everything here fits inside GitHub's free allowance for a private repository
+# (2,000 runner minutes and 500 MB of artifact storage per month).
+#
+#   • Tests run on every push. They run on Linux, the cheapest runner, and take
+#     a couple of minutes — a few hundred pushes a month would still fit.
+#
+#   • The Windows installer is BUILT on every push, so a break in the packaging
+#     — the NSIS script, the icon, the licence encoding — is caught here rather
+#     than the first time you try to hand the app to a shop. Runner minutes are
+#     the plentiful allowance.
+#
+#   • The installers are only KEPT when you ask for them: press "Run workflow"
+#     on this page, or push a version tag. Storage is the scarce allowance —
+#     each build is about 175 MB against 500 MB — so an ordinary push verifies
+#     the build and then throws it away.
+#
+#   • Kept installers expire after 7 days. Download the one you want and hand it
+#     out; it does not need to sit here.
+#
+# You can also skip all of this and build on your own Windows PC for nothing:
+#   npm install && npm run dist:win
+
+on:
+  push:
+    branches: ['**']
+    tags: ['v*']
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+
+  build:
+    needs: test
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Build the Windows installer and portable exe
+        run: npm run dist:win
+
+      # NSIS prints a warning for every installer string a language has no
+      # translation for and falls back to English on. They are cosmetic, so
+      # warningsAsErrors is off — but that means the log is the only place a
+      # genuine packaging warning would show up. Worth a glance when it changes.
+      - name: Confirm both installers were produced
+        shell: pwsh
+        run: |
+          $exes = Get-ChildItem release -Filter *.exe
+          $exes | ForEach-Object { "{0}  {1:N0} MB" -f $_.Name, ($_.Length / 1MB) }
+          if ($exes.Count -lt 2) { throw "expected an installer and a portable exe, found $($exes.Count)" }
+
+      # Kept only for a tag or a manual run — see the note at the top about
+      # storage. Download these from the run's summary page, then hand the .exe
+      # to a shop however you like: USB stick, email, WeTransfer.
+      - name: Installer
+        if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
+        with:
+          name: MyVault-windows-installer
+          path: release/*setup*.exe
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Portable build
+        if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
+        with:
+          name: MyVault-windows-portable
+          path: release/*portable*.exe
+          if-no-files-found: error
+          retention-days: 7
