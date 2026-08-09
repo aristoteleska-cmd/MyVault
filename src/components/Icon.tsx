@@ -9,7 +9,7 @@ export type IconName =
   | 'fields' | 'settings' | 'arrowUp' | 'arrowDown' | 'chevronDown'
   | 'chevronLeft' | 'chevronRight' | 'close' | 'check' | 'download'
   | 'upload' | 'folder' | 'alert' | 'box' | 'barcode' | 'filter'
-  | 'sun' | 'moon' | 'monitor' | 'info' | 'sort' | 'save' | 'image';
+  | 'sun' | 'moon' | 'monitor' | 'info' | 'sort' | 'save' | 'image' | 'staff';
 
 const paths: Record<IconName, React.ReactNode> = {
   vault: (
@@ -124,6 +124,13 @@ const paths: Record<IconName, React.ReactNode> = {
     </>
   ),
   sort: <path d="M7 4.5v15M4 16.5 7 19.5l3-3M17 19.5v-15M14 7.5 17 4.5l3 3" />,
+  staff: (
+    <>
+      <circle cx="9" cy="8" r="3.2" />
+      <path d="M3.5 19.5a5.5 5.5 0 0 1 11 0" />
+      <path d="M16.5 5.6a3.2 3.2 0 0 1 0 6.2M17.5 14.3a5.5 5.5 0 0 1 3 5.2" />
+    </>
+  ),
   image: (
     <>
       <rect x="3" y="4.5" width="18" height="15" rx="2.5" />

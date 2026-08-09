@@ -429,6 +429,54 @@ same contents and the same records, not the same inode.
 
 ---
 
+## Staff and permissions
+
+A shop is rarely one person. **Staff** in the sidebar gives everyone their own
+PIN and decides what they may do.
+
+| Role | What they can do |
+| --- | --- |
+| **Manager** | Everything: products, categories, extra details, settings, and who else works here. |
+| **Senior** | Adds products, books deliveries in, rings up sales, exports a CSV. **Not** categories, extra details, settings, or deleting products. |
+| **Assistant** | Looks a product up and takes one off when it sells. Nothing else — not even correcting a count upwards, which is a delivery, not a sale. |
+
+**Nothing changes until you set it up.** A shop that updates to this version has
+no staff list, so MyVault opens straight into the stock with full access, exactly
+as before. The moment you create the first manager, MyVault starts asking for a
+PIN — and the first person has to be a manager, or nobody could add the rest.
+
+Each person signs in with a 4-to-12-digit PIN on a keypad. PINs are **salted and
+hashed with scrypt**, never stored as you typed them, and never cross into the
+window: the interface is told who is signed in and what they may do, and nothing
+else. Signing out, or closing MyVault, leaves the next person a locked screen.
+
+You cannot lock yourself out by accident. The last manager cannot be deleted or
+demoted, and a data file that has somehow ended up with no manager at all is
+treated as having no staff list — the shop gets full access back rather than a
+door it cannot open.
+
+### What this is, and what it is not
+
+This is **staff separation, not security.** It decides what each person can do
+*inside MyVault*. It is not a lock on the computer: everything lives in one file
+on that PC, and anyone who can open that file in Notepad can read it, or delete
+it, or reinstall the program. Protect the PC itself the way you protect the till
+drawer — a Windows account password does more here than any PIN could.
+
+What it *does* do is real. The checks run in the background process, on the far
+side of the bridge, not in the buttons. Hiding a button is the polite half;
+`tests/roles.e2e.js` proves the other half by signing in as an assistant, calling
+the program's own internals directly — past the interface entirely — and
+requiring all ten manager-and-senior actions to be refused.
+
+**If every PIN is forgotten**, nothing is lost. Close MyVault, open the data
+folder (the path is on the Settings screen), and either restore a backup from
+before roles were set up, or delete the `users` list from `myvault.json`. MyVault
+reopens unlocked with all your stock intact. That is also, honestly, why the
+paragraph above says this is not security.
+
+---
+
 ## Where your data lives
 
 | Build | Location |

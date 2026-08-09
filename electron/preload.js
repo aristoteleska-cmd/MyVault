@@ -47,6 +47,26 @@ contextBridge.exposeInMainWorld('myvault', {
   },
 
   /**
+   * Signing in, and who may do what.
+   *
+   * The window is never given a PIN, a salt or a hash — only the answer to
+   * "was that right", and the list of capabilities the signed-in role holds.
+   */
+  auth: {
+    state: () => invoke('auth:state'),
+    signIn: (pin) => invoke('auth:sign-in', pin),
+    signOut: () => invoke('auth:sign-out'),
+    createFirstAdmin: (input) => invoke('staff:create-first-admin', input),
+  },
+
+  staff: {
+    list: () => invoke('staff:list'),
+    add: (input) => invoke('staff:add', input),
+    update: (id, patch) => invoke('staff:update', id, patch),
+    remove: (id) => invoke('staff:delete', id),
+  },
+
+  /**
    * Checking GitHub for a newer MyVault. Three separate steps on purpose —
    * nothing downloads until asked, and nothing installs until asked again.
    */

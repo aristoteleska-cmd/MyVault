@@ -58,6 +58,7 @@ export interface Settings {
 
 export interface Database {
   schemaVersion: number;
+  users?: StaffMember[];
   appVersion?: string;
   createdAt: string;
   settings: Settings;
@@ -123,6 +124,45 @@ export interface UpdateStatus {
   mode: UpdateMode;
   enabled: boolean;
   automatic: boolean;
+}
+
+/**
+ * Staff separation, not security — see the README. The three roles are ordered
+ * most-trusted first, which is also the order they are offered in.
+ */
+export type Role = 'admin' | 'senior' | 'junior';
+
+export type Capability =
+  | 'items.view'
+  | 'items.sell'
+  | 'items.receive'
+  | 'items.create'
+  | 'items.edit'
+  | 'items.delete'
+  | 'categories.manage'
+  | 'fields.manage'
+  | 'settings.manage'
+  | 'data.export'
+  | 'data.import'
+  | 'staff.manage';
+
+/** A member of staff as the window is allowed to see them: never a PIN. */
+export interface StaffMember {
+  id: string;
+  name: string;
+  role: Role;
+  createdAt: string;
+}
+
+export interface AuthState {
+  /** False until somebody sets roles up; then MyVault asks for a PIN. */
+  locked: boolean;
+  signedIn: boolean;
+  role: Role | null;
+  user: { id: string; name: string; role: Role } | null;
+  capabilities: Capability[];
+  roles: Role[];
+  staffCount: number;
 }
 
 export type ItemDraft = Omit<Item, 'id' | 'createdAt' | 'updatedAt'>;

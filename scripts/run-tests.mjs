@@ -23,6 +23,7 @@ const suites = [
   { name: 'translations', file: 'tests/i18n.test.ts', typescript: true },
   { name: 'installer script', file: 'tests/installer.test.ts', typescript: true },
   { name: 'updates', file: 'tests/updates.test.js', typescript: false },
+  { name: 'roles + staff', file: 'tests/roles.test.js', typescript: false },
   { name: 'barcode photos', file: 'tests/barcode.test.ts', typescript: true },
 ];
 

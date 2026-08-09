@@ -39,7 +39,7 @@ export function InventoryView({
   searchRef,
   onGoToFields,
 }: InventoryViewProps) {
-  const { db, deleteItems, adjustStock, importCsv, exportCsv } = useVault();
+  const { db, deleteItems, adjustStock, importCsv, exportCsv, can } = useVault();
   const { t, locale } = useI18n();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [page, setPage] = useState(0);
@@ -199,10 +199,12 @@ export function InventoryView({
           {t('action.scanPhoto')}
         </button>
 
-        <button type="button" className="btn btn-primary btn-lg" onClick={onNewItem}>
-          <Icon name="plus" />
-          {t('action.addItem')}
-        </button>
+        {can('items.create') && (
+          <button type="button" className="btn btn-primary btn-lg" onClick={onNewItem}>
+            <Icon name="plus" />
+            {t('action.addItem')}
+          </button>
+        )}
       </div>
 
       <div className="view">
@@ -503,18 +505,24 @@ export function InventoryView({
 
         <div className="toolbar" style={{ justifyContent: 'space-between' }}>
           <div className="toolbar-group">
-            <button type="button" className="btn btn-sm" onClick={() => void importCsv()}>
-              <Icon name="upload" size={15} />
-              {t('tools.import')}
-            </button>
-            <button type="button" className="btn btn-sm" onClick={() => void exportCsv()}>
-              <Icon name="download" size={15} />
-              {t('tools.export')}
-            </button>
-            <button type="button" className="btn btn-sm" onClick={onGoToFields}>
-              <Icon name="fields" size={15} />
-              {t('tools.manageDetails')}
-            </button>
+            {can('data.import') && (
+              <button type="button" className="btn btn-sm" onClick={() => void importCsv()}>
+                <Icon name="upload" size={15} />
+                {t('tools.import')}
+              </button>
+            )}
+            {can('data.export') && (
+              <button type="button" className="btn btn-sm" onClick={() => void exportCsv()}>
+                <Icon name="download" size={15} />
+                {t('tools.export')}
+              </button>
+            )}
+            {can('fields.manage') && (
+              <button type="button" className="btn btn-sm" onClick={onGoToFields}>
+                <Icon name="fields" size={15} />
+                {t('tools.manageDetails')}
+              </button>
+            )}
           </div>
           <span className="field-hint">
             {t('tools.tip', { new: 'Ctrl + N', find: 'Ctrl + F' })}
