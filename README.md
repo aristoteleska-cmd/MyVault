@@ -187,15 +187,22 @@ npm run dist:win
 Both files appear in `release/`. This costs nothing and is the simplest way.
 
 **Or on GitHub**, if you are not at a Windows machine: go to the **Actions** tab,
-pick *Build Windows app*, press **Run workflow**, and download the installers
-from the run's summary page when it finishes.
+pick *Build Windows app*, press **Run workflow**, and — this is the part worth
+remembering — type a version into **Release tag**, such as `v1.0.1`.
 
-| Download | What it is |
+* **With a release tag**, the finished `.exe` files are attached to a
+  [Release](../../releases). One click each, a direct download rather than a zip
+  to unpack, and they stay there indefinitely.
+* **Leaving the box blank** just builds and keeps the files on the run's summary
+  page for 7 days, as a plain `.zip` you have to extract.
+
+| File | What it is |
 | --- | --- |
-| `MyVault-windows-installer` | Normal installer. Adds MyVault to the Start menu and desktop. |
-| `MyVault-windows-portable` | Single `.exe`. Runs from anywhere, including a USB stick. |
+| `MyVault-…-setup.exe` | Normal installer. Adds MyVault to the Start menu and desktop. |
+| `MyVault-…-portable.exe` | Single `.exe`. Runs from anywhere, including a USB stick. |
 
 Then copy the `.exe` onto a USB stick, or email it, and give it to the shop.
+Releases in a private repository are private too — only you can see them.
 
 #### Staying inside the free allowance
 
@@ -208,6 +215,7 @@ the Windows build is not left running on every push:
 | Tests | every push | ~2 Linux minutes |
 | Windows build | every push | ~5 Windows minutes, no storage |
 | Keeping the installers | only a version tag, or **Run workflow** | ~175 MB for 7 days |
+| Publishing a release | only when you fill in **Release tag** | nothing — release assets are not counted |
 
 Minutes are the plentiful allowance, so the installer is *built* on every push —
 that is what catches a break in the NSIS script, the icon or the licence
@@ -215,7 +223,9 @@ encoding, none of which the Linux tests can see. Storage is the scarce one: an
 Electron app bundles its whole runtime into each `.exe`, so two builds sitting
 around would nearly fill the 500 MB. An ordinary push therefore builds, checks
 both `.exe` files exist, and throws them away; only a tag or a manual run keeps
-them, for 7 days.
+them, for 7 days. A **Release** sidesteps the problem entirely: GitHub does not
+charge release assets against that 500 MB, which is why a version you actually
+intend to hand out is better published as one.
 
 Building locally uses none of this at all.
 [HANDOUT.md](HANDOUT.md) is a short bilingual instruction sheet — installing,
