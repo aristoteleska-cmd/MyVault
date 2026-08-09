@@ -9,9 +9,11 @@
  *     program that does not use the internet, and that stays true by default —
  *     with updates off, not one request is made, ever.
  *
- *   • Nothing installs itself. A check is a check; downloading is a second,
- *     separate press; installing is a third. A stock list should never restart
- *     itself in the middle of a Saturday.
+ *   • The shop chooses how much happens by itself. On "check" a check is a
+ *     check — downloading is a second press and installing a third. On "auto"
+ *     the download happens quietly in the background, but the swap still waits
+ *     until MyVault is next closed: a stock list must never restart itself in
+ *     the middle of a Saturday.
  *
  *   • Only GitHub, only over HTTPS, and only downwards. See ./update-policy.js.
  *
@@ -32,18 +34,28 @@ const {
 /** Anything longer than this and the shop is staring at a spinner for nothing. */
 const CHECK_TIMEOUT_MS = 30_000;
 
+/**
+ * A shop opening for the day wants its stock list, not a network request. The
+ * automatic check waits until the window is up and being used.
+ */
+const STARTUP_DELAY_MS = 20_000;
+
+/** Once a day is plenty for a program that changes a few times a year. */
+const DAILY_MS = 24 * 60 * 60 * 1000;
+
 class Updater {
   /**
    * @param {object} options
-   * @param {() => boolean} options.isEnabled reads the shop's own setting, live,
-   *   so switching updates off takes effect without restarting.
+   * @param {() => 'off'|'check'|'auto'} options.getMode reads the shop's own
+   *   setting, live, so changing it takes effect without restarting.
    * @param {(status: object) => void} options.onStatus
    */
-  constructor({ app, isEnabled, onStatus, isDev = false }) {
+  constructor({ app, getMode, onStatus, isDev = false }) {
     this.app = app;
-    this.isEnabled = isEnabled;
+    this.getMode = getMode;
     this.onStatus = onStatus;
     this.autoUpdater = null;
+    this.timer = null;
 
     const { supported, reason } = updateSupport({
       platform: process.platform,
@@ -56,6 +68,7 @@ class Updater {
 
     this.status = {
       state: supported ? 'idle' : 'unsupported',
+      automatic: false,
       reason,
       currentVersion: app.getVersion(),
       newVersion: '',
@@ -71,11 +84,18 @@ class Updater {
   /** Sends the current status to whoever is listening, without leaking the object. */
   emit(patch = {}) {
     this.status = { ...this.status, ...patch };
-    this.onStatus({ ...this.status, supported: this.supported, enabled: this.isEnabled() });
+    this.onStatus(this.getStatus());
   }
 
   getStatus() {
-    return { ...this.status, supported: this.supported, enabled: this.isEnabled() };
+    const mode = this.getMode();
+    return {
+      ...this.status,
+      supported: this.supported,
+      mode,
+      enabled: mode !== 'off',
+      automatic: mode === 'auto',
+    };
   }
 
   /**
@@ -88,11 +108,11 @@ class Updater {
     // eslint-disable-next-line global-require
     const { autoUpdater } = require('electron-updater');
 
-    autoUpdater.autoDownload = false;
-    autoUpdater.autoInstallOnAppQuit = false;
     autoUpdater.allowPrerelease = false;
     autoUpdater.allowDowngrade = false;
     autoUpdater.setFeedURL({ ...FEED });
+    this.autoUpdater = autoUpdater;
+    this.applyMode();
 
     // electron-updater logs to the console by default; keep it quiet but keep
     // the failures, which are the only part worth reading.
@@ -141,8 +161,47 @@ class Updater {
       });
     });
 
-    this.autoUpdater = autoUpdater;
     return autoUpdater;
+  }
+
+  /**
+   * "Automatic" means fetch it quietly and swap it in when MyVault is next
+   * closed — never mid-afternoon with a queue at the till. The shop can still
+   * press Install to do it there and then.
+   */
+  applyMode() {
+    if (!this.autoUpdater) return;
+    const automatic = this.getMode() === 'auto';
+    this.autoUpdater.autoDownload = automatic;
+    this.autoUpdater.autoInstallOnAppQuit = automatic;
+  }
+
+  /**
+   * Starts, or stops, the unattended checking. Called once at launch and again
+   * whenever the setting changes, so turning updates off silences it at once
+   * rather than at the next restart.
+   */
+  schedule() {
+    if (this.timer) {
+      clearTimeout(this.timer);
+      clearInterval(this.timer);
+      this.timer = null;
+    }
+    this.applyMode();
+    if (!this.supported || this.getMode() === 'off') return;
+
+    const tick = () => {
+      // The setting may have been switched off since this was scheduled.
+      if (this.getMode() === 'off') return;
+      this.check().catch(() => { /* already reported through the status */ });
+    };
+
+    this.timer = setTimeout(() => {
+      tick();
+      this.timer = setInterval(tick, DAILY_MS);
+    }, STARTUP_DELAY_MS);
+    // Never hold the app open just to run a check.
+    this.timer.unref?.();
   }
 
   /** Throws the reason rather than failing quietly, so the UI can say it out loud. */
@@ -154,7 +213,7 @@ class Updater {
           : 'This copy of MyVault cannot update itself.',
       );
     }
-    if (!this.isEnabled()) {
+    if (this.getMode() === 'off') {
       throw new Error('Updates are switched off.');
     }
   }

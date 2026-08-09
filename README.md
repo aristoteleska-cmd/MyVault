@@ -48,6 +48,10 @@ notes.
 - Low-stock and out-of-stock warnings, with your own limit per product
 - **Scan a barcode anywhere in the app** and the product comes straight up — USB
   barcode readers work out of the box
+- **No scanner? Use a photo.** Press **Barcode photo**, choose a picture of the
+  barcode, and MyVault reads the number out of it — then opens the product, or
+  starts a new one with the number already filled in. The picture never leaves
+  the computer; the reading is done inside the app.
 - Totals along the top: how many products, how many pieces, what the stock is worth
 - Delete with a one-click **Undo**
 - Import and export CSV so a list you already keep in Excel comes across in one go
@@ -124,16 +128,23 @@ the network by five different routes, and every one has to fail.
 
 ### The one exception, and its exact size
 
-**Settings → Updates** can be switched on, and then MyVault is allowed to ask
-GitHub whether a newer installer exists. It is worth being precise about what
-that does and does not change:
+**Settings → Updates** has three positions, and only the first is the default:
+
+| | What it does |
+| --- | --- |
+| **Off** *(default)* | Never goes online. Nothing is checked, nothing is sent. |
+| **Tell me** | Looks once a day and says if there is a newer version. Downloading and installing are two more presses, both yours. |
+| **Automatic** | Looks once a day and downloads quietly. The new version is put in place **the next time MyVault is closed** — never mid-afternoon with a queue at the till. |
+
+It is worth being precise about what switching it on does and does not change:
 
 - It is **off on a fresh install** and stays off until somebody chooses
   otherwise. A shop that never opens that panel is in exactly the state
   described above.
-- Even switched on, **nothing happens on its own**. There is no check at
-  startup and no background timer. Checking, downloading and installing are
-  three separate presses.
+- Even on **Automatic**, MyVault never restarts itself. The swap happens when
+  the shop closes the program, and a button is there to do it sooner.
+- The first check waits twenty seconds after launch, so opening the app is
+  never held up by the network.
 - The **interface still cannot reach the network at all** — that rule is
   unchanged, and the test suite still proves it with updates on. Only the
   background part of the program makes the request.
@@ -162,10 +173,11 @@ There are two ways to get the newer version onto a shop's PC.
 the newer installer yourself and run it over the top. Their items, categories,
 extra details and every setting stay exactly as they were.
 
-**From inside the app**, if the shop switches on **Settings → Updates**. MyVault
-then asks GitHub whether a newer installer exists, and offers to fetch and run
-it. Read [the exception above](#the-one-exception-and-its-exact-size) for
-exactly what that permits. The portable `.exe` deliberately cannot do this — it
+**From inside the app**, if the shop switches **Settings → Updates** to *Tell
+me* or *Automatic*. MyVault then asks GitHub once a day whether a newer
+installer exists, and either offers it or fetches it quietly. Read
+[the exception above](#the-one-exception-and-its-exact-size) for exactly what
+that permits. The portable `.exe` deliberately cannot do this — it
 may be running from a USB stick, so it tells the user to download the new file
 instead of overwriting itself.
 
@@ -340,6 +352,36 @@ fixed list of operations in `electron/preload.js`, and every one of them is
 validated in `electron/store.js` before anything is written. React is bundled
 into `dist/` at build time, which is why `dependencies` is empty — the packaged
 app ships only MyVault's own code.
+
+---
+
+## Reading a barcode from a photograph
+
+A shop without a barcode reader still has a phone. **Barcode photo** on the
+stock list, and **Read from photo** next to the barcode box when adding an item,
+both take a picture and pull the number out of it.
+
+- **Registering new stock**: photograph the barcode, and if the shop does not
+  have that product yet the Add-item form opens with the number already in
+  place. Type the name and the price and it is registered.
+- **Finding something**: if the barcode is already known, the item opens for
+  editing instead — which is nearly always why someone photographs a barcode at
+  the counter.
+- **Formats**: EAN-13, EAN-8, UPC-A, UPC-E, Code 128, Code 39, Code 93, ITF,
+  Codabar, QR and Data Matrix. Photos taken sideways or upside-down are read
+  too; MyVault tries all four orientations.
+- **Where it happens**: entirely inside the app, on this computer. The decoder
+  is bundled with MyVault. No picture is uploaded, and this works with no
+  internet connection at all.
+
+It is a photograph, so it is not infallible. A blurred, angled or half-cropped
+barcode will not read, and MyVault says so rather than guessing — try again
+closer, sharper, with the whole barcode in frame and a little white space
+either side. A USB reader is still faster if you have one.
+
+Note that an EAN-13 beginning with `0` is the same symbol as a UPC-A and comes
+back in its twelve-digit form without the leading zero. That is correct, and it
+matches what a USB scanner reports for the same product.
 
 ---
 

@@ -67,6 +67,22 @@ for (const [code, catalogue] of complete) {
   const missing = enKeys.filter((key) => !(key in catalogue));
   assert.strictEqual(missing.length, 0, `${code} is missing: ${missing.slice(0, 5).join(', ')}`);
 }
+
+// A floor, not a note. Adding an English string without translating it used to
+// quietly drop every language out of this list and still pass; now it fails and
+// names what is missing, which is the only way the twelve stay complete.
+const partial = Object.entries(catalogues)
+  .filter(([code]) => code !== 'en')
+  .map(([code, catalogue]) => [code, enKeys.filter((key) => !(key in catalogue))] as const)
+  .filter(([, missing]) => missing.length > 0);
+assert.strictEqual(
+  partial.length,
+  0,
+  `these languages are no longer complete:\n${partial
+    .map(([code, missing]) => `  ${code} is missing ${missing.length}: ${missing.slice(0, 6).join(', ')}`)
+    .join('\n')}`,
+);
+assert.ok(complete.length >= 12, 'twelve languages are translated in full');
 ok(`${complete.length} languages are translated in full`);
 
 // ------------------------------------------------------ the English source

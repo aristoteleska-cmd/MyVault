@@ -124,8 +124,25 @@ assert.strictEqual(describeUpdateError(new Error('something odd')), 'something o
 ok('failures are explained in words a shopkeeper can act on');
 
 // --------------------------------------------------------- the stored setting
-const { DEFAULT_SETTINGS } = require('../electron/store');
-assert.strictEqual(DEFAULT_SETTINGS.updates, false, 'updates are off until switched on');
+const { DEFAULT_SETTINGS, UPDATE_MODES, normalizeSettings } = require('../electron/store');
+assert.strictEqual(DEFAULT_SETTINGS.updates, 'off', 'updates are off until switched on');
+assert.deepStrictEqual(UPDATE_MODES, ['off', 'check', 'auto']);
 ok('a fresh install makes no network requests at all');
+
+// 1.1.0 wrote this as a boolean. Those files must keep working, and — more
+// importantly — an old "false" must not become anything that goes online.
+assert.strictEqual(normalizeSettings({ updates: true }).updates, 'check');
+assert.strictEqual(normalizeSettings({ updates: false }).updates, 'off');
+// Anything unrecognised, including a hand-edited string, means off.
+for (const junk of ['yes', 'AUTO', 1, 0, null, {}, 'on']) {
+  assert.strictEqual(
+    normalizeSettings({ updates: junk }).updates,
+    'off',
+    `${JSON.stringify(junk)} does not put a shop on the network`,
+  );
+}
+assert.strictEqual(normalizeSettings({ updates: 'auto' }).updates, 'auto');
+assert.strictEqual(normalizeSettings({ updates: 'check' }).updates, 'check');
+ok('the old on/off setting migrates, and only known values are honoured');
 
 console.log('\n' + passed + ' checks passed.');

@@ -53,7 +53,7 @@ export interface Settings {
   shopName: string;
   dateFormat: string;
   /** Off unless the shop deliberately switched it on. */
-  updates: boolean;
+  updates: UpdateMode;
 }
 
 export interface Database {
@@ -84,6 +84,15 @@ export interface AppInfo {
 }
 
 /**
+ * How much MyVault is allowed to do on its own.
+ *
+ *   off    no network request is ever made
+ *   check  look daily and say so, but wait to be told what to do
+ *   auto   look, fetch quietly, and swap it in when MyVault is next closed
+ */
+export type UpdateMode = 'off' | 'check' | 'auto';
+
+/**
  * Where an update check has got to.
  *
  * `unsupported` covers the portable .exe and running from source — neither has
@@ -111,7 +120,9 @@ export interface UpdateStatus {
   checkedAt: string;
   error: string;
   supported: boolean;
+  mode: UpdateMode;
   enabled: boolean;
+  automatic: boolean;
 }
 
 export type ItemDraft = Omit<Item, 'id' | 'createdAt' | 'updatedAt'>;

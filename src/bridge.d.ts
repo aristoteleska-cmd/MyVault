@@ -39,6 +39,13 @@ export interface RestoreResult {
   state?: Database;
 }
 
+export interface PickedImage {
+  canceled: boolean;
+  /** The picture itself, as a data: URL the window is allowed to render. */
+  dataUrl?: string;
+  name?: string;
+}
+
 export interface MyVaultBridge {
   getInfo(): Promise<Result<AppInfo>>;
   getState(): Promise<Result<Database>>;
@@ -90,6 +97,7 @@ export interface MyVaultBridge {
     backup(): Promise<Result<ExportResult>>;
     restore(): Promise<Result<RestoreResult>>;
     openFolder(): Promise<Result<string>>;
+    pickImage(): Promise<Result<PickedImage>>;
   };
 
   confirmDelete(count: number): Promise<Result<boolean>>;

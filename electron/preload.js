@@ -79,6 +79,8 @@ contextBridge.exposeInMainWorld('myvault', {
     backup: () => invoke('data:backup'),
     restore: () => invoke('data:restore'),
     openFolder: () => invoke('data:open-folder'),
+    /** Picks a picture and hands back its bytes; reading it is the UI's job. */
+    pickImage: () => invoke('data:pick-image'),
   },
 
   confirmDelete: (count) => invoke('dialog:confirm-delete', count),

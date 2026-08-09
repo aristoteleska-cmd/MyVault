@@ -29,13 +29,14 @@ const initialFilters: Filters = {
 };
 
 export function App() {
-  const { ready, loadError, db, info, notify } = useVault();
+  const { ready, loadError, db, info, notify, scanBarcodePhoto } = useVault();
   const { t, rtl } = useI18n();
   const [view, setView] = useState<ViewName>('inventory');
   const [filters, setFilters] = useState<Filters>(initialFilters);
   const [sort, setSort] = useState<SortState>({ key: 'name', direction: 'asc' });
   const [dialogItem, setDialogItem] = useState<Item | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [prefillBarcode, setPrefillBarcode] = useState('');
   const searchRef = useRef<HTMLInputElement | null>(null);
 
   // Follow the theme the shop picked, or Windows' own setting.
@@ -80,8 +81,33 @@ export function App() {
 
   const openNewItem = useCallback(() => {
     setDialogItem(null);
+    setPrefillBarcode('');
     setDialogOpen(true);
   }, []);
+
+  /**
+   * A photo of a barcode, from the stock list.
+   *
+   * If the shop already sells the thing, open it for editing — that is almost
+   * always why someone photographs a barcode at the counter. If they do not,
+   * start a new item with the number already filled in, which is the whole
+   * point of the feature: registering stock without typing thirteen digits.
+   */
+  const scanPhotoAndRegister = useCallback(async () => {
+    const code = await scanBarcodePhoto();
+    if (!code) return;
+
+    setView('inventory');
+    const match = db.items.find((item) => item.barcode === code);
+    if (match) {
+      setDialogItem(match);
+      setPrefillBarcode('');
+    } else {
+      setDialogItem(null);
+      setPrefillBarcode(code);
+    }
+    setDialogOpen(true);
+  }, [scanBarcodePhoto, db.items]);
 
   const focusSearch = useCallback(() => {
     setView('inventory');
@@ -216,6 +242,7 @@ export function App() {
             sort={sort}
             setSort={setSort}
             onNewItem={openNewItem}
+            onScanPhoto={() => void scanPhotoAndRegister()}
             onEditItem={(item) => { setDialogItem(item); setDialogOpen(true); }}
             searchRef={searchRef}
             onGoToFields={() => setView('fields')}
@@ -234,7 +261,11 @@ export function App() {
       </main>
 
       {dialogOpen && (
-        <ItemDialog item={dialogItem} onClose={() => { setDialogOpen(false); setDialogItem(null); }} />
+        <ItemDialog
+          item={dialogItem}
+          prefillBarcode={prefillBarcode}
+          onClose={() => { setDialogOpen(false); setDialogItem(null); setPrefillBarcode(''); }}
+        />
       )}
 
       <Toasts />

@@ -57,6 +57,9 @@ cannot be written to, the installer says so and uses the default place instead.*
    πεδίο barcode και σαρώστε.
 3. Χρησιμοποιήστε το **+** και το **−** σε κάθε γραμμή κάθε φορά που πουλάτε ή
    παραλαμβάνετε ένα κομμάτι.
+   Δεν έχετε σαρωτή; Βγάλτε φωτογραφία το barcode και πατήστε **Φωτογραφία
+   barcode** — το πρόγραμμα διαβάζει μόνο του τον αριθμό. Η φωτογραφία μένει
+   στον υπολογιστή σας.
 4. Αν έχετε ήδη λίστα σε Excel, αποθηκεύστε την ως CSV και πατήστε
    **Εισαγωγή CSV**.
 
@@ -68,6 +71,9 @@ cannot be written to, the installer says so and uses the default place instead.*
 2. Add a price, a quantity and a barcode. If you have a barcode scanner, click
    the barcode box and scan.
 3. Use **+** and **−** on each row every time you sell or receive one.
+   No scanner? Take a photo of the barcode and press **Barcode photo** — the
+   program reads the number out of it for you. The picture stays on your
+   computer.
 4. If you already have a list in Excel, save it as CSV and press **Import CSV**.
 
 **Συμβουλή:** σαρώστε ένα barcode οποιαδήποτε στιγμή και το προϊόν εμφανίζεται
@@ -92,19 +98,22 @@ Go to **Settings → Backup** to save a copy onto a USB stick. Do this regularly
 
 ## Ενημερώσεις / Updates
 
-Το MyVault δεν χρησιμοποιεί internet. Αν θέλετε να ειδοποιείστε για νεότερες
-εκδόσεις, πηγαίνετε **Ρυθμίσεις → Ενημερώσεις** και βάλτε το σε **Ενεργό**.
-Τότε — και μόνο όταν πατάτε το κουμπί — το πρόγραμμα ρωτάει το GitHub αν υπάρχει
-νεότερη έκδοση. Δεν στέλνεται τίποτα από τα δικά σας δεδομένα.
+Το MyVault δεν χρησιμοποιεί internet. Στις **Ρυθμίσεις → Ενημερώσεις** υπάρχουν
+τρεις επιλογές:
 
-Αν το αφήσετε **Ανενεργό**, το πρόγραμμα δεν βγαίνει ποτέ στο internet.
+| | Τι κάνει |
+| --- | --- |
+| **Ανενεργό** | Δεν βγαίνει ποτέ στο internet. Προεπιλογή. |
+| **Ενημέρωσέ με** | Κοιτάζει μία φορά την ημέρα και σας λέει αν υπάρχει νεότερη έκδοση. |
+| **Αυτόματα** | Κατεβάζει μόνο του και εγκαθιστά όταν κλείσετε το πρόγραμμα. |
 
-*MyVault does not use the internet. If you would like to be told about newer
-versions, go to **Settings → Updates** and switch it **On**. Then — and only
-when you press the button — it asks GitHub whether a newer version exists.
-None of your own data is ever sent.*
+Τίποτα από τα δικά σας δεδομένα δεν στέλνεται ποτέ, σε καμία επιλογή.
 
-*Leave it **Off** and the program never goes online at all.*
+*MyVault does not use the internet. **Settings → Updates** offers three
+choices: **Off** (the default — never goes online), **Tell me** (looks once a
+day and says if there is a newer version) and **Automatic** (downloads by
+itself and installs when you close the program). None of your own data is ever
+sent, whichever you pick.*
 
 ---
 

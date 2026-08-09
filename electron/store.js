@@ -32,6 +32,7 @@ const FIELD_TYPES = ['text', 'number', 'select', 'date', 'boolean'];
 const ACCENTS = ['blue', 'teal', 'green', 'purple', 'orange', 'graphite'];
 const DENSITIES = ['comfortable', 'compact'];
 const THEMES = ['light', 'dark', 'system'];
+const UPDATE_MODES = ['off', 'check', 'auto'];
 
 const MIN_ZOOM = 0.8;
 const MAX_ZOOM = 1.4;
@@ -51,8 +52,12 @@ const DEFAULT_SETTINGS = {
    * Off unless the shop turns it on. MyVault is handed over as a program that
    * does not use the internet, so the setting that would change that has to be
    * a deliberate choice, not something inherited from a default.
+   *
+   *   off    nothing, ever. Not one request.
+   *   check  look on opening and once a day, then say so and wait to be told.
+   *   auto   look, fetch quietly, and install when MyVault is next closed.
    */
-  updates: false,
+  updates: 'off',
 };
 
 function newId() {
@@ -104,9 +109,13 @@ function normalizeSettings(input) {
   settings.shopName = asString(settings.shopName, 80);
   settings.defaultLowStockThreshold = Math.max(0, clampQuantity(settings.defaultLowStockThreshold));
 
-  // Anything other than a stored, explicit true means off. A truthy string in a
-  // hand-edited settings file must not be enough to put a shop on the network.
-  settings.updates = settings.updates === true;
+  // 1.1.0 stored this as a plain on/off. An old file saying true meant "look for
+  // updates and tell me", which is what "check" is now; anything unrecognised,
+  // including a truthy string in a hand-edited file, falls back to off. Nothing
+  // but a stored, known value puts a shop on the network.
+  if (settings.updates === true) settings.updates = 'check';
+  else if (settings.updates === false) settings.updates = 'off';
+  settings.updates = pickFrom(UPDATE_MODES, settings.updates, 'off');
 
   const zoom = toNumber(settings.zoom, 1);
   settings.zoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, Math.round(zoom * 100) / 100));
@@ -661,6 +670,8 @@ module.exports = {
   Store,
   SCHEMA_VERSION,
   DEFAULT_SETTINGS,
+  UPDATE_MODES,
+  normalizeSettings,
   FIELD_TYPES,
   STANDARD_FIELDS,
   MAX_CUSTOM_FIELDS,
