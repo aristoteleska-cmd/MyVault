@@ -270,6 +270,13 @@ button { font: inherit; color: inherit; }
 /* ---------------------------------------------------------------- inputs */
 
 .field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+
+/* A field with a button beside it — the barcode box and its "read from photo".
+   The button keeps its natural width so the input still takes the slack, and
+   the pair wraps rather than squashing on a narrow window. */
+.input-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.input-row > .input { flex: 1 1 12ch; min-width: 0; }
+.input-row > .btn { flex: none; }
 .field > label,
 .field-label {
   font-size: 13px;

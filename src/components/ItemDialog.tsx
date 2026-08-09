@@ -8,6 +8,8 @@ import { Modal } from './Modal';
 
 interface ItemDialogProps {
   item: Item | null;
+  /** A barcode already read from a photo or a scanner, for a brand-new item. */
+  prefillBarcode?: string;
   onClose: () => void;
 }
 
@@ -25,10 +27,10 @@ interface Draft {
   custom: Record<string, CustomFieldValue>;
 }
 
-function draftFromItem(item: Item | null): Draft {
+function draftFromItem(item: Item | null, prefillBarcode = ''): Draft {
   return {
     name: item?.name ?? '',
-    barcode: item?.barcode ?? '',
+    barcode: item?.barcode ?? prefillBarcode,
     sku: item?.sku ?? '',
     categoryId: item?.categoryId ?? '',
     quantity: item ? String(item.quantity) : '0',
@@ -41,15 +43,34 @@ function draftFromItem(item: Item | null): Draft {
   };
 }
 
-export function ItemDialog({ item, onClose }: ItemDialogProps) {
-  const { db, info, addItem, updateItem, addCategory, addField } = useVault();
+export function ItemDialog({ item, prefillBarcode = '', onClose }: ItemDialogProps) {
+  const { db, info, addItem, updateItem, addCategory, addField, scanBarcodePhoto } = useVault();
   const t = useT();
-  const [draft, setDraft] = useState<Draft>(() => draftFromItem(item));
+  const [draft, setDraft] = useState<Draft>(() => draftFromItem(item, prefillBarcode));
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [newCategory, setNewCategory] = useState('');
   const [showFieldForm, setShowFieldForm] = useState(false);
   const barcodeRef = useRef<HTMLInputElement>(null);
+  const [scanning, setScanning] = useState(false);
+
+  /**
+   * Reading the code out of a picture takes a moment, so the button says so
+   * and stays disabled — pressing it twice would open two file dialogs.
+   */
+  const scanFromPhoto = async () => {
+    if (scanning) return;
+    setScanning(true);
+    try {
+      const code = await scanBarcodePhoto();
+      if (code) {
+        set('barcode', code);
+        barcodeRef.current?.focus();
+      }
+    } finally {
+      setScanning(false);
+    }
+  };
 
   const isEdit = Boolean(item);
   const fields = useMemo(
@@ -181,16 +202,30 @@ export function ItemDialog({ item, onClose }: ItemDialogProps) {
 
           <div className="field">
             <label htmlFor="field-barcode">{t('form.barcode')}</label>
-            <input
-              id="field-barcode"
-              ref={barcodeRef}
-              className="input mono"
-              value={draft.barcode}
-              onChange={(e) => set('barcode', e.target.value)}
-              placeholder={t('form.barcodePlaceholder')}
-              autoComplete="off"
-              aria-invalid={Boolean(errors.barcode)}
-            />
+            <div className="input-row">
+              <input
+                id="field-barcode"
+                ref={barcodeRef}
+                className="input mono"
+                value={draft.barcode}
+                onChange={(e) => set('barcode', e.target.value)}
+                placeholder={t('form.barcodePlaceholder')}
+                autoComplete="off"
+                aria-invalid={Boolean(errors.barcode)}
+              />
+              {/* For a shop with no scanner: photograph the barcode and let the
+                  app read it, rather than typing thirteen digits correctly. */}
+              <button
+                type="button"
+                className="btn"
+                disabled={scanning}
+                onClick={() => void scanFromPhoto()}
+                title={t('form.barcodePhotoHint')}
+              >
+                <Icon name="image" size={16} />
+                {scanning ? t('form.barcodeReading') : t('form.barcodePhoto')}
+              </button>
+            </div>
             {errors.barcode
               ? <span className="field-error">{errors.barcode}</span>
               : <span className="field-hint">{t('form.barcodeHint')}</span>}

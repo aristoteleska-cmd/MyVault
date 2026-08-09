@@ -13,6 +13,7 @@ interface InventoryViewProps {
   sort: SortState;
   setSort: (sort: SortState) => void;
   onNewItem: () => void;
+  onScanPhoto: () => void;
   onEditItem: (item: Item) => void;
   searchRef: React.RefObject<HTMLInputElement | null>;
   onGoToFields: () => void;
@@ -33,6 +34,7 @@ export function InventoryView({
   sort,
   setSort,
   onNewItem,
+  onScanPhoto,
   onEditItem,
   searchRef,
   onGoToFields,
@@ -189,6 +191,13 @@ export function InventoryView({
             <option value="category">{t('scope.category')}</option>
           </select>
         </div>
+
+        {/* For a shop with no scanner: a photo of the barcode is enough to
+            pull up the item, or to start registering it if it is new. */}
+        <button type="button" className="btn btn-lg" onClick={onScanPhoto}>
+          <Icon name="image" />
+          {t('action.scanPhoto')}
+        </button>
 
         <button type="button" className="btn btn-primary btn-lg" onClick={onNewItem}>
           <Icon name="plus" />

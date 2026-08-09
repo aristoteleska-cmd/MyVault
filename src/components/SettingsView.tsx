@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useVault } from '../state/vault';
-import type { AccentChoice, DensityChoice, ThemeChoice } from '../types';
+import type { AccentChoice, DensityChoice, ThemeChoice, UpdateMode } from '../types';
 import { LANGUAGES, resolveLanguage, useI18n, type TranslationKey } from '../i18n';
 import { TRANSLATED_LANGUAGES } from '../i18n/catalogues';
 import { Icon, type IconName } from './Icon';
@@ -36,15 +36,27 @@ const TEXT_SIZES: { value: number; labelKey: TranslationKey }[] = [
   { value: 1.3, labelKey: 'size.xlarge' },
 ];
 
+const UPDATE_MODES: {
+  value: UpdateMode;
+  labelKey: TranslationKey;
+  hintKey: TranslationKey;
+}[] = [
+  { value: 'off', labelKey: 'updates.off', hintKey: 'updates.offHint' },
+  { value: 'check', labelKey: 'updates.check', hintKey: 'updates.checkHint' },
+  { value: 'auto', labelKey: 'updates.auto', hintKey: 'updates.autoHint' },
+];
+
 /**
  * Updates are the one place MyVault is allowed to reach the internet, so the
- * panel is written to be read rather than skipped: what it contacts, that it is
- * off until switched on, and one press per step — check, download, install.
+ * panel is written to be read rather than skipped: which hosts it contacts,
+ * that it is off until switched on, and what each of the three settings will
+ * and will not do without being asked again.
  */
 function UpdatesPanel() {
   const { db, info, update, updateSettings, checkForUpdate, downloadUpdate, installUpdate } = useVault();
   const { t, locale } = useI18n();
-  const enabled = db.settings.updates;
+  const mode = db.settings.updates;
+  const enabled = mode !== 'off';
 
   // The portable build has no installer to replace, and says so instead of
   // offering a button that could not work.
@@ -87,23 +99,30 @@ function UpdatesPanel() {
         </div>
         <div className="setting-control">
           <div className="segmented">
-            <button
-              type="button"
-              aria-pressed={!enabled}
-              onClick={() => void updateSettings({ updates: false })}
-            >
-              {t('updates.off')}
-            </button>
-            <button
-              type="button"
-              aria-pressed={enabled}
-              onClick={() => void updateSettings({ updates: true })}
-            >
-              {t('updates.on')}
-            </button>
+            {UPDATE_MODES.map((choice) => (
+              <button
+                key={choice.value}
+                type="button"
+                aria-pressed={mode === choice.value}
+                title={t(choice.hintKey)}
+                onClick={() => void updateSettings({ updates: choice.value })}
+              >
+                {t(choice.labelKey)}
+              </button>
+            ))}
           </div>
         </div>
       </div>
+
+      {enabled && (
+        <div className="setting-row">
+          <div className="setting-text">
+            <div className="setting-desc">
+              {t(UPDATE_MODES.find((m) => m.value === mode)?.hintKey ?? 'updates.checkHint')}
+            </div>
+          </div>
+        </div>
+      )}
 
       {enabled && (
         <div className="setting-row">
@@ -123,7 +142,9 @@ function UpdatesPanel() {
               {(!update || update.state === 'idle') && lastChecked}
             </div>
             <div className="setting-desc">
-              {update?.state === 'ready' ? t('updates.installWarn') : lastChecked}
+              {update?.state === 'ready'
+                ? t(update.automatic ? 'updates.installOnClose' : 'updates.installWarn')
+                : lastChecked}
             </div>
           </div>
           <div className="setting-control">

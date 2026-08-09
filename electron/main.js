@@ -196,6 +196,37 @@ function buildMenu() {
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 }
 
+/**
+ * Photographs, not scans of documents: a 25 MB file is a mistake rather than a
+ * barcode, and turning one into a data: URL would cost a third again in memory
+ * on both sides of the bridge.
+ */
+const MAX_IMAGE_BYTES = 25 * 1024 * 1024;
+
+const IMAGE_MIME = {
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.png': 'image/png',
+  '.webp': 'image/webp',
+  '.bmp': 'image/bmp',
+  '.gif': 'image/gif',
+};
+
+function readImageFile(filePath) {
+  const extension = path.extname(filePath).toLowerCase();
+  const mime = IMAGE_MIME[extension];
+  if (!mime) throw new Error('That file is not a picture MyVault can read.');
+
+  const { size } = fs.statSync(filePath);
+  if (size > MAX_IMAGE_BYTES) {
+    throw new Error('That picture is too large. Anything up to 25 MB is fine.');
+  }
+  if (size === 0) throw new Error('That file is empty.');
+
+  const base64 = fs.readFileSync(filePath).toString('base64');
+  return { dataUrl: `data:${mime};base64,${base64}`, name: path.basename(filePath) };
+}
+
 // --------------------------------------------------------------------- IPC
 
 /** Wraps a handler so the renderer always receives {ok, data} or {ok:false, error}. */
@@ -248,9 +279,9 @@ function registerIpc() {
     if (patch.theme) {
       nativeTheme.themeSource = ['light', 'dark'].includes(patch.theme) ? patch.theme : 'system';
     }
-    // Switching updates off mid-flight should be visible immediately, not after
-    // the next check.
-    if ('updates' in patch) updater?.emit({});
+    // Changing the update setting takes effect at once — a shop that switches
+    // it off should not have a check fire ten minutes later.
+    if ('updates' in patch) updater?.schedule();
     return settings;
   });
 
@@ -262,6 +293,23 @@ function registerIpc() {
   handle('updates:install', () => updater.install());
 
   handle('data:open-folder', () => shell.openPath(store.dataDir));
+
+  /**
+   * Hands a picture to the renderer so it can be read for a barcode.
+   *
+   * The file is turned into a data: URL rather than a path, because the window
+   * has no filesystem access and must not be given any. Nothing leaves this
+   * machine — the decoding happens inside the app.
+   */
+  handle('data:pick-image', async () => {
+    const { canceled, filePaths } = await dialog.showOpenDialog(mainWindow, {
+      title: 'Choose a photo of the barcode',
+      properties: ['openFile'],
+      filters: [{ name: 'Picture', extensions: ['jpg', 'jpeg', 'png', 'webp', 'bmp', 'gif'] }],
+    });
+    if (canceled || !filePaths?.length) return { canceled: true };
+    return { canceled: false, ...readImageFile(filePaths[0]) };
+  });
 
   // ------------------------------------------------------- import / export
 
@@ -383,14 +431,16 @@ app.whenReady().then(() => {
   const theme = store.getState().settings.theme;
   nativeTheme.themeSource = ['light', 'dark'].includes(theme) ? theme : 'system';
 
-  // Built, but idle. Nothing here touches the network until the shop has both
-  // switched updates on and pressed a button — there is no check on startup.
+  // Idle unless the shop has chosen otherwise. On "off", the default, nothing
+  // below ever opens a connection.
   updater = new Updater({
     app,
     isDev,
-    isEnabled: () => store.getState().settings.updates === true,
+    getMode: () => store.getState().settings.updates,
     onStatus: (status) => mainWindow?.webContents.send('updates:status', status),
   });
+  // Arms the daily check if — and only if — the shop has asked for one.
+  updater.schedule();
 
   registerIpc();
   buildMenu();

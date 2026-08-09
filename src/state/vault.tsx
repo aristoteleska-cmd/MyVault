@@ -77,6 +77,8 @@ interface VaultValue {
 
   /** Null until the main process has reported in. */
   update: UpdateStatus | null;
+  /** Reads a barcode from a picture; null if cancelled or nothing was found. */
+  scanBarcodePhoto: () => Promise<string | null>;
   checkForUpdate: () => Promise<void>;
   downloadUpdate: () => Promise<void>;
   installUpdate: () => Promise<void>;
@@ -101,7 +103,7 @@ const emptyDb: Database = {
     defaultLowStockThreshold: 5,
     shopName: '',
     dateFormat: 'dd/MM/yyyy',
-    updates: false,
+    updates: 'off',
   },
   categories: [],
   customFields: [],
@@ -444,6 +446,34 @@ export function VaultProvider({ children }: { children: ReactNode }) {
     await run(window.myvault.updates.install());
   }, [run]);
 
+  // ------------------------------------------------------- barcode from photo
+
+  /**
+   * Reads a barcode out of a picture the shop chooses. Returns the code, or
+   * null if they cancelled or nothing readable was in the frame — the caller
+   * decides what to do with it, because registering an item and filling in one
+   * field are different jobs.
+   */
+  const scanBarcodePhoto = useCallback(async (): Promise<string | null> => {
+    const picked = await run(window.myvault.data.pickImage());
+    if (!picked || picked.canceled || !picked.dataUrl) return null;
+
+    notify('toast.scanReading', undefined, 'info');
+    try {
+      const { scanImage } = await import('../lib/scan-image');
+      const found = await scanImage(picked.dataUrl);
+      if (!found) {
+        notify('toast.scanNoCode', undefined, 'error');
+        return null;
+      }
+      notify('toast.scanFound', { code: found.text, format: found.format }, 'success');
+      return found.text;
+    } catch (error) {
+      notifyRaw(error instanceof Error ? error.message : String(error));
+      return null;
+    }
+  }, [run, notify, notifyRaw]);
+
   const value = useMemo<VaultValue>(
     () => ({
       ready,
@@ -469,6 +499,7 @@ export function VaultProvider({ children }: { children: ReactNode }) {
       moveField,
       updateSettings,
       update,
+      scanBarcodePhoto,
       checkForUpdate,
       downloadUpdate,
       installUpdate,
@@ -485,7 +516,7 @@ export function VaultProvider({ children }: { children: ReactNode }) {
       addCategory, updateCategory, deleteCategory,
       addField, updateField, deleteField, moveField,
       updateSettings, exportCsv, importCsv, backup, restore, openDataFolder,
-      update, checkForUpdate, downloadUpdate, installUpdate,
+      update, checkForUpdate, downloadUpdate, installUpdate, scanBarcodePhoto,
     ],
   );
 
