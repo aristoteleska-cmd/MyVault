@@ -105,7 +105,7 @@ the installer falls back to English for them.
 
 ## Completely offline
 
-Once installed, MyVault never touches the internet. This is enforced, not just
+Out of the box, MyVault never touches the internet. This is enforced, not just
 promised:
 
 - Every network request the app could make is **cancelled before it leaves** —
@@ -122,6 +122,32 @@ promised:
 The test suite checks this directly: it launches the real app and tries to reach
 the network by five different routes, and every one has to fail.
 
+### The one exception, and its exact size
+
+**Settings → Updates** can be switched on, and then MyVault is allowed to ask
+GitHub whether a newer installer exists. It is worth being precise about what
+that does and does not change:
+
+- It is **off on a fresh install** and stays off until somebody chooses
+  otherwise. A shop that never opens that panel is in exactly the state
+  described above.
+- Even switched on, **nothing happens on its own**. There is no check at
+  startup and no background timer. Checking, downloading and installing are
+  three separate presses.
+- The **interface still cannot reach the network at all** — that rule is
+  unchanged, and the test suite still proves it with updates on. Only the
+  background part of the program makes the request.
+- It can only contact `api.github.com`, `github.com`,
+  `objects.githubusercontent.com` and `release-assets.githubusercontent.com`,
+  only over HTTPS. Anything else, including a lookalike domain or plain `http`,
+  is refused before a byte is fetched. The app lists these hosts on the
+  settings panel so the shop can read them.
+- The traffic is a download in one direction. **Nothing about the shop is
+  uploaded** — not the stock list, not a version number, not a count.
+- The downloaded installer is checked against the checksum published with the
+  release before it is allowed to run, and an older version is never offered
+  as an "update".
+
 ---
 
 ## Updating the app
@@ -130,8 +156,46 @@ Installing a newer version replaces **the program only** — your inventory is k
 somewhere separate and is never touched by the installer. You do not need to
 export anything first.
 
-To update: download the newer installer and run it over the top. Your items,
-categories, extra details and every setting stay exactly as they were.
+There are two ways to get the newer version onto a shop's PC.
+
+**By hand**, which always works and needs no internet on their side: download
+the newer installer yourself and run it over the top. Their items, categories,
+extra details and every setting stay exactly as they were.
+
+**From inside the app**, if the shop switches on **Settings → Updates**. MyVault
+then asks GitHub whether a newer installer exists, and offers to fetch and run
+it. Read [the exception above](#the-one-exception-and-its-exact-size) for
+exactly what that permits. The portable `.exe` deliberately cannot do this — it
+may be running from a USB stick, so it tells the user to download the new file
+instead of overwriting itself.
+
+### Publishing updates so the app can find them
+
+The in-app updater needs somewhere it can read **without a token**, and this
+repository is private — GitHub answers 404 to anyone who is not you. So the
+installers are also published to a second, **public** repository that contains
+downloads and nothing else: no source, no history, no build logs.
+
+This is a one-time setup, and only you can do it:
+
+1. Create a public repository called **`MyVault-releases`** under your account.
+   Tick "Add a README" so it has a branch to hang tags on. Nothing else goes in
+   it — the workflow fills it.
+2. Create a **fine-grained personal access token** (Settings → Developer
+   settings → Personal access tokens), scoped to *only* `MyVault-releases`, with
+   **Contents: Read and write**. Nothing else.
+3. In **this** repository, add it as an Actions secret named **`RELEASES_TOKEN`**
+   (Settings → Secrets and variables → Actions → New repository secret).
+
+After that, every run with a **Release tag** publishes to both places: a private
+release here for you, and a public one in `MyVault-releases` that the app can
+actually reach. Until the secret exists the build still succeeds — it prints a
+warning and skips the public copy, so the only thing missing is the in-app
+update.
+
+The public release carries a small `latest.yml` alongside the `.exe`. That file
+is what the updater reads to learn the newest version and the checksum its
+installer must match; without it the app finds nothing to offer.
 
 Extra safety on top of that: the first time a new version opens your file, it
 takes an untouched copy of it first — `myvault-before-1.0.0-…json` in the backups

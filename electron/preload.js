@@ -47,6 +47,23 @@ contextBridge.exposeInMainWorld('myvault', {
   },
 
   /**
+   * Checking GitHub for a newer MyVault. Three separate steps on purpose —
+   * nothing downloads until asked, and nothing installs until asked again.
+   */
+  updates: {
+    status: () => invoke('updates:status'),
+    check: () => invoke('updates:check'),
+    download: () => invoke('updates:download'),
+    install: () => invoke('updates:install'),
+    /** Progress arrives on its own; returns an unsubscribe function. */
+    onStatus: (handler) => {
+      const listener = (_event, status) => handler(status);
+      ipcRenderer.on('updates:status', listener);
+      return () => ipcRenderer.removeListener('updates:status', listener);
+    },
+  },
+
+  /**
    * Scales the whole interface, the way Windows' own display scaling does, so
    * the text-size choice stays crisp instead of blurring a zoomed bitmap.
    */

@@ -36,6 +36,125 @@ const TEXT_SIZES: { value: number; labelKey: TranslationKey }[] = [
   { value: 1.3, labelKey: 'size.xlarge' },
 ];
 
+/**
+ * Updates are the one place MyVault is allowed to reach the internet, so the
+ * panel is written to be read rather than skipped: what it contacts, that it is
+ * off until switched on, and one press per step — check, download, install.
+ */
+function UpdatesPanel() {
+  const { db, info, update, updateSettings, checkForUpdate, downloadUpdate, installUpdate } = useVault();
+  const { t, locale } = useI18n();
+  const enabled = db.settings.updates;
+
+  // The portable build has no installer to replace, and says so instead of
+  // offering a button that could not work.
+  if (update && !update.supported) {
+    return (
+      <div className="panel">
+        <div className="panel-head">{t('updates.panel')}</div>
+        <div className="setting-row">
+          <div className="setting-text">
+            <div className="setting-desc">
+              {t(update.reason === 'portable' ? 'updates.portable' : 'updates.unsupported')}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const busy = update?.state === 'checking' || update?.state === 'downloading';
+
+  const lastChecked = update?.checkedAt
+    ? t('updates.lastChecked', {
+      when: new Date(update.checkedAt).toLocaleString(locale || undefined),
+    })
+    : t('updates.never');
+
+  return (
+    <div className="panel">
+      <div className="panel-head">{t('updates.panel')}</div>
+
+      <div className="setting-row">
+        <div className="setting-text">
+          <div className="setting-title">{t('updates.title')}</div>
+          <div className="setting-desc">
+            {t('updates.desc')}
+            {info?.updateHosts?.length ? (
+              <span className="path">{t('updates.hosts', { hosts: info.updateHosts.join(', ') })}</span>
+            ) : null}
+          </div>
+        </div>
+        <div className="setting-control">
+          <div className="segmented">
+            <button
+              type="button"
+              aria-pressed={!enabled}
+              onClick={() => void updateSettings({ updates: false })}
+            >
+              {t('updates.off')}
+            </button>
+            <button
+              type="button"
+              aria-pressed={enabled}
+              onClick={() => void updateSettings({ updates: true })}
+            >
+              {t('updates.on')}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {enabled && (
+        <div className="setting-row">
+          <div className="setting-text">
+            <div className="setting-title">
+              {update?.state === 'checking' && t('updates.checking')}
+              {update?.state === 'current' && t('updates.current')}
+              {update?.state === 'available'
+                && t('updates.available', {
+                  version: update.newVersion,
+                  current: update.currentVersion,
+                })}
+              {update?.state === 'downloading'
+                && t('updates.downloading', { percent: update.percent })}
+              {update?.state === 'ready' && t('updates.ready', { version: update.newVersion })}
+              {update?.state === 'error' && t('updates.failed', { reason: update.error })}
+              {(!update || update.state === 'idle') && lastChecked}
+            </div>
+            <div className="setting-desc">
+              {update?.state === 'ready' ? t('updates.installWarn') : lastChecked}
+            </div>
+          </div>
+          <div className="setting-control">
+            {update?.state === 'available' && (
+              <button type="button" className="btn primary" onClick={() => void downloadUpdate()}>
+                <Icon name="download" size={16} />
+                {t('updates.downloadBtn')}
+              </button>
+            )}
+            {update?.state === 'ready' && (
+              <button type="button" className="btn primary" onClick={() => void installUpdate()}>
+                <Icon name="check" size={16} />
+                {t('updates.installBtn')}
+              </button>
+            )}
+            <button
+              type="button"
+              className="btn"
+              disabled={busy}
+              onClick={() => void checkForUpdate()}
+            >
+              <Icon name="info" size={16} />
+              {t('updates.checkBtn')}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function SettingsView() {
   const {
     db, info, updateSettings, exportCsv, importCsv, backup, restore, openDataFolder,
@@ -316,6 +435,8 @@ export function SettingsView() {
             </div>
           </div>
         </div>
+
+        <UpdatesPanel />
 
         <div className="panel">
           <div className="panel-head">{t('settings.legalPanel')}</div>

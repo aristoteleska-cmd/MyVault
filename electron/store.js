@@ -47,6 +47,12 @@ const DEFAULT_SETTINGS = {
   defaultLowStockThreshold: 5,
   shopName: '',
   dateFormat: 'dd/MM/yyyy',
+  /**
+   * Off unless the shop turns it on. MyVault is handed over as a program that
+   * does not use the internet, so the setting that would change that has to be
+   * a deliberate choice, not something inherited from a default.
+   */
+  updates: false,
 };
 
 function newId() {
@@ -97,6 +103,10 @@ function normalizeSettings(input) {
   settings.language = asString(settings.language, 12);
   settings.shopName = asString(settings.shopName, 80);
   settings.defaultLowStockThreshold = Math.max(0, clampQuantity(settings.defaultLowStockThreshold));
+
+  // Anything other than a stored, explicit true means off. A truthy string in a
+  // hand-edited settings file must not be enough to put a shop on the network.
+  settings.updates = settings.updates === true;
 
   const zoom = toNumber(settings.zoom, 1);
   settings.zoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, Math.round(zoom * 100) / 100));

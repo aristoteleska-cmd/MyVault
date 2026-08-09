@@ -90,6 +90,24 @@ Go to **Settings → Backup** to save a copy onto a USB stick. Do this regularly
 
 ---
 
+## Ενημερώσεις / Updates
+
+Το MyVault δεν χρησιμοποιεί internet. Αν θέλετε να ειδοποιείστε για νεότερες
+εκδόσεις, πηγαίνετε **Ρυθμίσεις → Ενημερώσεις** και βάλτε το σε **Ενεργό**.
+Τότε — και μόνο όταν πατάτε το κουμπί — το πρόγραμμα ρωτάει το GitHub αν υπάρχει
+νεότερη έκδοση. Δεν στέλνεται τίποτα από τα δικά σας δεδομένα.
+
+Αν το αφήσετε **Ανενεργό**, το πρόγραμμα δεν βγαίνει ποτέ στο internet.
+
+*MyVault does not use the internet. If you would like to be told about newer
+versions, go to **Settings → Updates** and switch it **On**. Then — and only
+when you press the button — it asks GitHub whether a newer version exists.
+None of your own data is ever sent.*
+
+*Leave it **Off** and the program never goes online at all.*
+
+---
+
 ## Άδεια χρήσης / Licence
 
 Δωρεάν στη χρήση, για όσο θέλετε, και στο κατάστημά σας. Με επιφύλαξη κάθε

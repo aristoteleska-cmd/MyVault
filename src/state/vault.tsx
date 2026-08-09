@@ -16,6 +16,7 @@ import type {
   FieldType,
   Item,
   Settings,
+  UpdateStatus,
 } from '../types';
 import type { ImportResult, Result } from '../bridge';
 import type { TranslationKey } from '../i18n/locales/en';
@@ -74,6 +75,12 @@ interface VaultValue {
 
   updateSettings: (patch: Partial<Settings>) => Promise<void>;
 
+  /** Null until the main process has reported in. */
+  update: UpdateStatus | null;
+  checkForUpdate: () => Promise<void>;
+  downloadUpdate: () => Promise<void>;
+  installUpdate: () => Promise<void>;
+
   exportCsv: () => Promise<void>;
   importCsv: () => Promise<void>;
   backup: () => Promise<void>;
@@ -94,6 +101,7 @@ const emptyDb: Database = {
     defaultLowStockThreshold: 5,
     shopName: '',
     dateFormat: 'dd/MM/yyyy',
+    updates: false,
   },
   categories: [],
   customFields: [],
@@ -109,6 +117,7 @@ export function VaultProvider({ children }: { children: ReactNode }) {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [importSummary, setImportSummary] = useState<ImportResult | null>(null);
+  const [update, setUpdate] = useState<UpdateStatus | null>(null);
   const toastId = useRef(0);
 
   const clearImportSummary = useCallback(() => setImportSummary(null), []);
@@ -409,6 +418,32 @@ export function VaultProvider({ children }: { children: ReactNode }) {
     await run(window.myvault.data.openFolder());
   }, [run]);
 
+  // ---------------------------------------------------------------- updates
+
+  // Progress arrives unprompted once a download starts, so the listener is set
+  // up whether or not updates are switched on — it simply never fires if not.
+  useEffect(() => {
+    if (!window.myvault?.updates) return undefined;
+    void window.myvault.updates.status().then((result) => {
+      if (result.ok && result.data) setUpdate(result.data);
+    });
+    return window.myvault.updates.onStatus(setUpdate);
+  }, []);
+
+  const checkForUpdate = useCallback(async () => {
+    const status = await run(window.myvault.updates.check());
+    if (status) setUpdate(status);
+  }, [run]);
+
+  const downloadUpdate = useCallback(async () => {
+    const status = await run(window.myvault.updates.download());
+    if (status) setUpdate(status);
+  }, [run]);
+
+  const installUpdate = useCallback(async () => {
+    await run(window.myvault.updates.install());
+  }, [run]);
+
   const value = useMemo<VaultValue>(
     () => ({
       ready,
@@ -433,6 +468,10 @@ export function VaultProvider({ children }: { children: ReactNode }) {
       deleteField,
       moveField,
       updateSettings,
+      update,
+      checkForUpdate,
+      downloadUpdate,
+      installUpdate,
       exportCsv,
       importCsv,
       backup,
@@ -446,6 +485,7 @@ export function VaultProvider({ children }: { children: ReactNode }) {
       addCategory, updateCategory, deleteCategory,
       addField, updateField, deleteField, moveField,
       updateSettings, exportCsv, importCsv, backup, restore, openDataFolder,
+      update, checkForUpdate, downloadUpdate, installUpdate,
     ],
   );
 

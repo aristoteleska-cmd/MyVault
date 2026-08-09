@@ -6,6 +6,7 @@ import type {
   FieldType,
   Item,
   Settings,
+  UpdateStatus,
 } from './types';
 
 /** Every call crosses the preload bridge and comes back in this envelope. */
@@ -70,6 +71,14 @@ export interface MyVaultBridge {
 
   settings: {
     update(patch: Partial<Settings>): Promise<Result<Settings>>;
+  };
+
+  updates: {
+    status(): Promise<Result<UpdateStatus>>;
+    check(): Promise<Result<UpdateStatus>>;
+    download(): Promise<Result<UpdateStatus>>;
+    install(): Promise<Result<boolean>>;
+    onStatus(handler: (status: UpdateStatus) => void): () => void;
   };
 
   /** Scales the whole interface. Returns the factor actually applied. */
