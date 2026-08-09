@@ -36,6 +36,15 @@ on your own computer.
 3. Διαλέξτε τη γλώσσα σας στην πρώτη οθόνη. / Pick your language on the first screen.
 4. Πατήστε **Επόμενο** μέχρι το τέλος. / Click **Next** through to the end.
 
+Στην οθόνη με τον φάκελο μπορείτε να αφήσετε ό,τι προτείνεται, ή να γράψετε
+οποιονδήποτε δίσκο θέλετε — π.χ. `D:\` — και θα δημιουργηθεί φάκελος `MyVault`
+εκεί. Αν ο δίσκος δεν δέχεται εγγραφή, το πρόγραμμα θα σας το πει και θα
+εγκατασταθεί στην προεπιλεγμένη θέση.
+
+*On the folder screen you can keep what is suggested, or type any drive you
+like — `D:\` for example — and a `MyVault` folder is made there. If that drive
+cannot be written to, the installer says so and uses the default place instead.*
+
 Χρειάζεστε Windows 10 ή νεότερα. / You need Windows 10 or newer.
 
 ---
