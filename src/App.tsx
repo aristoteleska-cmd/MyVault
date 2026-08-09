@@ -11,6 +11,7 @@ import { SettingsView } from './components/SettingsView';
 import { ItemDialog } from './components/ItemDialog';
 import { StaffView } from './components/StaffView';
 import { SignInView } from './components/SignInView';
+import { RecoveryCode } from './components/RecoveryCode';
 import { Toasts } from './components/Toasts';
 
 type ViewName = 'inventory' | 'categories' | 'fields' | 'settings' | 'staff';
@@ -44,7 +45,7 @@ const initialFilters: Filters = {
 };
 
 export function App() {
-  const { ready, loadError, db, info, notify, scanBarcodePhoto, auth, can } = useVault();
+  const { ready, loadError, db, info, notify, scanBarcodePhoto, auth, can, recoveryCode } = useVault();
   const { t, rtl } = useI18n();
   const [view, setView] = useState<ViewName>('inventory');
   const [filters, setFilters] = useState<Filters>(initialFilters);
@@ -204,6 +205,17 @@ export function App() {
           <p>{t('splash.opening')}</p>
         </div>
       </div>
+    );
+  }
+
+  // A code that has just been minted is shown before anything else and cannot
+  // be clicked past — it is the last time it exists in a readable form.
+  if (recoveryCode) {
+    return (
+      <>
+        <RecoveryCode />
+        <Toasts />
+      </>
     );
   }
 

@@ -64,12 +64,33 @@ const functions = [...nsh.matchAll(/^\s*Function\s+(\w+)/gm)].map((m) => m[1]);
 const functionEnds = [...nsh.matchAll(/^\s*FunctionEnd\s*$/gm)].length;
 assert.strictEqual(functions.length, functionEnds, 'every Function is closed');
 for (const name of functions) {
+  // Either the page's creator or its leave handler — "Page custom a b".
   assert.ok(
-    new RegExp(`Page custom ${name}\\b`).test(nsh),
+    new RegExp(`Page custom (\\w+ )?${name}\\b`).test(nsh),
     `${name} is actually wired to a page`,
   );
 }
 ok('installer functions are closed and reachable');
+
+// ------------------------------------------- the manager set up at install time
+assert.match(nsh, /Page custom managerPage managerPageLeave/, 'the installer asks who manages');
+assert.match(nsh, /NSD_CreatePassword/, 'and the PIN is typed masked, not in the clear');
+assert.match(nsh, /"SetupName"/, 'the name is handed to the app');
+assert.match(nsh, /"SetupPin"/, 'and so is the PIN');
+// LogicLib's < and > are numeric, so a letter would read as zero and pass. The
+// digits have to be matched by name; this pins that they still are.
+assert.match(nsh, /\$\{OrIf\} \$R4 == "9"/, 'each character is checked against a real digit');
+assert.doesNotMatch(nsh, /\$R4 < "0"/, 'not with a numeric comparison that letters slip through');
+ok('the installer collects a manager and a masked PIN, validated digit by digit');
+
+// The page functions must be built where nsDialogs exists, which is inside the
+// macro — at the top of this file the Modern UI has not been included yet.
+const macroBody = nsh.slice(nsh.indexOf('!macro customPageAfterChangeDir'));
+assert.ok(
+  macroBody.indexOf('Function managerPage') < macroBody.indexOf('!macroend'),
+  'the manager page is defined inside the macro, where nsDialogs exists',
+);
+ok('the page is built where its dialog toolkit is available');
 
 // ------------------------------------------------------------- wiring to the build
 assert.strictEqual(nsis.include, 'build/installer.nsh', 'electron-builder compiles this file');

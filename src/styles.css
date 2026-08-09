@@ -1303,3 +1303,18 @@ table.items tbody td > .item-meta { overflow: hidden; text-overflow: ellipsis; }
 .pin-key.subtle { font-size: 0.82rem; color: var(--text-muted); }
 
 .chip-inline { color: var(--text-muted); font-weight: 400; }
+
+/* The recovery code, shown once. Big, spaced and monospaced, because it is
+   going to be copied onto paper by hand and read back months later. */
+.recovery-code {
+  font-family: var(--mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 1.35rem;
+  letter-spacing: 0.09em;
+  text-align: center;
+  padding: var(--space-3);
+  border: 2px dashed var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  user-select: all;
+  word-break: break-all;
+}

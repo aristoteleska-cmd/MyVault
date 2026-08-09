@@ -138,30 +138,98 @@ function isValidPin(pin) {
     && pin.length <= MAX_PIN_LENGTH;
 }
 
-/** Salted scrypt. The salt is per person, so two identical PINs do not match. */
-function hashPin(pin, salt = crypto.randomBytes(16).toString('hex')) {
-  if (!isValidPin(pin)) {
-    throw new Error(`A PIN must be ${MIN_PIN_LENGTH} to ${MAX_PIN_LENGTH} digits.`);
-  }
-  const derived = crypto.scryptSync(pin, salt, SCRYPT.keylen, SCRYPT);
+/** Salted scrypt, used for both PINs and recovery codes. */
+function hashSecret(secret, salt = crypto.randomBytes(16).toString('hex')) {
+  const derived = crypto.scryptSync(secret, salt, SCRYPT.keylen, SCRYPT);
   return { salt, hash: derived.toString('hex') };
 }
 
-/**
- * Constant-time comparison, so the time taken cannot be used to learn the PIN
- * digit by digit. Cheap to do properly, and there is no reason not to.
- */
-function verifyPin(pin, { salt, hash } = {}) {
-  if (!isValidPin(pin) || typeof salt !== 'string' || typeof hash !== 'string') return false;
+function verifySecret(secret, { salt, hash } = {}) {
+  if (typeof secret !== 'string' || !secret) return false;
+  if (typeof salt !== 'string' || typeof hash !== 'string') return false;
   let derived;
   try {
-    derived = crypto.scryptSync(pin, salt, SCRYPT.keylen, SCRYPT);
+    derived = crypto.scryptSync(secret, salt, SCRYPT.keylen, SCRYPT);
   } catch {
     return false;
   }
   const stored = Buffer.from(hash, 'hex');
   if (stored.length !== derived.length) return false;
   return crypto.timingSafeEqual(stored, derived);
+}
+
+/** Salted scrypt. The salt is per person, so two identical PINs do not match. */
+function hashPin(pin, salt = crypto.randomBytes(16).toString('hex')) {
+  if (!isValidPin(pin)) {
+    throw new Error(`A PIN must be ${MIN_PIN_LENGTH} to ${MAX_PIN_LENGTH} digits.`);
+  }
+  return hashSecret(pin, salt);
+}
+
+/**
+ * Constant-time comparison, so the time taken cannot be used to learn the PIN
+ * digit by digit. Cheap to do properly, and there is no reason not to.
+ */
+function verifyPin(pin, stored) {
+  if (!isValidPin(pin)) return false;
+  return verifySecret(pin, stored);
+}
+
+// ---------------------------------------------------------- recovery codes
+
+/**
+ * The way back in when the manager's PIN has been forgotten.
+ *
+ * A four-digit PIN is meant to be forgotten eventually; without an answer to
+ * that, a shop would one day be locked out of its own stock and the only advice
+ * would be "edit this JSON file", which is no advice at all for a shopkeeper.
+ *
+ * The alphabet leaves out the characters people mistake for one another when
+ * copying a code off a printout — no O against 0, no I or L against 1 — because
+ * this gets written on paper and typed back in months later, probably in a
+ * hurry.
+ */
+const RECOVERY_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+const RECOVERY_GROUPS = 4;
+const RECOVERY_GROUP_LENGTH = 5;
+
+/**
+ * Twenty characters from a 31-character alphabet: about 99 bits. Nobody is
+ * guessing that, which matters because this code is the whole of the way in.
+ */
+function generateRecoveryCode() {
+  const bytes = crypto.randomBytes(RECOVERY_GROUPS * RECOVERY_GROUP_LENGTH);
+  const chars = [...bytes].map((byte) => RECOVERY_ALPHABET[byte % RECOVERY_ALPHABET.length]);
+  const groups = [];
+  for (let i = 0; i < RECOVERY_GROUPS; i += 1) {
+    groups.push(chars.slice(i * RECOVERY_GROUP_LENGTH, (i + 1) * RECOVERY_GROUP_LENGTH).join(''));
+  }
+  return groups.join('-');
+}
+
+/**
+ * Someone reading a code off a piece of paper will lower-case it, lose the
+ * dashes, or add a space. None of that should be the reason they stay locked
+ * out, so it is all forgiven before comparing.
+ */
+function normalizeRecoveryCode(code) {
+  return String(code ?? '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+}
+
+function isValidRecoveryCode(code) {
+  const clean = normalizeRecoveryCode(code);
+  return clean.length === RECOVERY_GROUPS * RECOVERY_GROUP_LENGTH
+    && [...clean].every((character) => RECOVERY_ALPHABET.includes(character));
+}
+
+function hashRecoveryCode(code) {
+  if (!isValidRecoveryCode(code)) throw new Error('That is not a MyVault recovery code.');
+  return hashSecret(normalizeRecoveryCode(code));
+}
+
+function verifyRecoveryCode(code, stored) {
+  if (!isValidRecoveryCode(code)) return false;
+  return verifySecret(normalizeRecoveryCode(code), stored);
 }
 
 module.exports = {
@@ -179,4 +247,10 @@ module.exports = {
   isValidPin,
   hashPin,
   verifyPin,
+  RECOVERY_ALPHABET,
+  generateRecoveryCode,
+  normalizeRecoveryCode,
+  isValidRecoveryCode,
+  hashRecoveryCode,
+  verifyRecoveryCode,
 };

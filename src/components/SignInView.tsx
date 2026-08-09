@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { useVault } from '../state/vault';
 import { useI18n } from '../i18n';
 import { Icon } from './Icon';
+import { RecoverForm } from './RecoveryCode';
 
 /**
  * The screen a shop sees when staff roles are switched on.
@@ -16,19 +17,29 @@ const MAX_PIN = 12;
 
 export function SignInView() {
   const { db, signIn, auth, createFirstAdmin } = useVault();
+  const [recovering, setRecovering] = useState(false);
 
   // Nobody has set roles up yet: the first thing to make is the manager.
   if (!auth.locked) return <FirstAdminForm onCreate={createFirstAdmin} />;
+  if (recovering) return <RecoverForm onCancel={() => setRecovering(false)} />;
 
-  return <PinPad onSubmit={signIn} shopName={db.settings.shopName} />;
+  return (
+    <PinPad
+      onSubmit={signIn}
+      shopName={db.settings.shopName}
+      onForgot={() => setRecovering(true)}
+    />
+  );
 }
 
 function PinPad({
   onSubmit,
   shopName,
+  onForgot,
 }: {
   onSubmit: (pin: string) => Promise<boolean>;
   shopName: string;
+  onForgot: () => void;
 }) {
   const { t } = useI18n();
   const [pin, setPin] = useState('');
@@ -103,6 +114,9 @@ function PinPad({
           {t('signIn.go')}
         </button>
 
+        <button type="button" className="btn btn-sm" onClick={onForgot}>
+          {t('recovery.forgotTitle')}
+        </button>
         <p className="signin-foot">{t('signIn.forgot')}</p>
       </form>
     </div>

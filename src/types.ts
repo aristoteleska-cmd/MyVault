@@ -157,6 +157,8 @@ export interface StaffMember {
 export interface AuthState {
   /** False until somebody sets roles up; then MyVault asks for a PIN. */
   locked: boolean;
+  /** Whether a way back in exists if every PIN is forgotten. */
+  hasRecoveryCode: boolean;
   signedIn: boolean;
   role: Role | null;
   user: { id: string; name: string; role: Role } | null;

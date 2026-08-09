@@ -27,12 +27,23 @@ const MAX_PIN = 12;
  * changes to anyone else regardless of what the interface shows.
  */
 export function StaffView() {
-  const { staff, refreshStaff, auth, removeStaff, signOut } = useVault();
+  const {
+    staff, refreshStaff, auth, removeStaff, signOut, newRecoveryCode, disableStaff,
+  } = useVault();
   const { t, locale } = useI18n();
   const [editing, setEditing] = useState<StaffMember | null>(null);
   const [adding, setAdding] = useState(false);
+  const [recoveryIssued, setRecoveryIssued] = useState('');
 
   useEffect(() => { void refreshStaff(); }, [refreshStaff]);
+
+  // Only when the code was minted, never the code itself — there is no readable
+  // copy of it to ask for.
+  useEffect(() => {
+    void window.myvault?.auth.recoveryStatus().then((result) => {
+      if (result.ok && result.data) setRecoveryIssued(result.data.createdAt);
+    });
+  }, [auth.hasRecoveryCode]);
 
   return (
     <div className="view">
@@ -100,6 +111,51 @@ export function StaffView() {
               <button type="button" className="btn btn-primary" onClick={() => setAdding(true)}>
                 <Icon name="plus" size={16} />
                 {t('staff.add')}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div className="panel">
+          <div className="panel-head">{t('recovery.panel')}</div>
+          <div className="setting-row">
+            <div className="setting-text">
+              <div className="setting-desc">
+                {auth.hasRecoveryCode
+                  ? t('recovery.have', {
+                    date: recoveryIssued
+                      ? new Date(recoveryIssued).toLocaleDateString(locale || undefined)
+                      : '—',
+                  })
+                  : t('recovery.missing')}
+                <span className="path">{t('recovery.newWarns')}</span>
+              </div>
+            </div>
+            <div className="setting-control">
+              <button type="button" className="btn" onClick={() => void newRecoveryCode()}>
+                <Icon name="save" size={15} />
+                {t('recovery.new')}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div className="panel">
+          <div className="panel-head">{t('staff.off')}</div>
+          <div className="setting-row">
+            <div className="setting-text">
+              <div className="setting-desc">{t('staff.offConfirm')}</div>
+            </div>
+            <div className="setting-control">
+              <button
+                type="button"
+                className="btn danger"
+                onClick={() => {
+                  // eslint-disable-next-line no-alert
+                  if (window.confirm(t('staff.offConfirm'))) void disableStaff();
+                }}
+              >
+                {t('staff.off')}
               </button>
             </div>
           </div>

@@ -25,16 +25,106 @@
   ; Where the installer would have put MyVault if nobody touched the box. Used
   ; as the last resort when the chosen folder turns out to be unwritable.
   Var defaultInstallDir
+  Var managerName
+  Var managerPin
+  Var managerNameBox
+  Var managerPinBox
+  Var managerConfirmBox
 
   !macro customInit
     StrCpy $defaultInstallDir $INSTDIR
   !macroend
 
-  ; Sits immediately after the directory page and is never actually shown — it
-  ; exists so that the folder can be tidied up and tested the moment the user
-  ; presses Install, while there is still a window on screen to complain in.
+  ; Two pages after the folder is chosen: the hidden one that checks the folder,
+  ; and the visible one that asks who will manage MyVault.
+  ;
+  ; The manager page is built inside the macro rather than at the top of this
+  ; file, because nsDialogs and the Modern UI header macros do not exist yet
+  ; when this file is compiled — they are included by the generated script
+  ; afterwards, and the macro is expanded from there.
   !macro customPageAfterChangeDir
     Page custom acceptInstallDir
+    Page custom managerPage managerPageLeave
+
+    Function managerPage
+      !insertmacro MUI_HEADER_TEXT "Who will manage MyVault?" "Choose a PIN. You will type it to open MyVault, and you can add the rest of your staff afterwards."
+
+      nsDialogs::Create 1018
+      Pop $0
+      ${If} $0 == error
+        Abort
+      ${EndIf}
+
+      ${NSD_CreateLabel} 0 0 100% 24u "MyVault will ask for this PIN each time it opens. Write it down somewhere safe — the first time it runs, MyVault shows you a recovery code in case the PIN is ever forgotten."
+
+      ${NSD_CreateLabel} 0 32u 32% 12u "Your name"
+      ${NSD_CreateText} 34% 30u 66% 13u "$managerName"
+      Pop $managerNameBox
+
+      ${NSD_CreateLabel} 0 52u 32% 12u "PIN (4 to 12 digits)"
+      ${NSD_CreatePassword} 34% 50u 66% 13u ""
+      Pop $managerPinBox
+
+      ${NSD_CreateLabel} 0 72u 32% 12u "Type it again"
+      ${NSD_CreatePassword} 34% 70u 66% 13u ""
+      Pop $managerConfirmBox
+
+      nsDialogs::Show
+    FunctionEnd
+
+    Function managerPageLeave
+      ${NSD_GetText} $managerNameBox $managerName
+      ${NSD_GetText} $managerPinBox $managerPin
+      ${NSD_GetText} $managerConfirmBox $R1
+
+      ${If} $managerName == ""
+        MessageBox MB_OK|MB_ICONEXCLAMATION "Enter the name of the person who will manage MyVault."
+        Abort
+      ${EndIf}
+
+      StrLen $R2 $managerPin
+      ${If} $R2 < 4
+      ${OrIf} $R2 > 12
+        MessageBox MB_OK|MB_ICONEXCLAMATION "The PIN must be between 4 and 12 digits."
+        Abort
+      ${EndIf}
+
+      ; Copy across only the characters that really are digits, then insist the
+      ; copy is identical. LogicLib's < and > compare numerically, which would
+      ; read a letter as zero and let it through, so each character is matched
+      ; against the ten digits by name instead.
+      StrCpy $R5 ""
+      StrCpy $R3 0
+      ${Do}
+        ${If} $R3 >= $R2
+          ${Break}
+        ${EndIf}
+        StrCpy $R4 $managerPin 1 $R3
+        ${If} $R4 == "0"
+        ${OrIf} $R4 == "1"
+        ${OrIf} $R4 == "2"
+        ${OrIf} $R4 == "3"
+        ${OrIf} $R4 == "4"
+        ${OrIf} $R4 == "5"
+        ${OrIf} $R4 == "6"
+        ${OrIf} $R4 == "7"
+        ${OrIf} $R4 == "8"
+        ${OrIf} $R4 == "9"
+          StrCpy $R5 "$R5$R4"
+        ${EndIf}
+        IntOp $R3 $R3 + 1
+      ${Loop}
+
+      ${IfNot} $R5 == $managerPin
+        MessageBox MB_OK|MB_ICONEXCLAMATION "The PIN must be digits only."
+        Abort
+      ${EndIf}
+
+      ${IfNot} $managerPin == $R1
+        MessageBox MB_OK|MB_ICONEXCLAMATION "The two PINs are different. Please type the same one twice."
+        Abort
+      ${EndIf}
+    FunctionEnd
   !macroend
 
   Function acceptInstallDir
@@ -82,11 +172,25 @@
   FunctionEnd
 !endif
 
+; ---------------------------------------------------------------------------
+; Who will manage this copy
+;
+; The shop owner sets their own PIN here, during installation, so MyVault is
+; never sitting unattended with no manager. The name and PIN are handed to the
+; program through the registry, which it reads once on its first run and then
+; deletes — from that point the PIN exists only as a salted scrypt hash inside
+; the data file. It is written in the clear for exactly that gap, on the same
+; machine it is being installed on; the README says so plainly.
+
 ; Records the language chosen on the installer's first screen so MyVault can
-; open in that language the first time it runs. Nothing else is written, and the
-; value is only ever read as a hint.
+; open in that language the first time it runs, and hands over the manager set
+; up on the page above. MyVault deletes both PIN values the first time it runs.
 !macro customInstall
   WriteRegStr HKCU "Software\MyVault" "InstallerLanguage" "$LANGUAGE"
+  ${If} $managerName != ""
+    WriteRegStr HKCU "Software\MyVault" "SetupName" "$managerName"
+    WriteRegStr HKCU "Software\MyVault" "SetupPin" "$managerPin"
+  ${EndIf}
 !macroend
 
 !macro customUnInstall

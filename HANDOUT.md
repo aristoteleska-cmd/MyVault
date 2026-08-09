@@ -137,6 +137,16 @@ not categories or settings, **Assistant** looks products up and takes one off
 when it sells. Add nobody and MyVault opens straight away, as it always did.
 Write the manager's PIN down somewhere safe.*
 
+Κατά την εγκατάσταση σας ζητείται το όνομα και το PIN του υπευθύνου. Την πρώτη
+φορά που θα ανοίξει το πρόγραμμα, σας δείχνει έναν **κωδικό επαναφοράς** —
+γράψτε τον σε χαρτί και φυλάξτε τον. Αν ξεχάσετε το PIN, πατήστε **Ξεχάσατε το
+PIN;** στην οθόνη σύνδεσης και βάλτε αυτόν τον κωδικό.
+
+*The installer asks for the manager's name and PIN. The first time MyVault
+opens it shows you a **recovery code** — write it on paper and keep it safe. If
+the PIN is ever forgotten, press **Forgotten the PIN?** on the sign-in screen
+and type that code in.*
+
 **Προσοχή / Note:** αυτό ορίζει ποιος τι κάνει *μέσα* στο πρόγραμμα. Δεν
 κλειδώνει τον υπολογιστή. / *This decides what each person can do **inside** the
 program. It does not lock the computer itself.*
