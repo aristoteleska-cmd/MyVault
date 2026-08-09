@@ -16,10 +16,10 @@
 ;
 ; "leave" verification keeps the button alive and moves the check to the moment
 ; it is pressed, where we can look at the folder ourselves and say something
-; useful. Both forms are set: the !define is what the Modern UI reads, and the
-; bare instruction is the underlying NSIS attribute it maps to.
+; useful. The Modern UI turns this define into a DirVerify inside its own page
+; block — writing DirVerify here instead is a compile error, because it is only
+; valid inside PageEx.
 !define MUI_DIRECTORYPAGE_VERIFYONLEAVE
-DirVerify leave
 
 !ifndef BUILD_UNINSTALLER
   ; Where the installer would have put MyVault if nobody touched the box. Used

@@ -27,16 +27,16 @@ assert.strictEqual(
 ok('the installer shows a folder page at all');
 
 // NSIS otherwise re-checks the box on every keystroke and greys out Install
-// with no explanation — including for a bare drive root like D:\. Both spellings
-// matter: the !define is what the Modern UI reads, the bare instruction is the
-// NSIS attribute underneath it.
+// with no explanation — including for a bare drive root like D:\.
 assert.match(
   nsh,
   /^\s*!define MUI_DIRECTORYPAGE_VERIFYONLEAVE\s*$/m,
   'the Modern UI is told to verify on leave',
 );
-assert.match(nsh, /^\s*DirVerify leave\s*$/m, 'NSIS itself is told to verify on leave');
-assert.doesNotMatch(nsh, /DirVerify\s+auto/, 'nothing puts the keystroke check back');
+// The Modern UI expands that define into a DirVerify inside its own PageEx
+// block. Writing the instruction here as well does not double up — it fails the
+// build with "command DirVerify not valid outside PageEx".
+assert.doesNotMatch(nsh, /^\s*DirVerify\b/m, 'DirVerify is left to the Modern UI to emit');
 ok('Install is never greyed out while the folder is being typed');
 
 // The check has to happen somewhere, and it has to be able to answer back.
