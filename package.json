@@ -1,7 +1,7 @@
 {
   "name": "myvault",
   "productName": "MyVault",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "description": "Offline stock and inventory manager for small shops. All data stays on your computer.",
   "author": {
     "name": "Aristotelis Katsigiannis"
@@ -22,7 +22,7 @@
     "dist:win": "npm run build && node scripts/sync-license.mjs && electron-builder --win --x64 --publish never",
     "dist:dir": "npm run build && node scripts/sync-license.mjs && electron-builder --dir --publish never",
     "test": "node scripts/run-tests.mjs",
-    "test:e2e": "xvfb-run -a node tests/persistence.e2e.js",
+    "test:e2e": "xvfb-run -a node tests/persistence.e2e.js && xvfb-run -a node tests/roles.e2e.js",
     "icon": "python build/make-icon.py"
   },
   "dependencies": {

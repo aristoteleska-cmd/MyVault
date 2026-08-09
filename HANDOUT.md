@@ -117,6 +117,32 @@ sent, whichever you pick.*
 
 ---
 
+## Προσωπικό / Staff
+
+Αν δουλεύουν κι άλλοι στο μαγαζί, πηγαίνετε **Προσωπικό** και δώστε στον καθένα
+δικό του PIN:
+
+| Ρόλος | Τι μπορεί να κάνει |
+| --- | --- |
+| **Υπεύθυνος** | Τα πάντα. |
+| **Έμπειρος** | Προσθέτει προϊόντα και παραλαβές, κάνει πωλήσεις. Όχι κατηγορίες ή ρυθμίσεις. |
+| **Βοηθός** | Ψάχνει προϊόντα και αφαιρεί ένα όταν πουληθεί. |
+
+Αν δεν προσθέσετε κανέναν, το πρόγραμμα ανοίγει κατευθείαν, όπως πάντα.
+Σημειώστε το PIN του υπευθύνου κάπου ασφαλή.
+
+*If other people work in the shop, go to **Staff** and give each one their own
+PIN: **Manager** does everything, **Senior** adds products and deliveries but
+not categories or settings, **Assistant** looks products up and takes one off
+when it sells. Add nobody and MyVault opens straight away, as it always did.
+Write the manager's PIN down somewhere safe.*
+
+**Προσοχή / Note:** αυτό ορίζει ποιος τι κάνει *μέσα* στο πρόγραμμα. Δεν
+κλειδώνει τον υπολογιστή. / *This decides what each person can do **inside** the
+program. It does not lock the computer itself.*
+
+---
+
 ## Άδεια χρήσης / Licence
 
 Δωρεάν στη χρήση, για όσο θέλετε, και στο κατάστημά σας. Με επιφύλαξη κάθε

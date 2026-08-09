@@ -1,11 +1,14 @@
 import type {
   AppInfo,
+  AuthState,
   Category,
   CustomField,
   Database,
   FieldType,
   Item,
+  Role,
   Settings,
+  StaffMember,
   UpdateStatus,
 } from './types';
 
@@ -78,6 +81,23 @@ export interface MyVaultBridge {
 
   settings: {
     update(patch: Partial<Settings>): Promise<Result<Settings>>;
+  };
+
+  auth: {
+    state(): Promise<Result<AuthState>>;
+    signIn(pin: string): Promise<Result<AuthState>>;
+    signOut(): Promise<Result<AuthState>>;
+    createFirstAdmin(input: { name: string; pin: string }): Promise<Result<AuthState>>;
+  };
+
+  staff: {
+    list(): Promise<Result<StaffMember[]>>;
+    add(input: { name: string; role: Role; pin: string }): Promise<Result<StaffMember>>;
+    update(
+      id: string,
+      patch: { name?: string; role?: Role; pin?: string },
+    ): Promise<Result<StaffMember>>;
+    remove(id: string): Promise<Result<StaffMember[]>>;
   };
 
   updates: {

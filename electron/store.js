@@ -13,6 +13,8 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 
+const { ROLES, hashPin, verifyPin, isValidPin } = require('./roles');
+
 const SCHEMA_VERSION = 2;
 const MAX_BACKUPS = 10;
 const BACKUP_INTERVAL_MS = 12 * 60 * 60 * 1000; // at most one backup per 12h
@@ -129,6 +131,9 @@ function emptyDatabase() {
     appVersion: '',
     createdAt: nowIso(),
     settings: { ...DEFAULT_SETTINGS },
+    // Empty means nobody has set up staff roles, and MyVault behaves as it
+    // always did: one person, full access. See ./roles.js.
+    users: [],
     categories: [
       { id: newId(), name: 'General', color: '#4f7cff' },
     ],
@@ -213,6 +218,30 @@ class Store {
 
     db.createdAt = asString(parsed.createdAt) || db.createdAt;
     db.settings = normalizeSettings(parsed.settings);
+
+    db.users = Array.isArray(parsed.users)
+      ? parsed.users
+          .filter((u) => u && typeof u === 'object')
+          .map((u) => ({
+            id: asString(u.id, 64) || newId(),
+            name: asString(u.name, 60) || 'Staff',
+            role: ROLES.includes(u.role) ? u.role : 'junior',
+            salt: asString(u.salt, 64),
+            hash: asString(u.hash, 128),
+            createdAt: asString(u.createdAt) || nowIso(),
+          }))
+          // A staff member with no usable PIN could never sign in, and would
+          // sit there looking like a way in. A file hand-edited down to that
+          // state is treated as not having them.
+          .filter((u) => u.salt && u.hash)
+      : [];
+
+    // An admin is the only role that can put things right, so a list that has
+    // somehow lost its last one is not a list worth honouring — better to fall
+    // back to the unlocked state than to leave the shop shut out of its stock.
+    if (db.users.length && !db.users.some((u) => u.role === 'admin')) {
+      db.users = [];
+    }
 
     db.categories = Array.isArray(parsed.categories)
       ? parsed.categories
@@ -356,6 +385,17 @@ class Store {
 
   getState() {
     return this.db;
+  }
+
+  /**
+   * The same state, minus anything the interface has no business holding.
+   *
+   * PIN salts and hashes never cross the bridge. They stay in the main process
+   * and in the file, and are compared here — the window is only ever told who
+   * is on the staff list and what their role is.
+   */
+  publicState() {
+    return { ...this.db, users: this.listUsers() };
   }
 
   // ------------------------------------------------------------------- items
@@ -525,6 +565,95 @@ class Store {
     fields.forEach((f, i) => { f.order = i; });
     this.persist();
     return this.db;
+  }
+
+  // -------------------------------------------------------------------- staff
+
+  /** The staff list as the interface may see it: names and roles, never PINs. */
+  listUsers() {
+    return this.db.users.map(({ id, name, role, createdAt }) => ({ id, name, role, createdAt }));
+  }
+
+  /** Whoever's PIN this is, or null. Names are not needed to sign in — a PIN is. */
+  findByPin(pin) {
+    if (!isValidPin(pin)) return null;
+    const user = this.db.users.find((candidate) => verifyPin(pin, candidate));
+    return user ? { id: user.id, name: user.name, role: user.role } : null;
+  }
+
+  addUser({ name, role, pin }) {
+    const clean = asString(name, 60).trim();
+    if (!clean) throw new Error('Give this person a name.');
+    if (!ROLES.includes(role)) throw new Error(`"${role}" is not a role MyVault knows.`);
+    // The moment the first person exists, MyVault starts asking for a PIN. If
+    // that person were an assistant, nobody could ever reach this screen again.
+    if (this.db.users.length === 0 && role !== 'admin') {
+      throw new Error('The first person has to be a manager, or nobody could add the others.');
+    }
+    if (this.db.users.some((u) => u.name.toLowerCase() === clean.toLowerCase())) {
+      throw new Error(`There is already someone called "${clean}".`);
+    }
+    // Two people sharing a PIN would sign each other in, since the PIN is the
+    // whole of the sign-in.
+    if (this.db.users.some((u) => verifyPin(pin, u))) {
+      throw new Error('Somebody already uses that PIN. Choose another.');
+    }
+
+    const { salt, hash } = hashPin(pin);
+    const user = { id: newId(), name: clean, role, salt, hash, createdAt: nowIso() };
+    this.db.users.push(user);
+    this.persist();
+    return { id: user.id, name: user.name, role: user.role, createdAt: user.createdAt };
+  }
+
+  updateUser(id, patch = {}) {
+    const user = this.db.users.find((candidate) => candidate.id === id);
+    if (!user) throw new Error('That person is no longer on the list.');
+
+    if (patch.name !== undefined) {
+      const clean = asString(patch.name, 60).trim();
+      if (!clean) throw new Error('Give this person a name.');
+      const clash = this.db.users.find(
+        (u) => u.id !== id && u.name.toLowerCase() === clean.toLowerCase(),
+      );
+      if (clash) throw new Error(`There is already someone called "${clean}".`);
+      user.name = clean;
+    }
+
+    if (patch.role !== undefined) {
+      if (!ROLES.includes(patch.role)) throw new Error(`"${patch.role}" is not a role MyVault knows.`);
+      // Demoting the last admin would leave nobody able to promote anyone.
+      if (user.role === 'admin' && patch.role !== 'admin' && this.adminCount() === 1) {
+        throw new Error('This is the only manager. Make somebody else a manager first.');
+      }
+      user.role = patch.role;
+    }
+
+    if (patch.pin !== undefined) {
+      const taken = this.db.users.find((u) => u.id !== id && verifyPin(patch.pin, u));
+      if (taken) throw new Error('Somebody already uses that PIN. Choose another.');
+      const { salt, hash } = hashPin(patch.pin);
+      user.salt = salt;
+      user.hash = hash;
+    }
+
+    this.persist();
+    return { id: user.id, name: user.name, role: user.role, createdAt: user.createdAt };
+  }
+
+  deleteUser(id) {
+    const user = this.db.users.find((candidate) => candidate.id === id);
+    if (!user) throw new Error('That person is no longer on the list.');
+    if (user.role === 'admin' && this.adminCount() === 1) {
+      throw new Error('This is the only manager. MyVault would be left with nobody in charge.');
+    }
+    this.db.users = this.db.users.filter((candidate) => candidate.id !== id);
+    this.persist();
+    return this.listUsers();
+  }
+
+  adminCount() {
+    return this.db.users.filter((user) => user.role === 'admin').length;
   }
 
   // ----------------------------------------------------------------- settings

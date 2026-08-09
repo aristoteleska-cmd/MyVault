@@ -1,6 +1,7 @@
 import type { Category, CustomField, Item, SortKey, SortState } from '../types';
 import { formatDate, formatFieldValue, formatMoney, stockLevel } from '../lib/format';
 import { useI18n } from '../i18n';
+import { useVault } from '../state/vault';
 import { Icon } from './Icon';
 
 interface ItemTableProps {
@@ -35,6 +36,7 @@ export function ItemTable({
   onAdjust,
 }: ItemTableProps) {
   const { t, locale } = useI18n();
+  const { can } = useVault();
   const categoryById = new Map(categories.map((c) => [c.id, c]));
   const allSelected = items.length > 0 && items.every((item) => selected.has(item.id));
   const someSelected = items.some((item) => selected.has(item.id));
@@ -94,7 +96,7 @@ export function ItemTable({
               <tr
                 key={item.id}
                 data-selected={isSelected}
-                onDoubleClick={() => onEdit(item)}
+                onDoubleClick={() => { if (can('items.edit')) onEdit(item); }}
               >
                 <td className="col-select">
                   <input
@@ -154,14 +156,18 @@ export function ItemTable({
                         <Icon name="minus" size={15} />
                       </button>
                       <span className="stepper-value">{item.quantity}</span>
-                      <button
-                        type="button"
-                        onClick={() => onAdjust(item.id, 1)}
-                        aria-label={t('table.addOne', { name: item.name })}
-                        title={t('table.addOneTitle')}
-                      >
-                        <Icon name="plus" size={15} />
-                      </button>
+                      {/* Taking one off is the till's job; putting one back is
+                          booking in a delivery, which is a different trust. */}
+                      {can('items.receive') && (
+                        <button
+                          type="button"
+                          onClick={() => onAdjust(item.id, 1)}
+                          aria-label={t('table.addOne', { name: item.name })}
+                          title={t('table.addOneTitle')}
+                        >
+                          <Icon name="plus" size={15} />
+                        </button>
+                      )}
                     </div>
                   </div>
                 </td>
@@ -172,24 +178,28 @@ export function ItemTable({
 
                 <td className="col-actions">
                   <div className="row-actions">
-                    <button
-                      type="button"
-                      className="icon-btn"
-                      onClick={() => onEdit(item)}
-                      aria-label={t('table.editItem', { name: item.name })}
-                      title={t('table.edit')}
-                    >
-                      <Icon name="pencil" size={16} />
-                    </button>
-                    <button
-                      type="button"
-                      className="icon-btn danger"
-                      onClick={() => onDelete([item.id])}
-                      aria-label={t('table.deleteItem', { name: item.name })}
-                      title={t('table.delete')}
-                    >
-                      <Icon name="trash" size={16} />
-                    </button>
+                    {can('items.edit') && (
+                      <button
+                        type="button"
+                        className="icon-btn"
+                        onClick={() => onEdit(item)}
+                        aria-label={t('table.editItem', { name: item.name })}
+                        title={t('table.edit')}
+                      >
+                        <Icon name="pencil" size={16} />
+                      </button>
+                    )}
+                    {can('items.delete') && (
+                      <button
+                        type="button"
+                        className="icon-btn danger"
+                        onClick={() => onDelete([item.id])}
+                        aria-label={t('table.deleteItem', { name: item.name })}
+                        title={t('table.delete')}
+                      >
+                        <Icon name="trash" size={16} />
+                      </button>
+                    )}
                   </div>
                 </td>
               </tr>

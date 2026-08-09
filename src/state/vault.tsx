@@ -10,6 +10,10 @@ import {
 } from 'react';
 import type {
   AppInfo,
+  AuthState,
+  Capability,
+  Role,
+  StaffMember,
   Category,
   CustomField,
   Database,
@@ -79,6 +83,24 @@ interface VaultValue {
   update: UpdateStatus | null;
   /** Reads a barcode from a picture; null if cancelled or nothing was found. */
   scanBarcodePhoto: () => Promise<string | null>;
+
+  auth: AuthState;
+  /**
+   * Whether the person at the screen may do this.
+   *
+   * Only ever used to decide what to show. The main process checks the same
+   * thing again on the far side of the bridge, which is what actually stops it.
+   */
+  can: (capability: Capability) => boolean;
+  signIn: (pin: string) => Promise<boolean>;
+  signOut: () => Promise<void>;
+  createFirstAdmin: (input: { name: string; pin: string }) => Promise<boolean>;
+
+  staff: StaffMember[];
+  refreshStaff: () => Promise<void>;
+  addStaff: (input: { name: string; role: Role; pin: string }) => Promise<boolean>;
+  updateStaff: (id: string, patch: { name?: string; role?: Role; pin?: string }) => Promise<boolean>;
+  removeStaff: (id: string) => Promise<void>;
   checkForUpdate: () => Promise<void>;
   downloadUpdate: () => Promise<void>;
   installUpdate: () => Promise<void>;
@@ -120,6 +142,18 @@ export function VaultProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [importSummary, setImportSummary] = useState<ImportResult | null>(null);
   const [update, setUpdate] = useState<UpdateStatus | null>(null);
+  // Assume nothing until the main process says otherwise: unlocked, but with no
+  // capabilities, so a flash of buttons cannot appear before the answer lands.
+  const [auth, setAuth] = useState<AuthState>({
+    locked: false,
+    signedIn: false,
+    role: null,
+    user: null,
+    capabilities: [],
+    roles: ['admin', 'senior', 'junior'],
+    staffCount: 0,
+  });
+  const [staff, setStaff] = useState<StaffMember[]>([]);
   const toastId = useRef(0);
 
   const clearImportSummary = useCallback(() => setImportSummary(null), []);
@@ -191,21 +225,33 @@ export function VaultProvider({ children }: { children: ReactNode }) {
         setLoadError('splash.noBridge');
         return;
       }
-      const [state, appInfo] = await Promise.all([
-        window.myvault.getState(),
+      const [authResult, appInfo] = await Promise.all([
+        window.myvault.auth.state(),
         window.myvault.getInfo(),
       ]);
       if (cancelled) return;
 
-      if (!state.ok || !state.data) {
-        setLoadError(state.error || 'splash.noFile');
-        return;
-      }
-      setDb(state.data);
+      if (authResult.ok && authResult.data) setAuth(authResult.data);
       if (appInfo.ok && appInfo.data) setInfo(appInfo.data);
-      setReady(true);
 
-      if (state.data.recoveredFrom) notify('toast.recovered', undefined, 'error');
+      // With staff roles set up, the stock is refused until somebody signs in —
+      // which is the point. The sign-in screen is what the shop sees first.
+      const needsSignIn = authResult.ok && authResult.data
+        ? authResult.data.locked && !authResult.data.signedIn
+        : false;
+
+      if (!needsSignIn) {
+        const state = await window.myvault.getState();
+        if (cancelled) return;
+        if (!state.ok || !state.data) {
+          setLoadError(state.error || 'splash.noFile');
+          return;
+        }
+        setDb(state.data);
+        if (state.data.recoveredFrom) notify('toast.recovered', undefined, 'error');
+      }
+
+      setReady(true);
     })();
 
     return () => { cancelled = true; };
@@ -420,6 +466,80 @@ export function VaultProvider({ children }: { children: ReactNode }) {
     await run(window.myvault.data.openFolder());
   }, [run]);
 
+  // ------------------------------------------------------------------ staff
+
+  const can = useCallback(
+    (capability: Capability) => auth.capabilities.includes(capability),
+    [auth.capabilities],
+  );
+
+  const signIn = useCallback(async (pin: string) => {
+    const next = await run(window.myvault.auth.signIn(pin));
+    if (!next) return false;
+    setAuth(next);
+    // The stock list was refused while nobody was signed in; fetch it now.
+    const state = await run(window.myvault.getState());
+    if (state) setDb(state);
+    notify('toast.signedIn', { name: next.user?.name ?? '' }, 'success');
+    return true;
+  }, [run, notify]);
+
+  const signOut = useCallback(async () => {
+    const next = await run(window.myvault.auth.signOut());
+    if (next) {
+      setAuth(next);
+      setStaff([]);
+      // Leave nothing on screen for the next person to read over the counter.
+      setDb(emptyDb);
+    }
+  }, [run]);
+
+  const createFirstAdmin = useCallback(async (input: { name: string; pin: string }) => {
+    const next = await run(window.myvault.auth.createFirstAdmin(input));
+    if (!next) return false;
+    setAuth(next);
+    return true;
+  }, [run]);
+
+  const refreshStaff = useCallback(async () => {
+    const list = await run(window.myvault.staff.list());
+    if (list) setStaff(list);
+  }, [run]);
+
+  const addStaff = useCallback(async (input: { name: string; role: Role; pin: string }) => {
+    const added = await run(window.myvault.staff.add(input));
+    if (!added) return false;
+    await refreshStaff();
+    const next = await run(window.myvault.auth.state());
+    if (next) setAuth(next);
+    notify('toast.staffAdded', { name: added.name }, 'success');
+    return true;
+  }, [run, refreshStaff, notify]);
+
+  const updateStaff = useCallback(async (
+    id: string,
+    patch: { name?: string; role?: Role; pin?: string },
+  ) => {
+    const saved = await run(window.myvault.staff.update(id, patch));
+    if (!saved) return false;
+    await refreshStaff();
+    notify('toast.staffSaved', { name: saved.name }, 'success');
+    return true;
+  }, [run, refreshStaff, notify]);
+
+  const removeStaff = useCallback(async (id: string) => {
+    const remaining = await run(window.myvault.staff.remove(id));
+    if (!remaining) return;
+    setStaff(remaining);
+    // Removing yourself signs you out, so ask what is true now rather than
+    // assuming the sitting continues.
+    const next = await run(window.myvault.auth.state());
+    if (next) {
+      setAuth(next);
+      if (!next.signedIn) setDb(emptyDb);
+    }
+  }, [run]);
+
   // ---------------------------------------------------------------- updates
 
   // Progress arrives unprompted once a download starts, so the listener is set
@@ -500,6 +620,16 @@ export function VaultProvider({ children }: { children: ReactNode }) {
       updateSettings,
       update,
       scanBarcodePhoto,
+      auth,
+      can,
+      signIn,
+      signOut,
+      createFirstAdmin,
+      staff,
+      refreshStaff,
+      addStaff,
+      updateStaff,
+      removeStaff,
       checkForUpdate,
       downloadUpdate,
       installUpdate,
@@ -517,6 +647,8 @@ export function VaultProvider({ children }: { children: ReactNode }) {
       addField, updateField, deleteField, moveField,
       updateSettings, exportCsv, importCsv, backup, restore, openDataFolder,
       update, checkForUpdate, downloadUpdate, installUpdate, scanBarcodePhoto,
+      auth, can, signIn, signOut, createFirstAdmin,
+      staff, refreshStaff, addStaff, updateStaff, removeStaff,
     ],
   );
 

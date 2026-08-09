@@ -1,22 +1,37 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useVault } from './state/vault';
-import { useI18n } from './i18n';
+import { useI18n, type TranslationKey } from './i18n';
 import { useBarcodeScanner } from './hooks/useBarcodeScanner';
-import type { Filters, Item, SortState } from './types';
+import type { Capability, Filters, Item, SortState } from './types';
 import { Icon, type IconName } from './components/Icon';
 import { InventoryView } from './components/InventoryView';
 import { CategoriesView } from './components/CategoriesView';
 import { FieldsView } from './components/FieldsView';
 import { SettingsView } from './components/SettingsView';
 import { ItemDialog } from './components/ItemDialog';
+import { StaffView } from './components/StaffView';
+import { SignInView } from './components/SignInView';
 import { Toasts } from './components/Toasts';
 
-type ViewName = 'inventory' | 'categories' | 'fields' | 'settings';
+type ViewName = 'inventory' | 'categories' | 'fields' | 'settings' | 'staff';
 
-const NAV: { id: ViewName; labelKey: 'nav.stock' | 'nav.categories' | 'nav.details' | 'nav.settings'; icon: IconName }[] = [
+/**
+ * The sidebar, and what each entry needs before it is offered.
+ *
+ * A junior on the till sees Stock and nothing else, so the screen is not a wall
+ * of buttons that refuse them. Stock and Settings are always shown: settings
+ * still holds the appearance controls, which are anyone's to change.
+ */
+const NAV: {
+  id: ViewName;
+  labelKey: TranslationKey;
+  icon: IconName;
+  needs?: Capability;
+}[] = [
   { id: 'inventory', labelKey: 'nav.stock', icon: 'box' },
-  { id: 'categories', labelKey: 'nav.categories', icon: 'tag' },
-  { id: 'fields', labelKey: 'nav.details', icon: 'fields' },
+  { id: 'categories', labelKey: 'nav.categories', icon: 'tag', needs: 'categories.manage' },
+  { id: 'fields', labelKey: 'nav.details', icon: 'fields', needs: 'fields.manage' },
+  { id: 'staff', labelKey: 'nav.staff', icon: 'staff', needs: 'staff.manage' },
   { id: 'settings', labelKey: 'nav.settings', icon: 'settings' },
 ];
 
@@ -29,7 +44,7 @@ const initialFilters: Filters = {
 };
 
 export function App() {
-  const { ready, loadError, db, info, notify, scanBarcodePhoto } = useVault();
+  const { ready, loadError, db, info, notify, scanBarcodePhoto, auth, can } = useVault();
   const { t, rtl } = useI18n();
   const [view, setView] = useState<ViewName>('inventory');
   const [filters, setFilters] = useState<Filters>(initialFilters);
@@ -192,6 +207,17 @@ export function App() {
     );
   }
 
+  // With staff roles set up, nothing is shown until somebody signs in — not the
+  // sidebar, not the totals, not a single product name.
+  if (auth.locked && !auth.signedIn) {
+    return (
+      <>
+        <SignInView />
+        <Toasts />
+      </>
+    );
+  }
+
   return (
     <div className="app">
       <aside className="sidebar">
@@ -205,7 +231,7 @@ export function App() {
 
         <nav className="nav" aria-label="Main">
           <div className="nav-heading">{t('nav.section')}</div>
-          {NAV.map((entry) => (
+          {NAV.filter((entry) => !entry.needs || can(entry.needs)).map((entry) => (
             <button
               key={entry.id}
               type="button"
@@ -257,6 +283,7 @@ export function App() {
           />
         )}
         {view === 'fields' && <FieldsView />}
+        {view === 'staff' && <StaffView />}
         {view === 'settings' && <SettingsView />}
       </main>
 
