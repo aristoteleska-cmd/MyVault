@@ -88,6 +88,12 @@ export interface MyVaultBridge {
     signIn(pin: string): Promise<Result<AuthState>>;
     signOut(): Promise<Result<AuthState>>;
     createFirstAdmin(input: { name: string; pin: string }): Promise<Result<AuthState>>;
+    pendingRecoveryCode(): Promise<Result<string>>;
+    recoveryStatus(): Promise<Result<{ exists: boolean; createdAt: string }>>;
+    recover(input: { code: string; pin: string }): Promise<Result<{
+      auth: AuthState;
+      user: { id: string; name: string; role: Role };
+    }>>;
   };
 
   staff: {
@@ -98,6 +104,8 @@ export interface MyVaultBridge {
       patch: { name?: string; role?: Role; pin?: string },
     ): Promise<Result<StaffMember>>;
     remove(id: string): Promise<Result<StaffMember[]>>;
+    newRecoveryCode(): Promise<Result<{ exists: boolean; createdAt: string }>>;
+    disable(): Promise<Result<AuthState>>;
   };
 
   updates: {

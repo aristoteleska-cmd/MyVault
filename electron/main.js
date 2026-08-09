@@ -57,6 +57,81 @@ let updater = null;
  */
 let signedInId = null;
 
+/**
+ * A recovery code that has just been minted and not yet shown to anybody.
+ *
+ * Kept in memory only, and handed over exactly once: the code exists in a
+ * readable form for the few seconds between being generated and being put on
+ * screen, and nowhere else, ever.
+ */
+let pendingRecoveryCode = '';
+
+/**
+ * The manager the installer was told about.
+ *
+ * The installer writes the name and PIN into the registry and MyVault picks
+ * them up the first time it runs, turns the PIN into a salted hash, and deletes
+ * both values immediately. Reading them is the only moment they are needed and
+ * the last moment they exist in the clear.
+ */
+function consumeInstallerSetup() {
+  if (process.platform !== 'win32') return null;
+  const read = (name) => {
+    try {
+      const { execFileSync } = require('child_process');
+      const out = execFileSync(
+        'reg',
+        ['query', 'HKCU\\Software\\MyVault', '/v', name],
+        { encoding: 'utf8', timeout: 2000, windowsHide: true },
+      );
+      const match = out.match(new RegExp(`${name}\\s+REG_SZ\\s+(.+)`, 'i'));
+      return match ? match[1].trim() : '';
+    } catch {
+      return '';
+    }
+  };
+  const forget = (name) => {
+    try {
+      const { execFileSync } = require('child_process');
+      execFileSync(
+        'reg',
+        ['delete', 'HKCU\\Software\\MyVault', '/v', name, '/f'],
+        { encoding: 'utf8', timeout: 2000, windowsHide: true },
+      );
+    } catch { /* already gone, which is the state we wanted */ }
+  };
+
+  const name = read('SetupName');
+  const pin = read('SetupPin');
+  // Whether or not they are usable, they do not stay in the registry.
+  if (name || pin) {
+    forget('SetupName');
+    forget('SetupPin');
+  }
+  return name && pin ? { name, pin } : null;
+}
+
+/**
+ * Turns what the installer collected into a real manager account.
+ *
+ * Only ever on a shop with no staff list — an update reinstalled over an
+ * existing shop must not quietly add a second manager, and the installer values
+ * are deleted either way.
+ */
+function applyInstallerSetup() {
+  const setup = consumeInstallerSetup();
+  if (!setup) return;
+  if (store.getState().users.length > 0) return;
+  try {
+    store.addUser({ name: setup.name, role: 'admin', pin: setup.pin });
+    pendingRecoveryCode = store.issueRecoveryCode();
+  } catch (error) {
+    // A PIN the installer let through but the store will not is not worth
+    // failing to start over: the shop is asked to set up a manager instead.
+    console.error('Could not create the manager from the installer:', error.message);
+  }
+}
+
 /** What the window is allowed to know about the current sitting. */
 function authState() {
   const { users } = store.getState();
@@ -64,6 +139,7 @@ function authState() {
   const user = users.find((candidate) => candidate.id === signedInId) || null;
   return {
     locked: isLocked(users),
+    hasRecoveryCode: store.recoveryStatus().exists,
     signedIn: role !== null,
     role,
     user: user ? { id: user.id, name: user.name, role: user.role } : null,
@@ -340,6 +416,49 @@ function registerIpc() {
   handle('staff:add', 'staff.manage', (input) => store.addUser(input));
   handle('staff:update', 'staff.manage', (id, patch) => store.updateUser(id, patch));
 
+  /**
+   * The recovery code, shown once and never again.
+   *
+   * Deliberately open to anyone: it is only ever non-empty in the seconds after
+   * a manager is created, and the window it is handed to is the one that has
+   * just created them.
+   */
+  handle('auth:pending-recovery-code', null, () => {
+    const code = pendingRecoveryCode;
+    pendingRecoveryCode = '';
+    return code;
+  });
+
+  handle('auth:recovery-status', null, () => store.recoveryStatus());
+
+  /**
+   * Getting back in when the PIN has been forgotten.
+   *
+   * Open to anyone, because the person using it cannot sign in — that is the
+   * whole situation. The code is the credential: twenty characters from a
+   * 31-character alphabet, checked against a scrypt hash, so guessing is not a
+   * route in and there is nothing here to rate-limit.
+   */
+  handle('auth:recover', null, ({ code, pin }) => {
+    const { user, nextCode } = store.useRecoveryCode(code, pin);
+    // Straight in as that manager: they have proved who they are, and making
+    // them type the PIN they just chose adds nothing.
+    signedInId = user.id;
+    pendingRecoveryCode = nextCode;
+    return { auth: authState(), user };
+  });
+
+  handle('staff:new-recovery-code', 'staff.manage', () => {
+    pendingRecoveryCode = store.issueRecoveryCode();
+    return store.recoveryStatus();
+  });
+
+  handle('staff:disable', 'staff.manage', () => {
+    store.disableStaff();
+    signedInId = null;
+    return authState();
+  });
+
   handle('staff:delete', 'staff.manage', (id) => {
     const remaining = store.deleteUser(id);
     // Removing yourself ends your own sitting rather than leaving a signed-in
@@ -361,6 +480,7 @@ function registerIpc() {
     }
     const admin = store.addUser({ name, role: 'admin', pin });
     signedInId = admin.id;
+    pendingRecoveryCode = store.issueRecoveryCode();
     return authState();
   });
 
@@ -557,6 +677,10 @@ app.whenReady().then(() => {
   });
   // Arms the daily check if — and only if — the shop has asked for one.
   updater.schedule();
+
+  // Whatever the installer was told about the manager, turned into an account
+  // and wiped from the registry. Does nothing on an existing shop.
+  applyInstallerSetup();
 
   registerIpc();
   buildMenu();

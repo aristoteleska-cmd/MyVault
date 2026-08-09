@@ -221,6 +221,73 @@ async function main() {
   assert.strictEqual(fresh.data.staffCount, 3, 'though the staff list is remembered');
   ok('reopening MyVault asks for a PIN again');
 
+  // ------------------------------------------- forgetting the manager PIN
+  // MyVault holds a single-instance lock, so the previous window has to be shut
+  // before another can start.
+  await app.close();
+  ({ app, window } = await open());
+
+  // Creating the first manager mints a code, which the window is handed once.
+  // By now it has already been collected, so mint a fresh one as a manager and
+  // then forget every PIN there is.
+  await callBridge(window, 'auth.signIn', ['1111']);
+  await callBridge(window, 'staff.newRecoveryCode');
+  const code = await callBridge(window, 'auth.pendingRecoveryCode');
+  assert.ok(code.data && code.data.length >= 20, `a code was handed over: ${code.data}`);
+
+  const again = await callBridge(window, 'auth.pendingRecoveryCode');
+  assert.strictEqual(again.data, '', 'and only once — it is gone the second time');
+  ok('a recovery code reaches the window exactly once');
+
+  await callBridge(window, 'auth.signOut');
+  const status = await callBridge(window, 'auth.recoveryStatus');
+  assert.strictEqual(status.data.exists, true, 'the sign-in screen can tell a way back exists');
+  assert.ok(!JSON.stringify(status.data).includes(code.data.slice(0, 5)),
+    'without revealing any of it');
+  ok('the locked screen knows a way back exists but not what it is');
+
+  const wrongCode = await callBridge(window, 'auth.recover', [
+    { code: 'ABCDE-FGHJK-MNPQR-STUVW', pin: '4242' },
+  ]);
+  assert.strictEqual(wrongCode.ok, false, 'a made-up code does not get in');
+  const stillShut = await callBridge(window, 'getState');
+  assert.strictEqual(stillShut.ok, false, 'and the shop stays shut');
+  ok('a wrong recovery code changes nothing');
+
+  // The real thing, typed the way somebody reads it off a piece of paper.
+  const sloppy = code.data.toLowerCase().replace(/-/g, ' ');
+  const recovered = await callBridge(window, 'auth.recover', [{ code: sloppy, pin: '4242' }]);
+  assert.strictEqual(recovered.ok, true, 'the real code, typed sloppily, gets in');
+  assert.strictEqual(recovered.data.user.role, 'admin');
+  assert.strictEqual(recovered.data.auth.role, 'admin', 'and signs them straight in');
+
+  const reopenedStock = await callBridge(window, 'getState');
+  assert.strictEqual(reopenedStock.ok, true, 'the stock is theirs again');
+  ok('the recovery code unlocks the shop and signs the manager in');
+
+  const spent = await callBridge(window, 'auth.recover', [{ code: code.data, pin: '5252' }]);
+  assert.strictEqual(spent.ok, false, 'the used code is spent');
+  const replacement = await callBridge(window, 'auth.pendingRecoveryCode');
+  assert.ok(replacement.data && replacement.data !== code.data, 'and a new one is waiting');
+  ok('a used code stops working, and its replacement is ready to write down');
+
+  await callBridge(window, 'auth.signOut');
+  const newPin = await callBridge(window, 'auth.signIn', ['4242']);
+  assert.strictEqual(newPin.ok, true, 'the new PIN works from the keypad');
+  const oldPin = await callBridge(window, 'auth.signIn', ['1111']);
+  assert.strictEqual(oldPin.ok, false, 'and the forgotten one does not');
+  ok('the manager signs in with the PIN they chose during recovery');
+
+  // ------------------------------------------- a one-person shop opting out
+  await callBridge(window, 'auth.signIn', ['4242']);
+  const off = await callBridge(window, 'staff.disable');
+  assert.strictEqual(off.ok, true);
+  assert.strictEqual(off.data.locked, false, 'MyVault stops asking for a PIN');
+  const openAgain = await callBridge(window, 'getState');
+  assert.strictEqual(openAgain.ok, true, 'and opens straight into the stock');
+  assert.ok(openAgain.data.items.length > 0, 'with the stock still there');
+  ok('turning roles off gives a one-person shop its old MyVault back');
+
   await app.close();
   console.log(`\n${passed} checks passed.`);
 }

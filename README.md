@@ -440,10 +440,20 @@ PIN and decides what they may do.
 | **Senior** | Adds products, books deliveries in, rings up sales, exports a CSV. **Not** categories, extra details, settings, or deleting products. |
 | **Assistant** | Looks a product up and takes one off when it sells. Nothing else — not even correcting a count upwards, which is a delivery, not a sale. |
 
-**Nothing changes until you set it up.** A shop that updates to this version has
-no staff list, so MyVault opens straight into the stock with full access, exactly
-as before. The moment you create the first manager, MyVault starts asking for a
-PIN — and the first person has to be a manager, or nobody could add the rest.
+**The installer asks who will manage this copy.** A page during installation
+collects the manager's name and PIN, so a freshly installed MyVault is never
+sitting there with nobody in charge. The installer hands them over through the
+registry; MyVault reads them the first time it runs, turns the PIN into a salted
+hash, and **deletes both values immediately**. They are in the clear for exactly
+that gap, on the machine being installed to — which is worth knowing, and is why
+it is written here rather than glossed over.
+
+**An existing shop is not disturbed.** Updating over a shop that already has data
+and no staff list changes nothing: MyVault opens straight into the stock with
+full access, as before. The installer's manager is only created when there is no
+staff list at all. And a one-person shop that finds a daily PIN a nuisance can
+turn the whole thing off again from the Staff screen — everyone is removed, the
+stock is untouched, and MyVault opens freely as it used to.
 
 Each person signs in with a 4-to-12-digit PIN on a keypad. PINs are **salted and
 hashed with scrypt**, never stored as you typed them, and never cross into the
@@ -469,11 +479,35 @@ side of the bridge, not in the buttons. Hiding a button is the polite half;
 the program's own internals directly — past the interface entirely — and
 requiring all ten manager-and-senior actions to be refused.
 
-**If every PIN is forgotten**, nothing is lost. Close MyVault, open the data
-folder (the path is on the Settings screen), and either restore a backup from
-before roles were set up, or delete the `users` list from `myvault.json`. MyVault
-reopens unlocked with all your stock intact. That is also, honestly, why the
-paragraph above says this is not security.
+### If the manager PIN is forgotten
+
+The first time a manager is created — by the installer or in the app — MyVault
+shows a **recovery code** once: four groups of five characters, like
+`K7QMR-BXTVW-2H9DJ-PSFZN`. That screen cannot be clicked past; the only way on is
+the button saying you have written it down.
+
+Keep it with the shop's important papers. If the PIN is ever forgotten, press
+**Forgotten the PIN?** on the sign-in screen, type the code, and choose a new
+manager PIN. You are signed straight in.
+
+Some details that matter in a shop:
+
+- The code is **stored only as a salted scrypt hash**, so MyVault genuinely
+  cannot show it to you again. Lose the paper and the answer is to generate a
+  new code from the Staff screen, not to look the old one up.
+- It is **single-use**. A slip of paper somebody has already used is worthless,
+  and a fresh code is minted the moment the old one is spent.
+- It is **case- and dash-forgiving**: `k7qmr bxtvw 2h9dj psfzn` works. The
+  alphabet leaves out `O`, `I`, `L`, `0` and `1`, because this gets copied by
+  hand and read back months later.
+- Twenty characters from a 31-character alphabet is about 99 bits. Guessing is
+  not a way in, which is why there is no lockout to trip over.
+
+**And if the code is lost too**, nothing is lost either. Close MyVault, open the
+data folder (the path is on the Settings screen), and either restore a backup
+from before roles were set up, or delete the `users` list from `myvault.json`.
+MyVault reopens unlocked with all your stock intact. That last paragraph is,
+honestly, the same fact as "this is not security" seen from the useful side.
 
 ---
 

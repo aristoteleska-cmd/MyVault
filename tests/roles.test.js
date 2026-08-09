@@ -16,6 +16,7 @@ const {
   ROLES, CAPABILITIES, APPEARANCE_SETTINGS,
   can, isLocked, effectiveRole, allows, isAppearanceOnly,
   isValidPin, hashPin, verifyPin, MIN_PIN_LENGTH, MAX_PIN_LENGTH,
+  generateRecoveryCode, isValidRecoveryCode, normalizeRecoveryCode, RECOVERY_ALPHABET,
 } = require('../electron/roles');
 const { Store } = require('../electron/store');
 
@@ -136,6 +137,24 @@ assert.notStrictEqual(twin.hash, stored.hash, 'so identical PINs are stored diff
 assert.throws(() => hashPin('12'), /4 to 12 digits/);
 ok('PINs are salted and hashed, never stored as typed');
 
+// -------------------------------------------------------- recovery codes
+{
+  const codes = new Set(Array.from({ length: 200 }, () => generateRecoveryCode()));
+  assert.strictEqual(codes.size, 200, 'two hundred codes, no repeats');
+  const sample = [...codes][0];
+  assert.match(sample, /^[A-Z0-9]{5}(-[A-Z0-9]{5}){3}$/, `four groups of five: ${sample}`);
+  // Written on paper and typed back months later, so the characters people
+  // confuse must not be in the alphabet at all.
+  for (const confusable of ['O', 'I', 'L', '0', '1']) {
+    assert.ok(!RECOVERY_ALPHABET.includes(confusable), `${confusable} is not in the alphabet`);
+  }
+  assert.strictEqual(normalizeRecoveryCode('abcde fghjk-mnpqr stuvw'), 'ABCDEFGHJKMNPQRSTUVW');
+  assert.ok(!isValidRecoveryCode('ABCDE-FGHJK-MNPQR'), 'a short code is not a code');
+  assert.ok(!isValidRecoveryCode('ABCDE-FGHJK-MNPQR-STUV0'), 'nor one with a character we never mint');
+  assert.ok(!isValidRecoveryCode(''), 'nor nothing');
+  ok('recovery codes are unique, unambiguous and forgiving to type');
+}
+
 // ------------------------------------------------------- the staff list itself
 const store = freshStore();
 assert.deepStrictEqual(store.listUsers(), [], 'a new shop has no staff list');
@@ -226,6 +245,64 @@ ok('staff and their PINs survive closing the app');
   reloaded.init();
   assert.deepStrictEqual(reloaded.listUsers().map((u) => u.name), ['Real'], 'the PIN-less entry is gone');
   ok('a staff entry with no PIN is dropped, not left looking like a way in');
+}
+
+// --------------------------------------------------- forgetting the PIN
+{
+  const shop = freshStore();
+  const owner = shop.addUser({ name: 'Owner', role: 'admin', pin: '1111' });
+  shop.addUser({ name: 'Saturday', role: 'junior', pin: '2222' });
+
+  assert.strictEqual(shop.recoveryStatus().exists, false, 'no code until one is issued');
+  const code = shop.issueRecoveryCode();
+  assert.ok(isValidRecoveryCode(code), `a well-formed code: ${code}`);
+  assert.strictEqual(shop.recoveryStatus().exists, true);
+
+  // The point of the whole thing: the code must not be recoverable from the file.
+  const onDisk = fs.readFileSync(shop.file, 'utf8');
+  assert.ok(!onDisk.includes(code), 'the code itself is nowhere in the data file');
+  assert.ok(!onDisk.includes(code.replace(/-/g, '')), 'not even without its dashes');
+  ok('a recovery code is issued once and never stored in readable form');
+
+  // Read off a piece of paper months later, in whatever shape it arrives.
+  const sloppy = ` ${code.toLowerCase().replace(/-/g, ' ')} `;
+  const recovered = shop.useRecoveryCode(sloppy, '8888');
+  assert.strictEqual(recovered.user.id, owner.id, 'the shop is handed back to its manager');
+  assert.strictEqual(shop.findByPin('8888').id, owner.id, 'with the new PIN working');
+  assert.strictEqual(shop.findByPin('1111'), null, 'and the forgotten one dead');
+  ok('a code typed in lower case, without dashes, still gets the shop back');
+
+  // Single use: a slip of paper someone has already used is worth nothing.
+  assert.throws(() => shop.useRecoveryCode(code, '7777'), /not recognised/);
+  assert.ok(isValidRecoveryCode(recovered.nextCode), 'and a fresh code takes its place');
+  assert.notStrictEqual(recovered.nextCode, code);
+  assert.strictEqual(shop.useRecoveryCode(recovered.nextCode, '7777').user.id, owner.id);
+  ok('a used code stops working, and a new one is issued in its place');
+
+  assert.throws(() => shop.useRecoveryCode(generateRecoveryCode(), '5555'), /not recognised/);
+  assert.throws(() => shop.useRecoveryCode('nonsense', '5555'), /not recognised/);
+  assert.throws(() => shop.useRecoveryCode(shop.issueRecoveryCode(), '12'), /4 to 12 digits/);
+  ok('a wrong code, a malformed code and a bad new PIN are all refused');
+
+  // Recovery restores the manager, never anybody else.
+  assert.strictEqual(shop.listUsers().length, 2, 'the staff list is untouched');
+  assert.strictEqual(shop.findByPin('2222').name, 'Saturday', 'the assistant keeps their PIN');
+  ok('recovery changes one manager PIN and nothing else');
+}
+
+// -------------------------------------------- a one-person shop opting out
+{
+  const shop = freshStore();
+  shop.addUser({ name: 'Owner', role: 'admin', pin: '1111' });
+  shop.issueRecoveryCode();
+  shop.addItem({ name: 'Olive oil', quantity: 12 });
+
+  shop.disableStaff();
+  assert.deepStrictEqual(shop.listUsers(), [], 'the staff list is emptied');
+  assert.strictEqual(shop.recoveryStatus().exists, false, 'and the code goes with it');
+  assert.strictEqual(shop.getState().items.length, 1, 'the stock is untouched');
+  assert.ok(allows(shop.getState().users, null, 'items.create'), 'MyVault opens freely again');
+  ok('a one-person shop can turn roles off without losing anything');
 }
 
 console.log('\n' + passed + ' checks passed.');

@@ -57,6 +57,10 @@ contextBridge.exposeInMainWorld('myvault', {
     signIn: (pin) => invoke('auth:sign-in', pin),
     signOut: () => invoke('auth:sign-out'),
     createFirstAdmin: (input) => invoke('staff:create-first-admin', input),
+    /** Reads the just-minted recovery code once; empty every time after. */
+    pendingRecoveryCode: () => invoke('auth:pending-recovery-code'),
+    recoveryStatus: () => invoke('auth:recovery-status'),
+    recover: (input) => invoke('auth:recover', input),
   },
 
   staff: {
@@ -64,6 +68,8 @@ contextBridge.exposeInMainWorld('myvault', {
     add: (input) => invoke('staff:add', input),
     update: (id, patch) => invoke('staff:update', id, patch),
     remove: (id) => invoke('staff:delete', id),
+    newRecoveryCode: () => invoke('staff:new-recovery-code'),
+    disable: () => invoke('staff:disable'),
   },
 
   /**

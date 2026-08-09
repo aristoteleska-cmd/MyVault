@@ -95,6 +95,12 @@ interface VaultValue {
   signIn: (pin: string) => Promise<boolean>;
   signOut: () => Promise<void>;
   createFirstAdmin: (input: { name: string; pin: string }) => Promise<boolean>;
+  /** Non-empty only while a newly minted code is waiting to be written down. */
+  recoveryCode: string;
+  clearRecoveryCode: () => void;
+  recoverWithCode: (code: string, pin: string) => Promise<boolean>;
+  newRecoveryCode: () => Promise<void>;
+  disableStaff: () => Promise<void>;
 
   staff: StaffMember[];
   refreshStaff: () => Promise<void>;
@@ -146,6 +152,7 @@ export function VaultProvider({ children }: { children: ReactNode }) {
   // capabilities, so a flash of buttons cannot appear before the answer lands.
   const [auth, setAuth] = useState<AuthState>({
     locked: false,
+    hasRecoveryCode: false,
     signedIn: false,
     role: null,
     user: null,
@@ -154,9 +161,12 @@ export function VaultProvider({ children }: { children: ReactNode }) {
     staffCount: 0,
   });
   const [staff, setStaff] = useState<StaffMember[]>([]);
+  // Held only long enough to be shown and written down.
+  const [recoveryCode, setRecoveryCode] = useState('');
   const toastId = useRef(0);
 
   const clearImportSummary = useCallback(() => setImportSummary(null), []);
+  const clearRecoveryCode = useCallback(() => setRecoveryCode(''), []);
 
   const dismissToast = useCallback((id: number) => {
     setToasts((current) => current.filter((toast) => toast.id !== id));
@@ -232,6 +242,11 @@ export function VaultProvider({ children }: { children: ReactNode }) {
       if (cancelled) return;
 
       if (authResult.ok && authResult.data) setAuth(authResult.data);
+
+      // The installer may have created the manager before the window existed,
+      // in which case a recovery code is waiting to be written down.
+      const waiting = await window.myvault.auth.pendingRecoveryCode();
+      if (!cancelled && waiting.ok && waiting.data) setRecoveryCode(waiting.data);
       if (appInfo.ok && appInfo.data) setInfo(appInfo.data);
 
       // With staff roles set up, the stock is refused until somebody signs in —
@@ -498,7 +513,47 @@ export function VaultProvider({ children }: { children: ReactNode }) {
     const next = await run(window.myvault.auth.createFirstAdmin(input));
     if (!next) return false;
     setAuth(next);
+    const code = await run(window.myvault.auth.pendingRecoveryCode());
+    if (code) setRecoveryCode(code);
+    const state = await run(window.myvault.getState());
+    if (state) setDb(state);
     return true;
+  }, [run]);
+
+  /**
+   * Getting back in with the recovery code.
+   *
+   * On success the shop is signed in as that manager straight away — they have
+   * just proved who they are, and a fresh code is minted because the one they
+   * used is now spent.
+   */
+  const recoverWithCode = useCallback(async (code: string, pin: string) => {
+    const result = await run(window.myvault.auth.recover({ code, pin }));
+    if (!result) return false;
+    setAuth(result.auth);
+    const next = await run(window.myvault.auth.pendingRecoveryCode());
+    if (next) setRecoveryCode(next);
+    const state = await run(window.myvault.getState());
+    if (state) setDb(state);
+    notify('toast.recovered2', { name: result.user.name }, 'success');
+    return true;
+  }, [run, notify]);
+
+  const newRecoveryCode = useCallback(async () => {
+    const status = await run(window.myvault.staff.newRecoveryCode());
+    if (!status) return;
+    const code = await run(window.myvault.auth.pendingRecoveryCode());
+    if (code) setRecoveryCode(code);
+    setAuth((current) => ({ ...current, hasRecoveryCode: true }));
+  }, [run]);
+
+  const disableStaff = useCallback(async () => {
+    const next = await run(window.myvault.staff.disable());
+    if (!next) return;
+    setAuth(next);
+    setStaff([]);
+    const state = await run(window.myvault.getState());
+    if (state) setDb(state);
   }, [run]);
 
   const refreshStaff = useCallback(async () => {
@@ -625,6 +680,11 @@ export function VaultProvider({ children }: { children: ReactNode }) {
       signIn,
       signOut,
       createFirstAdmin,
+      recoveryCode,
+      clearRecoveryCode,
+      recoverWithCode,
+      newRecoveryCode,
+      disableStaff,
       staff,
       refreshStaff,
       addStaff,
@@ -649,6 +709,7 @@ export function VaultProvider({ children }: { children: ReactNode }) {
       update, checkForUpdate, downloadUpdate, installUpdate, scanBarcodePhoto,
       auth, can, signIn, signOut, createFirstAdmin,
       staff, refreshStaff, addStaff, updateStaff, removeStaff,
+      recoveryCode, clearRecoveryCode, recoverWithCode, newRecoveryCode, disableStaff,
     ],
   );
 

@@ -13,7 +13,10 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 
-const { ROLES, hashPin, verifyPin, isValidPin } = require('./roles');
+const {
+  ROLES, hashPin, verifyPin, isValidPin,
+  generateRecoveryCode, hashRecoveryCode, verifyRecoveryCode,
+} = require('./roles');
 
 const SCHEMA_VERSION = 2;
 const MAX_BACKUPS = 10;
@@ -134,6 +137,9 @@ function emptyDatabase() {
     // Empty means nobody has set up staff roles, and MyVault behaves as it
     // always did: one person, full access. See ./roles.js.
     users: [],
+    // The way back in when every PIN has been forgotten. Only ever the hash of
+    // the code — the code itself is shown once, on paper, and never kept.
+    recovery: null,
     categories: [
       { id: newId(), name: 'General', color: '#4f7cff' },
     ],
@@ -242,6 +248,15 @@ class Store {
     if (db.users.length && !db.users.some((u) => u.role === 'admin')) {
       db.users = [];
     }
+
+    db.recovery = parsed.recovery && typeof parsed.recovery === 'object'
+      && asString(parsed.recovery.salt, 64) && asString(parsed.recovery.hash, 128)
+      ? {
+        salt: asString(parsed.recovery.salt, 64),
+        hash: asString(parsed.recovery.hash, 128),
+        createdAt: asString(parsed.recovery.createdAt) || nowIso(),
+      }
+      : null;
 
     db.categories = Array.isArray(parsed.categories)
       ? parsed.categories
@@ -390,12 +405,17 @@ class Store {
   /**
    * The same state, minus anything the interface has no business holding.
    *
-   * PIN salts and hashes never cross the bridge. They stay in the main process
-   * and in the file, and are compared here — the window is only ever told who
-   * is on the staff list and what their role is.
+   * Salts and hashes never cross the bridge — not the staff's PINs and not the
+   * recovery code. They stay in the main process and in the file, and are
+   * compared here; the window is told who is on the staff list, what their role
+   * is, and whether a recovery code exists. Nothing that could be tried offline.
    */
   publicState() {
-    return { ...this.db, users: this.listUsers() };
+    return {
+      ...this.db,
+      users: this.listUsers(),
+      recovery: this.recoveryStatus(),
+    };
   }
 
   // ------------------------------------------------------------------- items
@@ -654,6 +674,95 @@ class Store {
 
   adminCount() {
     return this.db.users.filter((user) => user.role === 'admin').length;
+  }
+
+  /** Managers, oldest first — the first one is who recovery hands the shop back to. */
+  admins() {
+    return this.db.users
+      .filter((user) => user.role === 'admin')
+      .sort((a, b) => String(a.createdAt).localeCompare(String(b.createdAt)));
+  }
+
+  // ----------------------------------------------------------------- recovery
+
+  /**
+   * Mints a recovery code, returning it in the clear exactly once.
+   *
+   * Only the hash is kept, so this is the single moment the code exists in a
+   * readable form. If the shop loses the piece of paper, the answer is to
+   * generate another one, not to look the old one up — there is nothing to look
+   * up.
+   */
+  issueRecoveryCode() {
+    const code = generateRecoveryCode();
+    const { salt, hash } = hashRecoveryCode(code);
+    this.db.recovery = { salt, hash, createdAt: nowIso() };
+    this.persist();
+    return code;
+  }
+
+  /** Whether a code exists at all, without saying anything about what it is. */
+  recoveryStatus() {
+    return {
+      exists: Boolean(this.db.recovery),
+      createdAt: this.db.recovery?.createdAt || '',
+    };
+  }
+
+  /**
+   * Spends the recovery code to put a new PIN on the shop's oldest manager.
+   *
+   * The oldest manager is the account created during setup — the owner's own.
+   * Whoever holds the code is by definition the owner, so they are told whose
+   * PIN they have just changed rather than being left to guess.
+   *
+   * The code is single-use: a slip of paper that has already been used is worth
+   * nothing, and a fresh one is issued in its place so the shop is never left
+   * without a way back.
+   */
+  useRecoveryCode(code, newPin) {
+    if (!this.db.recovery) {
+      throw new Error('This copy of MyVault has no recovery code set up.');
+    }
+    if (!verifyRecoveryCode(code, this.db.recovery)) {
+      throw new Error('That recovery code was not recognised.');
+    }
+    if (!isValidPin(newPin)) {
+      throw new Error('Choose a new PIN of 4 to 12 digits.');
+    }
+
+    const [manager] = this.admins();
+    if (!manager) throw new Error('There is no manager account to restore.');
+
+    // A PIN somebody else already uses would sign the wrong person in.
+    const taken = this.db.users.find((u) => u.id !== manager.id && verifyPin(newPin, u));
+    if (taken) throw new Error('Somebody already uses that PIN. Choose another.');
+
+    const { salt, hash } = hashPin(newPin);
+    manager.salt = salt;
+    manager.hash = hash;
+
+    const nextCode = generateRecoveryCode();
+    const minted = hashRecoveryCode(nextCode);
+    this.db.recovery = { salt: minted.salt, hash: minted.hash, createdAt: nowIso() };
+    this.persist();
+
+    return { user: { id: manager.id, name: manager.name, role: manager.role }, nextCode };
+  }
+
+  /**
+   * Turns staff roles off entirely.
+   *
+   * A one-person shop that set this up and then found the daily PIN a nuisance
+   * needs a way out that is not "edit the JSON file". Their stock is untouched;
+   * only the staff list and the recovery code go, and MyVault opens straight
+   * into the stock again the way it did before.
+   */
+  disableStaff() {
+    this.db.users = [];
+    this.db.recovery = null;
+    this.persist();
+    return this.listUsers();
   }
 
   // ----------------------------------------------------------------- settings
