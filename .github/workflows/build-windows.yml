@@ -51,6 +51,14 @@ jobs:
       - run: npm run typecheck
       - run: npm test
 
+      # Starts the real application five times over against one data folder and
+      # checks the stock is still there each time. It needs the interface built,
+      # because it clicks the actual buttons; the display a CI runner does not
+      # have is provided by the xvfb inside the script itself.
+      - run: npm run build
+      - name: Does it remember the stock across restarts?
+        run: npm run test:e2e
+
   build:
     needs: test
     runs-on: windows-latest
