@@ -123,8 +123,18 @@ promised:
 - There is no account, no login, no sync and no telephone-home. Nothing about
   your shop is sent anywhere, ever.
 
-The test suite checks this directly: it launches the real app and tries to reach
-the network by five different routes, and every one has to fail.
+The test suite checks this directly. `npm run test:e2e` launches the real app
+and, from inside the running window, tries to reach a web server on this very
+machine by five different routes — `fetch`, `XMLHttpRequest`, a WebSocket, an
+image and a script tag. Every one has to fail. The server is local and proven
+answering first, so a build machine with no route to the internet cannot make
+the check pass by accident.
+
+Two independent layers do the blocking, and either alone is enough: strip the
+Content-Security-Policy and the request handler still cancels it; strip the
+request handler and the policy still refuses it. Only with both removed does
+`fetch` get through — which is how the check is known to be capable of
+failing.
 
 ### The one exception, and its exact size
 
@@ -382,6 +392,40 @@ either side. A USB reader is still faster if you have one.
 Note that an EAN-13 beginning with `0` is the same symbol as a UPC-A and comes
 back in its twelve-digit form without the leading zero. That is correct, and it
 matches what a USB scanner reports for the same product.
+
+---
+
+## Is my work really saved?
+
+Yes, and it is checked mechanically rather than promised. `npm run test:e2e`
+starts the **real** application five times against one data folder and, between
+launches, reads the file on disk directly:
+
+1. First run — the shop is empty and one data file appears.
+2. Three products are added and the shop name is set, through the actual form.
+   Both are on disk **before** the app is closed: MyVault saves as you work, not
+   when you quit, so a power cut costs nothing.
+3. The app is closed and reopened. Same file, same three records — matched by
+   their ids, so lookalikes would not pass — with every quantity, price and
+   barcode intact, and the stock list showing them rather than an empty shop.
+4. A sale is rung up and the app closed seconds later. It is still there next
+   time.
+5. The file is stamped as written by an older MyVault, which is exactly what an
+   update looks like from the inside. The stock survives, and an untouched copy
+   of the old file is parked in `backups/` first.
+
+Finally: after five launches there is still **exactly one** data file, and no
+half-written leftovers.
+
+The test is only worth its runtime if it fails when it should. Making `init()`
+start from an empty database — the precise bug of "it forgets everything" —
+makes it fail on step 3 with *"reopening reuses the same file rather than
+starting a new one"*. It runs on every push.
+
+One thing that legitimately changes between runs: the file's inode. Saving
+writes a temporary file and renames it over the original, so a crash mid-write
+can never leave a half-written stock list. "The same file" therefore means the
+same contents and the same records, not the same inode.
 
 ---
 
