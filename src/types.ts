@@ -52,6 +52,8 @@ export interface Settings {
   defaultLowStockThreshold: number;
   shopName: string;
   dateFormat: string;
+  /** Off unless the shop deliberately switched it on. */
+  updates: boolean;
 }
 
 export interface Database {
@@ -74,8 +76,42 @@ export interface AppInfo {
   /** The four details every item always has. */
   standardFields: string[];
   maxCustomFields: number;
+  /** True always: the interface itself never makes a network request. */
   offline: boolean;
+  /** The only hosts the updater may contact, shown to the shop verbatim. */
+  updateHosts: string[];
   systemLocale: string;
+}
+
+/**
+ * Where an update check has got to.
+ *
+ * `unsupported` covers the portable .exe and running from source — neither has
+ * an installer to replace.
+ */
+export type UpdateState =
+  | 'idle'
+  | 'checking'
+  | 'available'
+  | 'downloading'
+  | 'ready'
+  | 'current'
+  | 'error'
+  | 'unsupported';
+
+export interface UpdateStatus {
+  state: UpdateState;
+  reason: string;
+  currentVersion: string;
+  newVersion: string;
+  notes: string;
+  percent: number;
+  transferred: number;
+  total: number;
+  checkedAt: string;
+  error: string;
+  supported: boolean;
+  enabled: boolean;
 }
 
 export type ItemDraft = Omit<Item, 'id' | 'createdAt' | 'updatedAt'>;

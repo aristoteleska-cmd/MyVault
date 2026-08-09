@@ -85,7 +85,12 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: MyVault-windows-installer
-          path: release/*setup*.exe
+          # latest.yml is the small file the in-app updater reads to learn what
+          # the newest version is and what its installer should hash to. Without
+          # it beside the .exe, "Check now" finds nothing.
+          path: |
+            release/*setup*.exe
+            release/latest.yml
           if-no-files-found: error
           retention-days: 7
 
@@ -154,3 +159,48 @@ jobs:
 
           gh release view "$TAG" --json tagName,assets \
             --jq '"published \(.tagName): " + ([.assets[].name] | join(", "))'
+
+      # The app's own updater cannot read the release above: this repository is
+      # private, so GitHub answers 404 to a shop that has no token. The same
+      # files therefore go to a second, public repository that holds downloads
+      # and nothing else — no source, no history, no build logs.
+      #
+      # That push needs a token with write access to the other repository, since
+      # the built-in GITHUB_TOKEN only reaches this one. Without the secret the
+      # step says so and the build still succeeds; only the in-app updater is
+      # left with nothing to find. See "Publishing updates" in the README.
+      - name: Publish to the public downloads repo
+        env:
+          GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
+          TAG: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || inputs.release_tag }}
+          DOWNLOADS_REPO: aristoteleska-cmd/MyVault-releases
+        run: |
+          set -euo pipefail
+
+          if [ -z "${GH_TOKEN:-}" ]; then
+            echo "::warning::RELEASES_TOKEN is not set — skipping the public downloads repo."
+            echo "The in-app updater will not see $TAG until this release is published there."
+            exit 0
+          fi
+
+          if ! gh repo view "$DOWNLOADS_REPO" >/dev/null 2>&1; then
+            echo "::warning::$DOWNLOADS_REPO is not reachable with this token — skipping."
+            exit 0
+          fi
+
+          # latest.yml is what the updater actually reads; without it the .exe
+          # files are just files and no shop will ever be offered them.
+          test -f release/latest.yml || { echo "::error::latest.yml is missing"; exit 1; }
+
+          if gh release view "$TAG" --repo "$DOWNLOADS_REPO" >/dev/null 2>&1; then
+            gh release upload "$TAG" release/*.exe release/latest.yml \
+              --repo "$DOWNLOADS_REPO" --clobber
+          else
+            gh release create "$TAG" release/*.exe release/latest.yml \
+              --repo "$DOWNLOADS_REPO" \
+              --title "MyVault $TAG" \
+              --notes-file notes.md
+          fi
+
+          gh release view "$TAG" --repo "$DOWNLOADS_REPO" --json tagName,assets \
+            --jq '"downloads repo has \(.tagName): " + ([.assets[].name] | join(", "))'

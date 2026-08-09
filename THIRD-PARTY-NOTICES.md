@@ -18,6 +18,7 @@ components below.
 | [Node.js](https://nodejs.org/) (via Electron) | MIT | Reading and writing your data file |
 | [React](https://github.com/facebook/react) | MIT | The user interface |
 | [React DOM](https://github.com/facebook/react) | MIT | The user interface |
+| [electron-updater](https://github.com/electron-userland/electron-builder) | MIT | Fetching a newer installer from GitHub, when the shop switches updates on |
 
 Electron ships its own licence texts inside the installed application
 (`LICENSE.electron.txt` and `LICENSES.chromium.html`). Those files must be kept

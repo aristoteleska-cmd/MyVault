@@ -5,8 +5,9 @@ const fs = require('fs');
 const path = require('path');
 
 const { Store, STANDARD_FIELDS, MAX_CUSTOM_FIELDS } = require('./store');
-const { NETWORK_SWITCHES, DISABLED_FEATURES, enforceOffline } = require('./offline');
+const { NETWORK_SWITCHES, DISABLED_FEATURES, UPDATE_HOSTS, enforceOffline } = require('./offline');
 const { parseCsv, toCsv } = require('./csv');
+const { Updater } = require('./updater');
 
 const isDev = process.env.MYVAULT_DEV === '1';
 const ICON_PATH = path.join(__dirname, '..', 'build', 'icon.ico');
@@ -41,6 +42,7 @@ function resolveDataDir() {
 
 let store;
 let mainWindow = null;
+let updater = null;
 
 /**
  * The language chosen on the installer's first screen, which it records in the
@@ -215,7 +217,11 @@ function registerIpc() {
     portable: Boolean(process.env.PORTABLE_EXECUTABLE_DIR),
     standardFields: STANDARD_FIELDS,
     maxCustomFields: MAX_CUSTOM_FIELDS,
+    // The interface never reaches the network, whatever the update setting says.
     offline: true,
+    // …and this is the complete list of what the rest of the program may
+    // contact, and only while a check the shop asked for is running.
+    updateHosts: UPDATE_HOSTS,
     // Used the first time the app runs, before the shop has picked a language.
     systemLocale: installerLanguage() || app.getLocale(),
   }));
@@ -242,8 +248,18 @@ function registerIpc() {
     if (patch.theme) {
       nativeTheme.themeSource = ['light', 'dark'].includes(patch.theme) ? patch.theme : 'system';
     }
+    // Switching updates off mid-flight should be visible immediately, not after
+    // the next check.
+    if ('updates' in patch) updater?.emit({});
     return settings;
   });
+
+  // ----------------------------------------------------------------- updates
+
+  handle('updates:status', () => updater.getStatus());
+  handle('updates:check', () => updater.check());
+  handle('updates:download', () => updater.download());
+  handle('updates:install', () => updater.install());
 
   handle('data:open-folder', () => shell.openPath(store.dataDir));
 
@@ -366,6 +382,15 @@ app.whenReady().then(() => {
 
   const theme = store.getState().settings.theme;
   nativeTheme.themeSource = ['light', 'dark'].includes(theme) ? theme : 'system';
+
+  // Built, but idle. Nothing here touches the network until the shop has both
+  // switched updates on and pressed a button — there is no check on startup.
+  updater = new Updater({
+    app,
+    isDev,
+    isEnabled: () => store.getState().settings.updates === true,
+    onStatus: (status) => mainWindow?.webContents.send('updates:status', status),
+  });
 
   registerIpc();
   buildMenu();

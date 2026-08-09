@@ -29,6 +29,40 @@ const DISABLED_FEATURES = [
 /** Schemes that only ever read what is already on this machine. */
 const OFFLINE_SCHEMES = new Set(['file:', 'data:', 'blob:', 'devtools:', 'chrome-extension:']);
 
+/**
+ * The one and only exception, and it is worth being precise about.
+ *
+ * The interface never reaches the network — not with updates switched on, not
+ * ever. What changes when a shop turns updates on is that the *background* part
+ * of MyVault may ask GitHub whether a newer installer exists, and fetch it. That
+ * traffic does not go through the window, so the rule below still cancels
+ * everything the interface tries; these hosts are listed so that what the
+ * program is allowed to contact is written down in one place rather than
+ * scattered through a library's internals.
+ *
+ * Nothing is ever uploaded. The requests are ordinary downloads: a small file
+ * listing the newest version, then the installer itself.
+ */
+const UPDATE_HOSTS = [
+  'api.github.com',
+  'github.com',
+  'objects.githubusercontent.com',
+  'release-assets.githubusercontent.com',
+];
+
+/** True if a URL points at one of the hosts the updater is allowed to use. */
+function isUpdateHost(url) {
+  if (typeof url !== 'string' || url === '') return false;
+  try {
+    const parsed = new URL(url);
+    // Plain http would let anyone on the café wifi hand the shop an installer.
+    if (parsed.protocol !== 'https:') return false;
+    return UPDATE_HOSTS.includes(parsed.hostname.toLowerCase());
+  } catch {
+    return false;
+  }
+}
+
 const DEV_SERVER = /^(https?|wss?):\/\/localhost:5173(\/|$|\?)/;
 
 /**
@@ -67,6 +101,8 @@ module.exports = {
   NETWORK_SWITCHES,
   DISABLED_FEATURES,
   OFFLINE_SCHEMES,
+  UPDATE_HOSTS,
   isAllowedRequest,
+  isUpdateHost,
   enforceOffline,
 };
