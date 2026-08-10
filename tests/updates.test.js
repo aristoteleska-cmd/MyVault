@@ -24,12 +24,10 @@ const ok = (label) => { passed += 1; console.log('  ok  ' + label); };
 // ------------------------------------------------------------- where it looks
 assert.strictEqual(FEED.provider, 'github');
 assert.strictEqual(FEED.owner, 'aristoteleska-cmd');
-assert.strictEqual(
-  FEED.repo,
-  'MyVault-releases',
-  'updates come from the public downloads repo, never the private source one',
-);
-assert.notStrictEqual(FEED.repo, 'MyVault', 'the private repo would 404 for every shop');
+// The repository is public, so a shop with no account and no token can read
+// this. That is the whole reason the updater works; if it ever moved to a
+// private repo, every "Check now" in every shop would answer 404.
+assert.strictEqual(FEED.repo, 'MyVault', 'updates come from the public repo');
 
 // electron-builder writes its own copy of this into the packaged app as
 // app-update.yml, and that is the copy electron-updater actually reads. If the
@@ -40,7 +38,7 @@ const publish = pkg.build.publish[0];
 assert.strictEqual(publish.provider, FEED.provider);
 assert.strictEqual(publish.owner, FEED.owner, 'package.json and the app agree on the owner');
 assert.strictEqual(publish.repo, FEED.repo, 'package.json and the app agree on the repo');
-ok('updates are fetched from the public downloads repo the build publishes to');
+ok('updates are fetched from the public repo the build publishes to');
 
 // --------------------------------------------------------- the allowed hosts
 for (const host of UPDATE_HOSTS) {

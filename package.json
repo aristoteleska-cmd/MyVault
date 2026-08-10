@@ -1,7 +1,7 @@
 {
   "name": "myvault",
   "productName": "MyVault",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "description": "Offline stock and inventory manager for small shops. All data stays on your computer.",
   "author": {
     "name": "Aristotelis Katsigiannis"
@@ -115,7 +115,7 @@
       {
         "provider": "github",
         "owner": "aristoteleska-cmd",
-        "repo": "MyVault-releases",
+        "repo": "MyVault",
         "releaseType": "release"
       }
     ]

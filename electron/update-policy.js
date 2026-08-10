@@ -12,11 +12,18 @@
 
 const { isUpdateHost } = require('./offline');
 
-/** Where the installers are published. Deliberately not the private source repo. */
+/**
+ * Where the installers are published.
+ *
+ * The repository is public, so a shop reaches this with no token and no
+ * account — which is the whole reason the updater can work at all. It was
+ * briefly pointed at a separate downloads repo, for when the source was
+ * private; that is no longer needed.
+ */
 const FEED = Object.freeze({
   provider: 'github',
   owner: 'aristoteleska-cmd',
-  repo: 'MyVault-releases',
+  repo: 'MyVault',
 });
 
 /**

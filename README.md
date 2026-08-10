@@ -191,42 +191,17 @@ that permits. The portable `.exe` deliberately cannot do this — it
 may be running from a USB stick, so it tells the user to download the new file
 instead of overwriting itself.
 
-### Publishing updates so the app can find them
+### Publishing a version the app can find
 
-The in-app updater needs somewhere it can read **without a token**, and this
-repository is private — GitHub answers 404 to anyone who is not you. So the
-installers are also published to a second, **public** repository that contains
-downloads and nothing else: no source, no history, no build logs.
+Because this repository is public, the in-app updater reads its releases
+directly — a shop needs no account, no token and no second repository.
 
-This is a one-time setup, and only you can do it:
-
-1. Create a public repository called **`MyVault-releases`** under your account.
-   Tick "Add a README" so it has a branch to hang tags on. Nothing else goes in
-   it — the workflow fills it.
-2. Create a **fine-grained personal access token** (Settings → Developer
-   settings → Personal access tokens), scoped to *only* `MyVault-releases`, with
-   **Contents: Read and write**. Nothing else.
-3. In **this** repository, add it as an Actions secret named **`RELEASES_TOKEN`**
-   (Settings → Secrets and variables → Actions → New repository secret).
-
-After that, every run with a **Release tag** publishes to both places: a private
-release here for you, and a public one in `MyVault-releases` that the app can
-actually reach. Until the secret exists the build still succeeds — it prints a
-warning and skips the public copy, so the only thing missing is the in-app
-update.
-
-The public release carries a small `latest.yml` alongside the `.exe`. That file
-is what the updater reads to learn the newest version and the checksum its
-installer must match; without it the app finds nothing to offer.
-
-Extra safety on top of that: the first time a new version opens your file, it
-takes an untouched copy of it first — `myvault-before-1.0.0-…json` in the backups
-folder. If an update ever misbehaves, that copy is the way back. Those snapshots
-are never rotated away by routine backups.
-
-The data file carries a version stamp, so a future release knows how to read a
-file written by an older one. If an older version is ever asked to open a newer
-file, it keeps the original safe rather than overwriting it.
+Run the workflow with a **Release tag** filled in (or push a `v…` tag). The two
+`.exe` files and a small `latest.yml` are attached to a GitHub Release. That
+`latest.yml` is what the updater reads to learn the newest version and the
+checksum its installer must match; without it beside the `.exe` files, "Check
+now" finds nothing, so the build fails rather than publishing a release the app
+cannot use.
 
 ---
 
@@ -257,9 +232,10 @@ warning. It becomes worth considering only if you ever distribute widely.
 
 ## Getting the app
 
-**This repository is private and stays private.** The source, the history, the
-build logs and the finished installers are visible only to you. Nothing is
-published anywhere, and the app is handed to shops in person.
+**This repository is public.** Anyone can download the installer from the
+[Releases](../../releases/latest) page without an account, which is also how the
+in-app updater reaches it. The source is readable too — the licence still
+reserves all rights, so it may be read but not copied, redistributed or resold.
 
 ### Getting an installer to hand out
 
@@ -287,13 +263,15 @@ remembering — type a version into **Release tag**, such as `v1.0.1`.
 | `MyVault-…-setup.exe` | Normal installer. Adds MyVault to the Start menu and desktop. |
 | `MyVault-…-portable.exe` | Single `.exe`. Runs from anywhere, including a USB stick. |
 
-Then copy the `.exe` onto a USB stick, or email it, and give it to the shop.
-Releases in a private repository are private too — only you can see them.
+Then send a shop the [latest release](../../releases/latest) link, or copy the
+`.exe` onto a USB stick — both work, and neither needs the shop to have a
+GitHub account.
 
 #### Staying inside the free allowance
 
-A private repository on the GitHub Free plan includes **2,000 runner minutes**
-and **500 MB of artifact storage** per month. Both are plenty here, as long as
+The GitHub Free plan includes **2,000 runner minutes** and **500 MB of artifact
+storage** per month — and public repositories are not charged runner minutes at
+all. Both are plenty here, as long as
 the Windows build is not left running on every push:
 
 | | Runs on | Costs roughly |
