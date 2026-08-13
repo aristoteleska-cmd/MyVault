@@ -102,10 +102,13 @@ async function main() {
   assert.strictEqual(junior.data.role, 'junior');
   assert.deepStrictEqual(
     junior.data.capabilities.sort(),
-    ['items.sell', 'items.view'],
-    'a junior holds exactly two capabilities',
+    // Seeing the customer list is the till's job — putting a sale against the
+    // right regular is half of what the customer list is for. Everything else,
+    // including the takings, is somebody else's.
+    ['clients.view', 'items.sell', 'items.view'],
+    'a junior holds exactly three capabilities',
   );
-  ok('the Saturday assistant signs in and gets two capabilities, not more');
+  ok('the Saturday assistant signs in and gets three capabilities, not more');
 
   const stock = await callBridge(window, 'getState');
   assert.strictEqual(stock.ok, true, 'a junior can see the stock, which is the job');
@@ -130,6 +133,15 @@ async function main() {
     'staff.add': [{ name: 'Mate', role: 'admin', pin: '4444' }],
     'data.exportCsv': [],
     'data.importCsv': [],
+    // The takings, the profit and the cost of everything on the shelves are
+    // not a Saturday assistant's business, and hiding the sidebar entry is only
+    // the polite half — the channel itself has to refuse.
+    'stats.report': [{}],
+    'stats.movements': [{}],
+    // They may see who the regulars are; they may not edit the address book.
+    'clients.add': [{ name: 'Not allowed' }],
+    'clients.update': ['anything', { name: 'Not allowed' }],
+    'clients.remove': ['anything'],
   };
   for (const [route, args] of Object.entries(refusals)) {
     const result = await callBridge(window, route, args);

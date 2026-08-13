@@ -17,9 +17,17 @@ const {
   ROLES, hashPin, verifyPin, isValidPin,
   generateRecoveryCode, hashRecoveryCode, verifyRecoveryCode,
 } = require('./roles');
+const { MovementLog } = require('./movements');
 
-const SCHEMA_VERSION = 2;
+const SCHEMA_VERSION = 3;
 const MAX_BACKUPS = 10;
+
+/**
+ * Up to this many products the data file is written indented, so a shop can
+ * open it and read it. Beyond it the indentation is roughly half the bytes, and
+ * every sale rewrites the file, so readability gives way to speed.
+ */
+const READABLE_UP_TO = 2000;
 const BACKUP_INTERVAL_MS = 12 * 60 * 60 * 1000; // at most one backup per 12h
 
 /**
@@ -144,6 +152,10 @@ function emptyDatabase() {
       { id: newId(), name: 'General', color: '#4f7cff' },
     ],
     customFields: [],
+    // Regulars the shop wants to keep track of. What each one bought is not
+    // stored here — it is worked out from the movement log, so the contact list
+    // stays a contact list however many years of sales pile up behind it.
+    clients: [],
     items: [],
   };
 }
@@ -161,6 +173,30 @@ class Store {
     this.appVersion = appVersion;
     this.db = emptyDatabase();
     this.lastBackupAt = 0;
+
+    /**
+     * The history of what moved, kept in its own append-only files.
+     *
+     * Deliberately not part of `this.db`: everything in there is rewritten on
+     * every save, and a record that only ever grows would make each sale cost
+     * more than the one before it. See ./movements.js.
+     */
+    this.movements = new MovementLog(dataDir);
+  }
+
+  /**
+   * Writes a movement, and never lets a failure to do so lose a sale.
+   *
+   * The stock count is the thing the shop cannot afford to get wrong; the
+   * history is how they look back on it. If the history file cannot be written —
+   * a full disk, a folder someone has locked — the stock change still stands.
+   */
+  logMovement(entry) {
+    try {
+      return this.movements.record(entry);
+    } catch {
+      return null;
+    }
   }
 
   // ---------------------------------------------------------------- lifecycle
@@ -268,6 +304,12 @@ class Store {
           }))
       : db.categories;
 
+    db.clients = Array.isArray(parsed.clients)
+      ? parsed.clients
+          .filter((c) => c && typeof c === 'object')
+          .map((c) => this.normalizeClient(c))
+      : [];
+
     db.customFields = Array.isArray(parsed.customFields)
       ? parsed.customFields
           .filter((f) => f && typeof f === 'object')
@@ -295,6 +337,26 @@ class Store {
       : [];
 
     return db;
+  }
+
+  /**
+   * A customer the shop wants to be able to look up.
+   *
+   * Only the name is asked for. A shop that writes down "Maria, the one with the
+   * green van" and nothing else should not be stopped, and a phone number is not
+   * validated because half of them will be written as "call the shop".
+   */
+  normalizeClient(input) {
+    return {
+      id: asString(input.id, 64) || newId(),
+      name: asString(input.name, 120).trim() || 'Unnamed customer',
+      phone: asString(input.phone, 40).trim(),
+      email: asString(input.email, 120).trim(),
+      address: asString(input.address, 300).trim(),
+      notes: asString(input.notes, 2000),
+      createdAt: asString(input.createdAt) || nowIso(),
+      updatedAt: asString(input.updatedAt) || nowIso(),
+    };
   }
 
   normalizeItem(input, db = this.db) {
@@ -337,9 +399,24 @@ class Store {
 
   // ------------------------------------------------------------ persistence
 
+  /**
+   * Writes the whole inventory out, atomically.
+   *
+   * The cost of this grows with the size of the shop, which is why the movement
+   * history is deliberately somewhere else — see ./movements.js. What is left
+   * here is the catalogue, and a catalogue is bounded by how much a shop
+   * actually sells.
+   *
+   * Small shops get an indented file they could open in Notepad and read, which
+   * is part of the promise that the data is theirs. Past a few thousand
+   * products the indentation is most of the file and nobody is reading it by
+   * eye anyway, so it is dropped — which halves what has to be written on every
+   * single sale.
+   */
   persist({ backup = true } = {}) {
     fs.mkdirSync(this.dataDir, { recursive: true });
-    const payload = JSON.stringify(this.db, null, 2);
+    const readable = this.db.items.length <= READABLE_UP_TO;
+    const payload = JSON.stringify(this.db, null, readable ? 2 : 0);
     const tmp = `${this.file}.tmp`;
 
     if (backup) this.maybeBackup();
@@ -420,7 +497,7 @@ class Store {
 
   // ------------------------------------------------------------------- items
 
-  addItem(input) {
+  addItem(input, { by = '' } = {}) {
     const item = this.normalizeItem({
       ...input,
       id: newId(),
@@ -429,12 +506,27 @@ class Store {
     });
     this.db.items.push(item);
     this.persist();
+    // An opening count is stock arriving, and the takings screen would look
+    // wrong later if the shelf had filled itself.
+    if (item.quantity > 0) {
+      this.logMovement({
+        itemId: item.id,
+        itemName: item.name,
+        delta: item.quantity,
+        quantityAfter: item.quantity,
+        reason: 'new',
+        price: item.price,
+        cost: item.cost,
+        by,
+      });
+    }
     return item;
   }
 
-  updateItem(id, patch) {
+  updateItem(id, patch, { by = '' } = {}) {
     const index = this.db.items.findIndex((i) => i.id === id);
     if (index === -1) throw new Error('Item not found');
+    const before = this.db.items[index].quantity;
     const merged = this.normalizeItem({
       ...this.db.items[index],
       ...patch,
@@ -445,35 +537,145 @@ class Store {
     });
     this.db.items[index] = merged;
     this.persist();
+
+    // Typing a new count straight into the edit box moves stock just as surely
+    // as pressing the minus button does. Without this, a shop that corrects its
+    // counts that way would find the statistics screen quietly disagreeing with
+    // its own shelves.
+    if (merged.quantity !== before) {
+      this.logMovement({
+        itemId: merged.id,
+        itemName: merged.name,
+        delta: merged.quantity - before,
+        quantityAfter: merged.quantity,
+        reason: 'correction',
+        price: merged.price,
+        cost: merged.cost,
+        by,
+      });
+    }
     return merged;
   }
 
-  adjustStock(id, delta) {
+  /**
+   * The one that happens all day long: something sold, or a delivery arrived.
+   *
+   * `reason` and `clientId` are what turn a count into a history worth reading.
+   * A shop that never names a customer still gets its takings; one that picks a
+   * regular at the counter gets that too, at no extra cost per sale.
+   */
+  adjustStock(id, delta, { reason = '', clientId = '', by = '' } = {}) {
     const item = this.db.items.find((i) => i.id === id);
     if (!item) throw new Error('Item not found');
+
+    const before = item.quantity;
     item.quantity = Math.max(0, item.quantity + clampQuantity(delta));
     item.updatedAt = nowIso();
     this.persist();
+
+    // The floor at zero means asking for −5 when three are left is a change of
+    // three, and the history says three. Otherwise the takings would count
+    // stock the shop never had.
+    const actual = item.quantity - before;
+    if (actual !== 0) {
+      this.logMovement({
+        itemId: item.id,
+        itemName: item.name,
+        delta: actual,
+        quantityAfter: item.quantity,
+        reason: reason || (actual < 0 ? 'sale' : 'delivery'),
+        price: item.price,
+        cost: item.cost,
+        clientId: actual < 0 ? clientId : '',
+        by,
+      });
+    }
     return item;
   }
 
-  deleteItems(ids) {
+  deleteItems(ids, { by = '' } = {}) {
     const set = new Set(ids);
     const removed = this.db.items.filter((i) => set.has(i.id));
     this.db.items = this.db.items.filter((i) => !set.has(i.id));
     this.persist();
+    // Stock that leaves the shelf by being deleted still left the shelf; without
+    // this the numbers on the statistics screen would not add up.
+    for (const item of removed) {
+      this.logMovement({
+        itemId: item.id,
+        itemName: item.name,
+        delta: -item.quantity,
+        quantityAfter: 0,
+        reason: 'delete',
+        price: item.price,
+        cost: item.cost,
+        by,
+      });
+    }
     return removed;
   }
 
   /** Used by the undo action after a delete. */
-  restoreItems(items) {
+  restoreItems(items, { by = '' } = {}) {
     const existing = new Set(this.db.items.map((i) => i.id));
     const restored = items
       .filter((i) => !existing.has(i.id))
       .map((i) => this.normalizeItem(i));
     this.db.items.push(...restored);
     this.persist();
+    for (const item of restored) {
+      this.logMovement({
+        itemId: item.id,
+        itemName: item.name,
+        delta: item.quantity,
+        quantityAfter: item.quantity,
+        reason: 'restore',
+        price: item.price,
+        cost: item.cost,
+        by,
+      });
+    }
     return restored;
+  }
+
+  // ----------------------------------------------------------------- clients
+
+  addClient(input) {
+    const client = this.normalizeClient({ ...input, id: newId(), createdAt: nowIso(), updatedAt: nowIso() });
+    const name = asString(input?.name, 120).trim();
+    if (!name) throw new Error('Give this customer a name.');
+    this.db.clients.push(client);
+    this.persist();
+    return client;
+  }
+
+  updateClient(id, patch = {}) {
+    const index = this.db.clients.findIndex((c) => c.id === id);
+    if (index === -1) throw new Error('That customer is no longer on the list.');
+    if (patch.name !== undefined && !asString(patch.name, 120).trim()) {
+      throw new Error('Give this customer a name.');
+    }
+    const merged = this.normalizeClient({
+      ...this.db.clients[index],
+      ...patch,
+      id,
+      createdAt: this.db.clients[index].createdAt,
+      updatedAt: nowIso(),
+    });
+    this.db.clients[index] = merged;
+    this.persist();
+    return merged;
+  }
+
+  /**
+   * Removes the contact. What they bought stays in the history — those sales
+   * really happened, and the takings for that month should not change because
+   * somebody tidied the address book.
+   */
+  deleteClient(id) {
+    this.db.clients = this.db.clients.filter((c) => c.id !== id);
+    this.persist();
+    return this.db.clients;
   }
 
   // -------------------------------------------------------------- categories
@@ -791,6 +993,9 @@ class Store {
       /** Columns that could not become details because the ceiling was reached. */
       droppedColumns: [],
     };
+    /** Held back until the import has been saved, so a failure part-way through
+     * does not leave a history of stock the file never received. */
+    const moved = [];
     const core = new Set([
       'name', 'barcode', 'sku', 'category', 'quantity', 'price', 'cost',
       'low stock', 'lowstock', 'low stock threshold', 'supplier', 'notes',
@@ -876,8 +1081,9 @@ class Store {
 
       const existing = payload.barcode ? itemByBarcode.get(payload.barcode) : null;
       if (existing) {
+        const before = existing.quantity;
         const index = this.db.items.findIndex((i) => i.id === existing.id);
-        this.db.items[index] = this.normalizeItem({
+        const merged = this.normalizeItem({
           ...existing,
           ...payload,
           custom: { ...existing.custom, ...custom },
@@ -885,7 +1091,19 @@ class Store {
           createdAt: existing.createdAt,
           updatedAt: nowIso(),
         });
+        this.db.items[index] = merged;
         result.updated += 1;
+        if (merged.quantity !== before) {
+          moved.push({
+            itemId: merged.id,
+            itemName: merged.name,
+            delta: merged.quantity - before,
+            quantityAfter: merged.quantity,
+            reason: 'import',
+            price: merged.price,
+            cost: merged.cost,
+          });
+        }
       } else {
         const item = this.normalizeItem({
           ...payload,
@@ -896,10 +1114,25 @@ class Store {
         this.db.items.push(item);
         if (item.barcode) itemByBarcode.set(item.barcode, item);
         result.added += 1;
+        if (item.quantity > 0) {
+          moved.push({
+            itemId: item.id,
+            itemName: item.name,
+            delta: item.quantity,
+            quantityAfter: item.quantity,
+            reason: 'import',
+            price: item.price,
+            cost: item.cost,
+          });
+        }
       }
     }
 
     this.persist();
+    // One save for the whole spreadsheet, then the history. A five-thousand-row
+    // import is five thousand appends, which is the cheap part; it is the single
+    // persist() above that would have been five thousand file rewrites.
+    for (const entry of moved) this.logMovement(entry);
     return result;
   }
 }

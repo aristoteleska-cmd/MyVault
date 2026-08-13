@@ -40,17 +40,21 @@ const EXPECTED = {
     no: [],
   },
   senior: {
-    // "add item and stock, but not categories"
-    yes: ['items.view', 'items.sell', 'items.receive', 'items.create', 'items.edit', 'data.export'],
+    // "add item and stock, but not categories" — plus the two that come with
+    // running the floor: knowing what is selling, and writing down a regular.
+    yes: ['items.view', 'items.sell', 'items.receive', 'items.create', 'items.edit',
+      'data.export', 'clients.view', 'clients.manage', 'stats.view'],
     no: ['categories.manage', 'fields.manage', 'settings.manage', 'staff.manage',
       'items.delete', 'data.import'],
   },
   junior: {
-    // "only stock search, and remove when something is sold"
-    yes: ['items.view', 'items.sell'],
+    // "only stock search, and remove when something is sold". They may see the
+    // customer list, because putting a sale against the right regular is the
+    // till's job; they may not add one, and they may not see the takings.
+    yes: ['items.view', 'items.sell', 'clients.view'],
     no: ['items.receive', 'items.create', 'items.edit', 'items.delete',
       'categories.manage', 'fields.manage', 'settings.manage', 'staff.manage',
-      'data.export', 'data.import'],
+      'data.export', 'data.import', 'clients.manage', 'stats.view'],
   },
 };
 
@@ -79,6 +83,13 @@ assert.ok(!can('senior', 'categories.manage'), 'senior cannot manage categories'
 // And the one the till depends on: a junior sells but cannot invent stock.
 assert.ok(can('junior', 'items.sell') && !can('junior', 'items.receive'));
 ok('the two lines that matter: senior stops at categories, junior stops at selling');
+
+// The takings are the manager's and the floor's, never the Saturday assistant's.
+assert.ok(can('admin', 'stats.view') && can('senior', 'stats.view'));
+assert.ok(!can('junior', 'stats.view'), 'a junior cannot read the shop\'s takings');
+// But they can say who they are serving, or half the shop's sales go unattributed.
+assert.ok(can('junior', 'clients.view') && !can('junior', 'clients.manage'));
+ok('the till can name a customer without being shown the profit');
 
 assert.ok(!can('nonsense', 'items.view'), 'an unknown role is refused everything');
 assert.ok(!can('admin', 'items.teleport'), 'an unknown capability is refused');

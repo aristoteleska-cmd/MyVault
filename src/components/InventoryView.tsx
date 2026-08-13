@@ -39,7 +39,7 @@ export function InventoryView({
   searchRef,
   onGoToFields,
 }: InventoryViewProps) {
-  const { db, deleteItems, adjustStock, importCsv, exportCsv, can } = useVault();
+  const { db, deleteItems, adjustStock, importCsv, exportCsv, can, serving, setServing } = useVault();
   const { t, locale } = useI18n();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [page, setPage] = useState(0);
@@ -208,6 +208,39 @@ export function InventoryView({
       </div>
 
       <div className="view">
+        {/* Who is at the counter.
+            The alternative — asking "who is this for?" on every press of the
+            minus button — would be answered "nobody" ninety-nine times out of a
+            hundred and abandoned by the end of the first morning. Picked once,
+            it quietly attaches every sale until it is cleared. */}
+        {can('clients.view') && db.clients.length > 0 && (
+          <div className={serving ? 'serving-bar is-active' : 'serving-bar'}>
+            <Icon name="people" size={16} />
+            <label className="toolbar-label" htmlFor="serving-client">{t('serving.label')}</label>
+            <select
+              id="serving-client"
+              className="select"
+              value={serving}
+              onChange={(e) => setServing(e.target.value)}
+            >
+              <option value="">{t('serving.nobody')}</option>
+              {[...db.clients]
+                .sort((a, b) => a.name.localeCompare(b.name, locale))
+                .map((client) => (
+                  <option key={client.id} value={client.id}>{client.name}</option>
+                ))}
+            </select>
+            {serving && (
+              <>
+                <span className="serving-note">{t('serving.note')}</span>
+                <button type="button" className="btn btn-sm" onClick={() => setServing('')}>
+                  {t('serving.clear')}
+                </button>
+              </>
+            )}
+          </div>
+        )}
+
         <section className="stats" aria-label={t('stats.aria')}>
           <div className="stat">
             <span className="stat-label"><Icon name="box" size={14} />{t('stats.differentItems')}</span>

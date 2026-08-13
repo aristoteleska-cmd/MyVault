@@ -2,13 +2,18 @@ import type {
   AppInfo,
   AuthState,
   Category,
+  Client,
+  ClientHistory,
   CustomField,
   Database,
   FieldType,
   Item,
+  Movement,
+  MovementReason,
   Role,
   Settings,
   StaffMember,
+  StatsReport,
   UpdateStatus,
 } from './types';
 
@@ -56,9 +61,25 @@ export interface MyVaultBridge {
   items: {
     add(input: Partial<Item>): Promise<Result<Item>>;
     update(id: string, patch: Partial<Item>): Promise<Result<Item>>;
-    adjust(id: string, delta: number): Promise<Result<Item>>;
+    adjust(
+      id: string,
+      delta: number,
+      options?: { reason?: MovementReason; clientId?: string },
+    ): Promise<Result<Item>>;
     remove(ids: string[]): Promise<Result<Item[]>>;
     restore(items: Item[]): Promise<Result<Item[]>>;
+  };
+
+  clients: {
+    add(input: Partial<Client>): Promise<Result<Client>>;
+    update(id: string, patch: Partial<Client>): Promise<Result<Client>>;
+    remove(id: string): Promise<Result<Client[]>>;
+    history(id: string, options?: { limit?: number }): Promise<Result<ClientHistory>>;
+  };
+
+  stats: {
+    report(range?: { from?: string; to?: string }): Promise<Result<StatsReport>>;
+    movements(range?: { from?: string; to?: string; limit?: number }): Promise<Result<Movement[]>>;
   };
 
   categories: {

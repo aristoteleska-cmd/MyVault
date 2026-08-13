@@ -24,6 +24,8 @@ const suites = [
   { name: 'installer script', file: 'tests/installer.test.ts', typescript: true },
   { name: 'updates', file: 'tests/updates.test.js', typescript: false },
   { name: 'roles + staff', file: 'tests/roles.test.js', typescript: false },
+  { name: 'movement log', file: 'tests/movements.test.js', typescript: false },
+  { name: 'statistics', file: 'tests/statistics.test.js', typescript: false },
   { name: 'barcode photos', file: 'tests/barcode.test.ts', typescript: true },
 ];
 

@@ -15,11 +15,15 @@ import type {
   Role,
   StaffMember,
   Category,
+  Client,
+  ClientHistory,
   CustomField,
   Database,
   FieldType,
   Item,
+  Movement,
   Settings,
+  StatsReport,
   UpdateStatus,
 } from '../types';
 import type { ImportResult, Result } from '../bridge';
@@ -62,6 +66,27 @@ interface VaultValue {
   updateItem: (id: string, patch: Partial<Item>) => Promise<Item | null>;
   adjustStock: (id: string, delta: number) => Promise<void>;
   deleteItems: (ids: string[]) => Promise<void>;
+
+  /**
+   * The customer currently at the counter, or empty for nobody in particular.
+   *
+   * This is how a sale gets attached to a client without asking a question on
+   * every press of the minus button: the person serving picks the regular once,
+   * rings their things through, and clears it. Most shops will leave it empty
+   * most of the time, and that is a perfectly good answer.
+   */
+  serving: string;
+  setServing: (clientId: string) => void;
+
+  addClient: (input: Partial<Client>) => Promise<Client | null>;
+  updateClient: (id: string, patch: Partial<Client>) => Promise<void>;
+  deleteClient: (id: string) => Promise<void>;
+  clientHistory: (id: string) => Promise<ClientHistory | null>;
+
+  /** Both already summed on the other side of the bridge. */
+  statsReport: (range?: { from?: string; to?: string }) => Promise<StatsReport | null>;
+  recentMovements: (range?: { from?: string; to?: string; limit?: number })
+    => Promise<Movement[] | null>;
 
   addCategory: (name: string, color: string) => Promise<Category | null>;
   updateCategory: (id: string, patch: Partial<Category>) => Promise<void>;
@@ -135,6 +160,7 @@ const emptyDb: Database = {
   },
   categories: [],
   customFields: [],
+  clients: [],
   items: [],
 };
 
@@ -161,6 +187,10 @@ export function VaultProvider({ children }: { children: ReactNode }) {
     staffCount: 0,
   });
   const [staff, setStaff] = useState<StaffMember[]>([]);
+  // Who is at the counter. Deliberately not saved anywhere: it belongs to this
+  // customer, not to this shop, and the next person to open MyVault should not
+  // find yesterday's regular still selected.
+  const [serving, setServing] = useState('');
   // Held only long enough to be shown and written down.
   const [recoveryCode, setRecoveryCode] = useState('');
   const toastId = useRef(0);
@@ -310,10 +340,16 @@ export function VaultProvider({ children }: { children: ReactNode }) {
 
   const adjustStock = useCallback(
     async (id: string, delta: number) => {
-      const item = await run(window.myvault.items.adjust(id, delta));
+      // A fall is a sale and goes against whoever is being served; a rise is a
+      // delivery, which belongs to no customer. The main process decides this
+      // again for itself — this is only so the history reads correctly.
+      const item = await run(window.myvault.items.adjust(id, delta, {
+        reason: delta < 0 ? 'sale' : 'delivery',
+        clientId: delta < 0 ? serving : '',
+      }));
       if (item) replaceItem(item);
     },
-    [run, replaceItem],
+    [run, replaceItem, serving],
   );
 
   const deleteItems = useCallback(
@@ -388,6 +424,63 @@ export function VaultProvider({ children }: { children: ReactNode }) {
       }
     },
     [run, notify],
+  );
+
+  // ---------------------------------------------------------------- clients
+
+  const addClient = useCallback(
+    async (input: Partial<Client>) => {
+      const client = await run(window.myvault.clients.add(input));
+      if (client) {
+        setDb((current) => ({ ...current, clients: [...current.clients, client] }));
+        notify('toast.clientAdded', { name: client.name }, 'success');
+      }
+      return client;
+    },
+    [run, notify],
+  );
+
+  const updateClient = useCallback(
+    async (id: string, patch: Partial<Client>) => {
+      const client = await run(window.myvault.clients.update(id, patch));
+      if (client) {
+        setDb((current) => ({
+          ...current,
+          clients: current.clients.map((c) => (c.id === id ? client : c)),
+        }));
+      }
+    },
+    [run],
+  );
+
+  const deleteClient = useCallback(
+    async (id: string) => {
+      const clients = await run(window.myvault.clients.remove(id));
+      if (!clients) return;
+      setDb((current) => ({ ...current, clients }));
+      // Whoever was being served may be the person just removed.
+      setServing((current) => (current === id ? '' : current));
+      notify('toast.clientRemoved', undefined, 'info');
+    },
+    [run, notify],
+  );
+
+  const clientHistory = useCallback(
+    async (id: string) => run(window.myvault.clients.history(id, { limit: 100 })),
+    [run],
+  );
+
+  // ------------------------------------------------------------- statistics
+
+  const statsReport = useCallback(
+    async (range?: { from?: string; to?: string }) => run(window.myvault.stats.report(range)),
+    [run],
+  );
+
+  const recentMovements = useCallback(
+    async (range?: { from?: string; to?: string; limit?: number }) =>
+      run(window.myvault.stats.movements(range)),
+    [run],
   );
 
   // ----------------------------------------------------------- custom fields
@@ -665,6 +758,14 @@ export function VaultProvider({ children }: { children: ReactNode }) {
       updateItem,
       adjustStock,
       deleteItems,
+      serving,
+      setServing,
+      addClient,
+      updateClient,
+      deleteClient,
+      clientHistory,
+      statsReport,
+      recentMovements,
       addCategory,
       updateCategory,
       deleteCategory,
@@ -703,6 +804,8 @@ export function VaultProvider({ children }: { children: ReactNode }) {
       ready, loadError, db, info, toasts, importSummary, clearImportSummary, notifyImport,
       notify, dismissToast,
       addItem, updateItem, adjustStock, deleteItems,
+      serving, addClient, updateClient, deleteClient, clientHistory,
+      statsReport, recentMovements,
       addCategory, updateCategory, deleteCategory,
       addField, updateField, deleteField, moveField,
       updateSettings, exportCsv, importCsv, backup, restore, openDataFolder,

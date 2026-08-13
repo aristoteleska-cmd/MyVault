@@ -9,7 +9,8 @@ export type IconName =
   | 'fields' | 'settings' | 'arrowUp' | 'arrowDown' | 'chevronDown'
   | 'chevronLeft' | 'chevronRight' | 'close' | 'check' | 'download'
   | 'upload' | 'folder' | 'alert' | 'box' | 'barcode' | 'filter'
-  | 'sun' | 'moon' | 'monitor' | 'info' | 'sort' | 'save' | 'image' | 'staff';
+  | 'sun' | 'moon' | 'monitor' | 'info' | 'sort' | 'save' | 'image' | 'staff'
+  | 'chart' | 'people' | 'clock';
 
 const paths: Record<IconName, React.ReactNode> = {
   vault: (
@@ -27,6 +28,27 @@ const paths: Record<IconName, React.ReactNode> = {
   ),
   plus: <path d="M12 5v14M5 12h14" />,
   minus: <path d="M5 12h14" />,
+  chart: (
+    <>
+      <path d="M4 20V4" />
+      <path d="M4 20h16" />
+      <path d="M8 20v-6M12.5 20V8M17 20v-9" />
+    </>
+  ),
+  people: (
+    <>
+      <circle cx="9" cy="8" r="3.2" />
+      <path d="M3.5 19.5a5.5 5.5 0 0 1 11 0" />
+      <path d="M16 5.4a3.2 3.2 0 0 1 0 5.2" />
+      <path d="M17.5 14.4a5.5 5.5 0 0 1 3 5.1" />
+    </>
+  ),
+  clock: (
+    <>
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="M12 7.5V12l3 1.8" />
+    </>
+  ),
   pencil: (
     <>
       <path d="M4 20l.9-3.9L16.3 4.8a2 2 0 0 1 2.9 2.9L7.9 19.1 4 20z" />

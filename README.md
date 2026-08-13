@@ -56,6 +56,34 @@ notes.
 - Delete with a one-click **Undo**
 - Import and export CSV so a list you already keep in Excel comes across in one go
 
+**Statistics**
+
+**Statistics** in the sidebar answers two different questions.
+
+*What is on my shelves right now* — what the stock is worth at your selling
+prices and what it cost you, how many products are running low or out, where the
+money is sitting by category, and which products are the most valuable.
+
+*What actually happened* — takings, pieces sold, profit, and deliveries received
+over the last week, month, quarter or year, each compared against the same length
+of time immediately before it, so a number becomes news. A bar chart per day (or
+per month, over longer periods), what is selling best, and — usually the most
+useful thing on the screen — **what is not moving**: stock sitting there that has
+not sold once in the period. That is money on a shelf.
+
+**Customers**
+
+Keep your regulars: name, phone, email, address and notes. Only the name is
+required, because a shop that writes down "Maria, the one with the green van" and
+nothing else should not be stopped by a form.
+
+To record who bought what, pick a name in the **Serving** bar above the stock
+list. Every sale you ring up then goes against that customer until you clear it.
+There is deliberately no "who is this for?" question on each press of the minus
+button — it would be answered "nobody" ninety-nine times out of a hundred and
+abandoned by the end of the first morning. Open a customer to see everything they
+have bought, what they have spent in total, and how long they have been coming.
+
 **Making it yours**
 
 - 21 languages (see below)
@@ -323,6 +351,8 @@ electron/          Main process — the only code that touches the disk
   main.js          Window, native menus, file dialogs, IPC handlers
   preload.js       The narrow bridge exposed to the UI as window.myvault
   store.js         The JSON store: validation, atomic writes, backups, CSV import
+  movements.js     The append-only history of every stock movement
+  statistics.js    The sums behind the Statistics screen
   offline.js       The rules that keep the app off the network
   csv.js           Dependency-free CSV reader/writer
 src/               The user interface (React + TypeScript)
@@ -414,9 +444,9 @@ PIN and decides what they may do.
 
 | Role | What they can do |
 | --- | --- |
-| **Manager** | Everything: products, categories, extra details, settings, and who else works here. |
-| **Senior** | Adds products, books deliveries in, rings up sales, exports a CSV. **Not** categories, extra details, settings, or deleting products. |
-| **Assistant** | Looks a product up and takes one off when it sells. Nothing else — not even correcting a count upwards, which is a delivery, not a sale. |
+| **Manager** | Everything: products, categories, extra details, settings, statistics, customers, and who else works here. |
+| **Senior** | Adds products, books deliveries in, rings up sales, exports a CSV, reads the statistics, keeps the customer list. **Not** categories, extra details, settings, or deleting products. |
+| **Assistant** | Looks a product up and takes one off when it sells, and can say which customer they are serving. Nothing else — not the takings, not the customer list itself, and not correcting a count upwards, which is a delivery rather than a sale. |
 
 **The installer asks who will manage this copy.** A page during installation
 collects the manager's name and PIN, so a freshly installed MyVault is never
@@ -499,6 +529,22 @@ honestly, the same fact as "this is not security" seen from the useful side.
 **Settings → Open folder** takes you straight there. Dated backups are kept in
 the `backups` sub-folder (the last 10, at most one per 12 hours), plus whatever
 you save yourself with **Backup**.
+
+Beside them is a `history` folder holding one file per year of stock movements —
+every sale, delivery and correction, one line each. It is kept separate on
+purpose. `myvault.json` is rewritten in full every time anything changes, so a
+history inside it would make each sale cost a little more than the one before;
+kept apart and only ever appended to, the hundred-thousandth sale costs exactly
+what the first one did. Nothing in that folder is read when MyVault opens — only
+when you ask for statistics or for what a customer bought.
+
+**How big can a shop get?** The history is effectively unbounded: 60,000
+movements is an 11 MB file that reads back in under a fifth of a second, and a
+year you are not looking at is never opened. The product list is the part with a
+ceiling, because every sale saves it: around 5,000 products a sale takes about
+7 ms, and at 20,000 about 30 ms — still quick, and far past what this app is for.
+Above 2,000 products the data file stops being written with indentation, which
+halves its size; below that it stays something you could open and read.
 
 If the file is ever unreadable, MyVault will not overwrite it — it moves it aside
 into `backups/` and tells you where it went.

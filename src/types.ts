@@ -56,6 +56,44 @@ export interface Settings {
   updates: UpdateMode;
 }
 
+/** A customer the shop wants to be able to look up. Only the name is required. */
+export interface Client {
+  id: string;
+  name: string;
+  phone: string;
+  email: string;
+  address: string;
+  notes: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Why the stock moved. The sign of `delta` says which way. */
+export type MovementReason =
+  | 'sale' | 'delivery' | 'correction' | 'new' | 'import' | 'delete' | 'restore';
+
+/**
+ * One line of the shop's history.
+ *
+ * Kept in its own append-only file rather than in the database, so it costs the
+ * same to record the hundred-thousandth sale as the first. The item's name,
+ * price and cost are copied in as they stood at the time: a product renamed or
+ * marked up later must not change what last month earned.
+ */
+export interface Movement {
+  id: string;
+  at: string;
+  itemId: string;
+  itemName: string;
+  delta: number;
+  after: number;
+  reason: MovementReason;
+  price: number;
+  cost: number;
+  clientId: string;
+  by: string;
+}
+
 export interface Database {
   schemaVersion: number;
   users?: StaffMember[];
@@ -64,9 +102,63 @@ export interface Database {
   settings: Settings;
   categories: Category[];
   customFields: CustomField[];
+  clients: Client[];
   items: Item[];
   recoveredFrom?: string;
   downgradedFrom?: number;
+}
+
+/** What is on the shelves right now, and what it is worth. */
+export interface StockSnapshot {
+  items: number;
+  units: number;
+  retailValue: number;
+  costValue: number;
+  potentialProfit: number;
+  low: number;
+  out: number;
+  healthy: number;
+  categories: { id: string; name: string; color: string; items: number; units: number; value: number }[];
+  mostValuable: { id: string; name: string; quantity: number; value: number }[];
+  needsAttention: { id: string; name: string; quantity: number; threshold: number }[];
+}
+
+/**
+ * The finished statistics screen, summed on the other side of the bridge.
+ *
+ * Every list in here has a ceiling and the timeline has one point per day or
+ * month, so this stays the same size whether the shop has traded for a week or
+ * a decade.
+ */
+export interface StatsReport {
+  range: { from: string; to: string; days: number; grouping: 'day' | 'month' };
+  stock: StockSnapshot;
+  sales: {
+    units: number;
+    takings: number;
+    costOfSales: number;
+    profit: number;
+    received: number;
+    spend: number;
+    writtenOff: number;
+    movements: number;
+  };
+  /** The same length of time immediately before, so the screen can say up or down. */
+  previous: { units: number; takings: number; profit: number };
+  timeline: { key: string; sold: number; takings: number; received: number }[];
+  bestSellers: { id: string; name: string; units: number; takings: number }[];
+  notMoving: { id: string; name: string; quantity: number; value: number }[];
+  topClients: { id: string; name: string; units: number; takings: number; orders: number; lastAt: string }[];
+}
+
+/** What one customer has bought: recent lines, totals over everything. */
+export interface ClientHistory {
+  lines: Movement[];
+  units: number;
+  spent: number;
+  orders: number;
+  firstAt: string;
+  lastAt: string;
 }
 
 export interface AppInfo {
@@ -144,7 +236,10 @@ export type Capability =
   | 'settings.manage'
   | 'data.export'
   | 'data.import'
-  | 'staff.manage';
+  | 'staff.manage'
+  | 'clients.view'
+  | 'clients.manage'
+  | 'stats.view';
 
 /** A member of staff as the window is allowed to see them: never a PIN. */
 export interface StaffMember {

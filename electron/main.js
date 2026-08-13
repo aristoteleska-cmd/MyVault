@@ -5,6 +5,7 @@ const fs = require('fs');
 const path = require('path');
 
 const { Store, STANDARD_FIELDS, MAX_CUSTOM_FIELDS } = require('./store');
+const { report, clientHistory } = require('./statistics');
 const { NETWORK_SWITCHES, DISABLED_FEATURES, UPDATE_HOSTS, enforceOffline } = require('./offline');
 const { parseCsv, toCsv } = require('./csv');
 const { Updater } = require('./updater');
@@ -147,6 +148,18 @@ function authState() {
     roles: ROLES,
     staffCount: users.length,
   };
+}
+
+/**
+ * Whose name goes in the history against this action.
+ *
+ * Empty on a shop that has never set up staff, which is honest: with no staff
+ * list there is nobody to name, and inventing "Owner" would put a person in the
+ * record who does not exist.
+ */
+function whoAmI() {
+  const user = store.getState().users.find((candidate) => candidate.id === signedInId);
+  return user ? user.name : '';
 }
 
 /**
@@ -484,16 +497,61 @@ function registerIpc() {
     return authState();
   });
 
-  handle('items:add', 'items.create', (input) => store.addItem(input));
-  handle('items:update', 'items.edit', (id, patch) => store.updateItem(id, patch));
+  handle('items:add', 'items.create', (input) => store.addItem(input, { by: whoAmI() }));
+  handle('items:update', 'items.edit', (id, patch) => store.updateItem(id, patch, { by: whoAmI() }));
   // Selling and receiving are different jobs: a junior on the till takes stock
   // down when something sells, but correcting a count upwards is not theirs.
-  handle('items:adjust', null, (id, delta) => {
-    requireCapability(Number(delta) < 0 ? 'items.sell' : 'items.receive');
-    return store.adjustStock(id, delta);
+  handle('items:adjust', null, (id, delta, options = {}) => {
+    const selling = Number(delta) < 0;
+    requireCapability(selling ? 'items.sell' : 'items.receive');
+    return store.adjustStock(id, delta, {
+      reason: options.reason,
+      // Only a sale belongs to a customer, and only if whoever is at the screen
+      // is allowed to know the customer list at all.
+      clientId: selling && allows(store.getState().users, signedInId, 'clients.view')
+        ? options.clientId
+        : '',
+      by: whoAmI(),
+    });
   });
-  handle('items:delete', 'items.delete', (ids) => store.deleteItems(ids));
-  handle('items:restore', 'items.delete', (items) => store.restoreItems(items));
+  handle('items:delete', 'items.delete', (ids) => store.deleteItems(ids, { by: whoAmI() }));
+  handle('items:restore', 'items.delete', (items) => store.restoreItems(items, { by: whoAmI() }));
+
+  // ----------------------------------------------------------------- clients
+
+  handle('clients:add', 'clients.manage', (input) => store.addClient(input));
+  handle('clients:update', 'clients.manage', (id, patch) => store.updateClient(id, patch));
+  handle('clients:delete', 'clients.manage', (id) => store.deleteClient(id));
+
+  /**
+   * What one customer has bought.
+   *
+   * Read from the movement log rather than kept beside the contact, so adding a
+   * customer costs nothing and selling something does not rewrite the address
+   * book. Only the recent lines cross the bridge; the totals cover everything.
+   */
+  handle('clients:history', 'clients.view', (id, options = {}) =>
+    clientHistory(store.movements, id, { limit: Math.min(500, Number(options.limit) || 100) }));
+
+  // -------------------------------------------------------------- statistics
+
+  /**
+   * The whole statistics screen in one answer.
+   *
+   * The summing happens here, on this side of the bridge, and what crosses is a
+   * few dozen numbers. A shop with three years behind it has hundreds of
+   * thousands of movements, and handing those to the window to add up is the one
+   * thing that would make this screen unusable.
+   */
+  handle('stats:report', 'stats.view', (range = {}) =>
+    report(store.getState(), store.movements, { from: range.from, to: range.to }));
+
+  /** The recent movements themselves, for the "what happened" list. */
+  handle('stats:movements', 'stats.view', (range = {}) => store.movements.list({
+    from: range.from,
+    to: range.to,
+    limit: Math.min(500, Number(range.limit) || 100),
+  }));
 
   handle('categories:add', 'categories.manage', (input) => store.addCategory(input));
   handle('categories:update', 'categories.manage', (id, patch) => store.updateCategory(id, patch));

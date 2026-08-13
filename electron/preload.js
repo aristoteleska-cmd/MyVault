@@ -24,9 +24,30 @@ contextBridge.exposeInMainWorld('myvault', {
   items: {
     add: (input) => invoke('items:add', input),
     update: (id, patch) => invoke('items:update', id, patch),
-    adjust: (id, delta) => invoke('items:adjust', id, delta),
+    /** `options` carries why the stock moved, and who it was sold to. */
+    adjust: (id, delta, options) => invoke('items:adjust', id, delta, options),
     remove: (ids) => invoke('items:delete', ids),
     restore: (items) => invoke('items:restore', items),
+  },
+
+  /** The shop's regulars. What they bought is worked out from the history. */
+  clients: {
+    add: (input) => invoke('clients:add', input),
+    update: (id, patch) => invoke('clients:update', id, patch),
+    remove: (id) => invoke('clients:delete', id),
+    history: (id, options) => invoke('clients:history', id, options),
+  },
+
+  /**
+   * The takings, and what is selling.
+   *
+   * Both of these are already summed up on the other side. The window never
+   * receives the movements themselves, which is what keeps this screen the same
+   * speed in a shop's fifth year as in its first.
+   */
+  stats: {
+    report: (range) => invoke('stats:report', range),
+    movements: (range) => invoke('stats:movements', range),
   },
 
   categories: {

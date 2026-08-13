@@ -36,6 +36,9 @@ const CAPABILITIES = [
   'data.export',
   'data.import',
   'staff.manage',
+  'clients.view',    // see the customer list, and say who is being served
+  'clients.manage',  // add a regular, correct their phone number, remove them
+  'stats.view',      // takings, profit, what is selling and what is not
 ];
 
 /**
@@ -50,6 +53,11 @@ const ROLE_CAPABILITIES = {
   // Runs the shop floor: adds products, takes deliveries in, rings sales
   // through. The shape of the catalogue — categories, the extra details, the
   // settings — is not theirs to change.
+  //
+  // Statistics and the customer list come with the floor: someone reordering
+  // stock has to know what is selling, and a regular who walks in should be
+  // able to be written down by whoever is standing there. Neither shows them
+  // anything they could not already see on a product's own page.
   senior: [
     'items.view',
     'items.sell',
@@ -57,13 +65,22 @@ const ROLE_CAPABILITIES = {
     'items.create',
     'items.edit',
     'data.export',
+    'clients.view',
+    'clients.manage',
+    'stats.view',
   ],
 
   // On the till. Look something up, and take one off the shelf when it sells.
   // Nothing else — not adding products, not correcting a count upwards.
+  //
+  // They can see who the shop's regulars are, because putting a sale against
+  // the right customer is the till's job and the alternative is a counter
+  // assistant who cannot record half the shop's business. Writing the customer
+  // down in the first place is not theirs, and neither is the takings screen.
   junior: [
     'items.view',
     'items.sell',
+    'clients.view',
   ],
 };
 

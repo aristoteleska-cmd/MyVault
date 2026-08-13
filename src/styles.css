@@ -1318,3 +1318,228 @@ table.items tbody td > .item-meta { overflow: hidden; text-overflow: ellipsis; }
   user-select: all;
   word-break: break-all;
 }
+
+/* ===================================================================
+   Statistics and the client list
+   =================================================================== */
+
+.stat-section { display: flex; flex-direction: column; gap: var(--space-3); }
+.stat-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+.stat-heading {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-muted);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  margin: 0;
+}
+
+/* Auto-fit rather than a fixed count: the same four cards sit in a row on a
+   wide monitor and stack on the small screen a shop counter usually has. */
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--space-3);
+}
+.stat-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  min-width: 0;
+}
+.stat-card .stat-value {
+  font-size: 1.55rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.15;
+}
+.stat-note { font-size: 12px; color: var(--text-faint); min-height: 1.2em; }
+
+.trend {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-weight: 650;
+  font-size: 12px;
+}
+.trend.up { color: var(--success); }
+.trend.down { color: var(--danger); }
+
+/* A bar chart made of elements, so it inherits the theme, prints, and needs no
+   library — MyVault ships with no external assets at all. */
+.chart-panel { padding: var(--space-4); }
+.chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 160px;
+  padding-bottom: 2px;
+  border-bottom: 1px solid var(--border);
+}
+.chart-col { flex: 1 1 0; display: flex; align-items: flex-end; height: 100%; min-width: 3px; }
+.chart-bar {
+  width: 100%;
+  background: var(--accent);
+  border-radius: 3px 3px 0 0;
+  opacity: 0.85;
+  transition: opacity var(--speed) var(--ease);
+}
+.chart-col:hover .chart-bar { opacity: 1; }
+.chart-foot {
+  padding-top: var(--space-2);
+  font-size: 12px;
+  color: var(--text-faint);
+  text-align: center;
+}
+
+.stat-columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: var(--space-3);
+}
+.stat-columns .panel { padding: var(--space-4); }
+.panel-title { margin: 0 0 var(--space-1); font-size: 14px; font-weight: 700; }
+.panel-sub { margin: 0 0 var(--space-2); font-size: 12px; color: var(--text-faint); }
+.panel-empty { margin: 0; padding: var(--space-3) 0; font-size: 13px; color: var(--text-faint); }
+
+.rank-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.rank-list li {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: 7px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+.rank-list li:last-child { border-bottom: 0; }
+.rank-name {
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  color: var(--accent);
+  cursor: pointer;
+  text-align: start;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rank-name:hover { text-decoration: underline; }
+.rank-name.plain {
+  color: var(--text);
+  cursor: default;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.rank-name.plain:hover { text-decoration: none; }
+.rank-value {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  color: var(--text-faint);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.rank-value em { font-style: normal; font-weight: 650; color: var(--text); }
+.dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+
+/* ------------------------------------------------------------- clients */
+
+.serving-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+}
+.serving-bar.is-active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-soft-text);
+}
+.serving-note { font-size: 12px; font-weight: 600; }
+
+.client-record { flex-direction: column; align-items: stretch; gap: var(--space-3); }
+.record-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+.record-notes {
+  font-size: 13px;
+  color: var(--text-muted);
+  white-space: pre-wrap;
+  padding-inline-start: var(--space-1);
+  border-inline-start: 2px solid var(--border);
+}
+.badge.accent {
+  background: var(--accent-soft);
+  color: var(--accent-soft-text);
+  margin-inline-start: var(--space-2);
+}
+
+.form-panel { padding: var(--space-4); display: flex; flex-direction: column; gap: var(--space-3); }
+.field-row { display: flex; gap: var(--space-3); flex-wrap: wrap; }
+.field-row > .field { flex: 1 1 180px; }
+.form-actions { display: flex; justify-content: flex-end; gap: var(--space-2); }
+
+.search-field { flex-direction: row; align-items: center; gap: var(--space-2); }
+.search-field .input { flex: 1; }
+
+.client-history {
+  border-top: 1px solid var(--border);
+  padding-top: var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.client-totals { display: flex; gap: var(--space-5); flex-wrap: wrap; }
+.client-totals > div { display: flex; flex-direction: column; gap: 2px; }
+.client-totals strong { font-size: 1.05rem; font-variant-numeric: tabular-nums; }
+
+.history-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.history-list li {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+.history-list li:last-child { border-bottom: 0; }
+.history-when {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--text-faint);
+  white-space: nowrap;
+}
+.history-what { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.history-count, .history-money { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.history-money { font-weight: 650; }
+
+/* On a narrow counter screen the date drops above the line rather than
+   squeezing the product name down to three letters. */
+@media (max-width: 720px) {
+  .history-list li { grid-template-columns: 1fr auto auto; }
+  .history-when { grid-column: 1 / -1; }
+}

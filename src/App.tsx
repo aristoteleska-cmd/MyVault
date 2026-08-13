@@ -5,6 +5,8 @@ import { useBarcodeScanner } from './hooks/useBarcodeScanner';
 import type { Capability, Filters, Item, SortState } from './types';
 import { Icon, type IconName } from './components/Icon';
 import { InventoryView } from './components/InventoryView';
+import { StatisticsView } from './components/StatisticsView';
+import { ClientsView } from './components/ClientsView';
 import { CategoriesView } from './components/CategoriesView';
 import { FieldsView } from './components/FieldsView';
 import { SettingsView } from './components/SettingsView';
@@ -14,7 +16,7 @@ import { SignInView } from './components/SignInView';
 import { RecoveryCode } from './components/RecoveryCode';
 import { Toasts } from './components/Toasts';
 
-type ViewName = 'inventory' | 'categories' | 'fields' | 'settings' | 'staff';
+type ViewName = 'inventory' | 'statistics' | 'clients' | 'categories' | 'fields' | 'settings' | 'staff';
 
 /**
  * The sidebar, and what each entry needs before it is offered.
@@ -30,6 +32,8 @@ const NAV: {
   needs?: Capability;
 }[] = [
   { id: 'inventory', labelKey: 'nav.stock', icon: 'box' },
+  { id: 'statistics', labelKey: 'nav.statistics', icon: 'chart', needs: 'stats.view' },
+  { id: 'clients', labelKey: 'nav.clients', icon: 'people', needs: 'clients.view' },
   { id: 'categories', labelKey: 'nav.categories', icon: 'tag', needs: 'categories.manage' },
   { id: 'fields', labelKey: 'nav.details', icon: 'fields', needs: 'fields.manage' },
   { id: 'staff', labelKey: 'nav.staff', icon: 'staff', needs: 'staff.manage' },
@@ -255,6 +259,7 @@ export function App() {
               <Icon name={entry.icon} />
               <span className="nav-label">{t(entry.labelKey)}</span>
               {entry.id === 'inventory' && <span className="nav-count">{db.items.length}</span>}
+              {entry.id === 'clients' && <span className="nav-count">{db.clients.length}</span>}
               {entry.id === 'categories' && <span className="nav-count">{db.categories.length}</span>}
               {entry.id === 'fields' && <span className="nav-count">{db.customFields.length}</span>}
             </button>
@@ -286,6 +291,15 @@ export function App() {
             onGoToFields={() => setView('fields')}
           />
         )}
+        {view === 'statistics' && (
+          <StatisticsView
+            onBrowseItem={(name) => {
+              setFilters((current) => ({ ...current, query: name, scope: 'all' }));
+              setView('inventory');
+            }}
+          />
+        )}
+        {view === 'clients' && <ClientsView />}
         {view === 'categories' && (
           <CategoriesView
             onBrowse={(categoryId) => {
