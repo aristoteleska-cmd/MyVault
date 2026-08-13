@@ -15,6 +15,7 @@ const {
   compareVersions,
   isNewerVersion,
   assertDownloadAllowed,
+  assertFilesAllowed,
   describeUpdateError,
 } = require('../electron/update-policy');
 
@@ -61,6 +62,37 @@ ok('lookalikes, plain http and every other host are refused');
 assert.throws(() => assertDownloadAllowed('https://example.com/x.exe'), /Refusing to download/);
 assert.strictEqual(assertDownloadAllowed('https://github.com/a/b/releases/x.exe'), true);
 ok('a download from anywhere else throws rather than running');
+
+// ------------------------------------------------- the release's own file list
+//
+// What a real latest.yml contains is bare filenames, which the updater resolves
+// against the GitHub release it just read. Those must pass, or no shop could
+// ever update; an absolute address pointing elsewhere is the tampered case and
+// must not.
+assert.strictEqual(assertFilesAllowed([{ url: 'MyVault-1.5.0-setup.exe' }]), true);
+assert.strictEqual(assertFilesAllowed([{ url: 'nested/path/MyVault-setup.exe' }]), true);
+assert.strictEqual(assertFilesAllowed([]), true, 'an empty list is not a threat');
+assert.strictEqual(assertFilesAllowed(undefined), true, 'and neither is a missing one');
+assert.strictEqual(
+  assertFilesAllowed([{ url: 'https://github.com/a/b/releases/download/v1/x.exe' }]),
+  true,
+  'a full GitHub address is fine',
+);
+assert.throws(
+  () => assertFilesAllowed([{ url: 'https://evil.test/MyVault-setup.exe' }]),
+  /Refusing to download/,
+);
+assert.throws(
+  () => assertFilesAllowed([{ url: 'MyVault-setup.exe' }, { url: 'http://github.com/x.exe' }]),
+  /Refusing to download/,
+  'plain http is refused even on the right host',
+);
+assert.throws(
+  () => assertFilesAllowed([{ url: '//evil.test/x.exe' }]),
+  /Refusing to download/,
+  'a protocol-relative address is an address, not a filename',
+);
+ok('a release naming an installer anywhere but GitHub is refused before it is fetched');
 
 // The window itself stays sealed whatever the update setting says — GitHub is
 // reachable from the background, never from the interface.

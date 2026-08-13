@@ -219,6 +219,14 @@ that permits. The portable `.exe` deliberately cannot do this — it
 may be running from a USB stick, so it tells the user to download the new file
 instead of overwriting itself.
 
+**Copies older than 1.4.1 cannot update themselves, and no fix can reach them.**
+Where a build looks for updates is compiled into it. Versions 1.1.0 to 1.4.0 were
+built pointing at a separate downloads repository that was never created, so
+"Check now" in those copies asks for something that returns 404 and answers *No
+published version was found to update to* — correctly, if unhelpfully. 1.4.1 was
+the first build with the right address. Anyone on an older one needs the
+installer handed to them once, by hand; from then on the in-app updater works.
+
 ### Publishing a version the app can find
 
 Because this repository is public, the in-app updater reads its releases

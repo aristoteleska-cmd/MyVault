@@ -27,7 +27,7 @@ const {
   FEED,
   updateSupport,
   isNewerVersion,
-  assertDownloadAllowed,
+  assertFilesAllowed,
   describeUpdateError,
 } = require('./update-policy');
 
@@ -50,15 +50,24 @@ class Updater {
    *   setting, live, so changing it takes effect without restarting.
    * @param {(status: object) => void} options.onStatus
    */
-  constructor({ app, getMode, onStatus, isDev = false }) {
+  constructor({
+    app, getMode, onStatus, isDev = false,
+    // Injectable so the whole flow can be driven in a test without Windows, a
+    // network, or a packaged build. Production passes neither.
+    platform = process.platform,
+    loadUpdater = () => require('electron-updater').autoUpdater, // eslint-disable-line global-require
+  }) {
     this.app = app;
     this.getMode = getMode;
     this.onStatus = onStatus;
+    this.loadUpdater = loadUpdater;
     this.autoUpdater = null;
     this.timer = null;
+    /** The file list from the last check, kept so the download can be vetted. */
+    this.pendingFiles = [];
 
     const { supported, reason } = updateSupport({
-      platform: process.platform,
+      platform,
       packaged: app.isPackaged && !isDev,
       portable: Boolean(process.env.PORTABLE_EXECUTABLE_DIR),
     });
@@ -105,8 +114,7 @@ class Updater {
   connect() {
     if (this.autoUpdater) return this.autoUpdater;
 
-    // eslint-disable-next-line global-require
-    const { autoUpdater } = require('electron-updater');
+    const autoUpdater = this.loadUpdater();
 
     autoUpdater.allowPrerelease = false;
     autoUpdater.allowDowngrade = false;
@@ -130,6 +138,18 @@ class Updater {
         this.emit({ state: 'current', checkedAt: new Date().toISOString(), error: '' });
         return;
       }
+
+      // Vet the release's own file list before anything is fetched. A feed that
+      // named an installer somewhere other than GitHub stops here.
+      try {
+        assertFilesAllowed(info?.files);
+      } catch (error) {
+        this.pendingFiles = [];
+        this.emit({ state: 'error', error: describeUpdateError(error), percent: 0 });
+        return;
+      }
+
+      this.pendingFiles = Array.isArray(info?.files) ? info.files : [];
       this.emit({
         state: 'available',
         newVersion: String(info?.version || ''),
@@ -137,6 +157,14 @@ class Updater {
         checkedAt: new Date().toISOString(),
         error: '',
       });
+
+      // "Auto" means fetch it without being asked. The download is started here
+      // rather than by handing electron-updater autoDownload, so that the check
+      // above runs first — with autoDownload the fetch begins inside
+      // checkForUpdates, before anything has looked at where it points.
+      if (this.getMode() === 'auto') {
+        this.download().catch(() => { /* already reported through the status */ });
+      }
     });
 
     autoUpdater.on('update-not-available', () => {
@@ -172,7 +200,11 @@ class Updater {
   applyMode() {
     if (!this.autoUpdater) return;
     const automatic = this.getMode() === 'auto';
-    this.autoUpdater.autoDownload = automatic;
+    // Always false, in both modes. On "auto" the download is still automatic —
+    // it is started from the update-available handler, once the release's file
+    // list has been checked. Letting electron-updater start it itself would
+    // begin fetching before that check had run.
+    this.autoUpdater.autoDownload = false;
     this.autoUpdater.autoInstallOnAppQuit = automatic;
   }
 
@@ -223,13 +255,33 @@ class Updater {
     this.emit({ state: 'checking', error: '', percent: 0 });
 
     const updater = this.connect();
+    let result;
     try {
       // checkForUpdates can hang on a captive-portal wifi that accepts the
       // connection and then says nothing at all.
-      await withTimeout(updater.checkForUpdates(), CHECK_TIMEOUT_MS, 'The check timed out.');
+      result = await withTimeout(updater.checkForUpdates(), CHECK_TIMEOUT_MS, 'The check timed out.');
     } catch (error) {
       this.emit({ state: 'error', error: describeUpdateError(error) });
       throw new Error(describeUpdateError(error));
+    }
+
+    // electron-updater answers null, silently and without firing a single
+    // event, when it decides this build cannot update itself. Left alone that
+    // showed the shop a spinner that never stopped — the check appeared to do
+    // nothing at all, forever.
+    if (result === null || result === undefined) {
+      this.emit({
+        state: 'error',
+        error: 'This copy of MyVault cannot check for updates. Reinstall it from the MyVault-Setup file.',
+        percent: 0,
+      });
+      return this.getStatus();
+    }
+
+    // Belt and braces for the same failure: if the check came back but nothing
+    // moved us off "checking", say so rather than spin.
+    if (this.status.state === 'checking') {
+      this.emit({ state: 'current', checkedAt: new Date().toISOString(), error: '' });
     }
     return this.getStatus();
   }
@@ -241,9 +293,11 @@ class Updater {
     }
 
     const updater = this.connect();
-    // The URL is settled by now; make sure it is one we are willing to fetch.
-    const files = updater.currentVersionInfo || {};
-    if (files.url) assertDownloadAllowed(String(files.url));
+    // Where the installer actually comes from, checked once more before a byte
+    // is fetched. This used to read a property electron-updater does not have,
+    // so it was always undefined and the check never ran at all; the file list
+    // saved by the last check is the real thing.
+    assertFilesAllowed(this.pendingFiles);
 
     this.emit({ state: 'downloading', percent: 0, transferred: 0, total: 0, error: '' });
     try {

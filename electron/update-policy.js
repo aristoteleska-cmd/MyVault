@@ -87,6 +87,29 @@ function assertDownloadAllowed(url) {
 }
 
 /**
+ * Checks the file list a release's latest.yml declared, before a byte is fetched.
+ *
+ * Nearly every entry is a bare filename — "MyVault-1.5.0-setup.exe" — which the
+ * updater resolves against the GitHub release it just read, and those are safe
+ * by construction. What matters is the other case: a latest.yml that names a
+ * full URL somewhere else entirely. That is what a tampered or hijacked feed
+ * would look like, and it is the one thing worth refusing outright.
+ *
+ * This replaces an earlier check that read a property electron-updater does not
+ * have, and therefore never ran at all.
+ */
+function assertFilesAllowed(files) {
+  for (const file of Array.isArray(files) ? files : []) {
+    const url = String(file?.url ?? '').trim();
+    if (!url) continue;
+    // A bare name, or a path within the release — resolved against GitHub.
+    if (!/^[a-z][a-z0-9+.-]*:/i.test(url) && !url.startsWith('//')) continue;
+    assertDownloadAllowed(url);
+  }
+  return true;
+}
+
+/**
  * Turns whatever the network threw into one short sentence.
  *
  * The shop cannot act on "ENOTFOUND api.github.com" but can act on "no
@@ -131,5 +154,6 @@ module.exports = {
   compareVersions,
   isNewerVersion,
   assertDownloadAllowed,
+  assertFilesAllowed,
   describeUpdateError,
 };
