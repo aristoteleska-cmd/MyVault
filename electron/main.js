@@ -568,6 +568,42 @@ function registerIpc() {
     },
   ));
 
+  // ---------------------------------------------------------------- invoices
+
+  handle('docs:drafts', 'documents.manage', () => store.listDrafts());
+  handle('docs:start', 'documents.manage', (options = {}) =>
+    store.startDraft({ kind: options.kind, by: whoAmI() }));
+  handle('docs:update', 'documents.manage', (id, patch) => store.updateDraft(id, patch));
+  handle('docs:set-line', 'documents.manage', (id, line) => store.setDraftLine(id, line));
+  handle('docs:remove-line', 'documents.manage', (id, index) => store.removeDraftLine(id, index));
+  handle('docs:discard', 'documents.manage', (id) => store.discardDraft(id));
+
+  /** The only thing here that touches stock, and it does the whole paper at once. */
+  handle('docs:post', 'documents.manage', (id) => ({
+    ...store.postDraft(id, { by: whoAmI() }),
+    state: store.publicState(),
+  }));
+
+  handle('docs:void', 'documents.manage', (id) => ({
+    ...store.voidDocument(id, { by: whoAmI() }),
+    state: store.publicState(),
+  }));
+
+  handle('docs:list', 'documents.manage', (options = {}) => store.listDocuments(options));
+
+  /** Reads a supplier's CSV onto the draft, reporting what it could not match. */
+  handle('docs:import-csv', 'documents.manage', async (id) => {
+    const { canceled, filePaths } = await dialog.showOpenDialog(mainWindow, {
+      title: 'Choose the supplier\'s file',
+      properties: ['openFile'],
+      filters: [{ name: 'CSV file', extensions: ['csv', 'txt'] }],
+    });
+    if (canceled || !filePaths?.length) return { canceled: true };
+    const rows = parseCsv(fs.readFileSync(filePaths[0], 'utf8'));
+    if (!rows.length) throw new Error('No rows found. The file needs a header row.');
+    return { canceled: false, ...store.importDraftLines(id, rows) };
+  });
+
   // --------------------------------------------------------------------- VAT
 
   /**

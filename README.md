@@ -105,6 +105,29 @@ as a **PDF**, laid out for A4 and printed on whatever printer the shop already
 has. The document is built inside MyVault and rendered on your own machine —
 nothing is uploaded to a converter.
 
+**Invoices and delivery notes**
+
+The other half of a shop's day is not the till. A delivery arrives with thirty
+lines on a printed note, and pressing plus thirty times is how a shop ends up
+not bothering. **Invoices** lets you enter the whole document — scan or search
+each product, or read the supplier's own CSV straight in — see the totals while
+there is still time to disagree with them, and post the lot in one press.
+
+Incoming documents add stock and update your cost prices from what the supplier
+actually charged this time. Outgoing ones take stock out and bill it to a
+customer. Either way every line becomes a movement that names the invoice it
+came from, so a whole delivery can be traced back to the piece of paper.
+
+A posted invoice is **never edited or deleted**. If it was wrong you void it,
+which posts the opposite and keeps both — because the stock really did move, and
+a history that can be quietly rewritten afterwards is not a history. A
+half-typed invoice is saved as you go, so closing MyVault mid-delivery loses
+nothing.
+
+*Not* included: reading a photographed invoice. Offline OCR of arbitrary invoice
+layouts cannot be made reliable, and a misread quantity posted silently into
+your stock is worse than typing it.
+
 **VAT**
 
 Off unless you switch it on, because a shop that is not VAT-registered should
@@ -429,6 +452,7 @@ electron/          Main process — the only code that touches the disk
   movements.js     The append-only history of every stock movement
   statistics.js    The sums behind Statistics and the order list
   vat.js           VAT: collected less deductible, per rate, per quarter
+  documents.js     Invoices and delivery notes, posted a whole page at a time
   pdf.js           The printable documents, built and escaped here
   offline.js       The rules that keep the app off the network
   csv.js           Dependency-free CSV reader/writer
@@ -522,7 +546,7 @@ PIN and decides what they may do.
 | Role | What they can do |
 | --- | --- |
 | **Manager** | Everything: products, categories, extra details, settings, statistics, VAT, customers, stock takes, and who else works here. |
-| **Senior** | Adds products, books deliveries in, rings up sales, takes returns, counts the shelves, exports a CSV, reads the statistics, keeps the customer list. **Not** the VAT screen — the shop's tax position is the owner's — and not categories, extra details, settings, or deleting products. |
+| **Senior** | Adds products, books deliveries in, rings up sales, takes returns, counts the shelves, enters and posts invoices, exports a CSV, reads the statistics, keeps the customer list. **Not** the VAT screen — the shop's tax position is the owner's — and not categories, extra details, settings, or deleting products. |
 | **Assistant** | Looks a product up and takes one off when it sells, and can say which customer they are serving. Nothing else — not the takings, not the customer list itself, not counting the shelves, not correcting a count upwards (a delivery rather than a sale), and not handing money back. A refund is a judgement about whether the shop really sold that thing, and that belongs to a senior. |
 
 **The installer asks who will manage this copy.** A page during installation

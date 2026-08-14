@@ -44,7 +44,7 @@ const EXPECTED = {
     // running the floor: knowing what is selling, and writing down a regular.
     yes: ['items.view', 'items.sell', 'items.receive', 'items.return', 'items.create',
       'items.edit', 'data.export', 'clients.view', 'clients.manage', 'stats.view',
-      'stocktake.run'],
+      'stocktake.run', 'documents.manage'],
     no: ['categories.manage', 'fields.manage', 'settings.manage', 'staff.manage',
       'items.delete', 'data.import'],
   },
@@ -55,7 +55,8 @@ const EXPECTED = {
     yes: ['items.view', 'items.sell', 'clients.view'],
     no: ['items.receive', 'items.return', 'items.create', 'items.edit', 'items.delete',
       'categories.manage', 'fields.manage', 'settings.manage', 'staff.manage',
-      'data.export', 'data.import', 'clients.manage', 'stats.view', 'stocktake.run'],
+      'data.export', 'data.import', 'clients.manage', 'stats.view', 'stocktake.run',
+      'vat.view', 'documents.manage'],
   },
 };
 
@@ -100,6 +101,12 @@ assert.ok(!can('junior', 'items.return'), 'an assistant cannot refund a customer
 // something to hand to whoever is on the till this Saturday.
 assert.ok(can('senior', 'stocktake.run') && !can('junior', 'stocktake.run'));
 ok('refunds and stock takes stop at the senior, not the till');
+
+// Entering a supplier invoice books stock in wholesale, so it belongs with the
+// floor; the shop's tax position stops one rung higher, with the manager.
+assert.ok(can('senior', 'documents.manage') && !can('junior', 'documents.manage'));
+assert.ok(can('admin', 'vat.view') && !can('senior', 'vat.view'));
+ok('invoices reach the floor, the VAT screen does not');
 
 assert.ok(!can('nonsense', 'items.view'), 'an unknown role is refused everything');
 assert.ok(!can('admin', 'items.teleport'), 'an unknown capability is refused');

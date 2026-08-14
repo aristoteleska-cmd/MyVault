@@ -42,6 +42,7 @@ const CAPABILITIES = [
   'clients.manage',  // add a regular, correct their phone number, remove them
   'stats.view',      // takings, profit, what is selling and what is not
   'vat.view',        // the shop's tax position, and what it owes
+  'documents.manage', // enter an invoice or delivery note and post it to stock
 ];
 
 /**
@@ -73,6 +74,7 @@ const ROLE_CAPABILITIES = {
     'clients.manage',
     'stats.view',
     'stocktake.run',
+    'documents.manage',
   ],
 
   // On the till. Look something up, and take one off the shelf when it sells.

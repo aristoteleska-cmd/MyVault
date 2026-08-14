@@ -142,6 +142,10 @@ async function main() {
     'clients.add': [{ name: 'Not allowed' }],
     'clients.update': ['anything', { name: 'Not allowed' }],
     'clients.remove': ['anything'],
+    // Entering an invoice books stock in wholesale — not a till job.
+    'docs.drafts': [],
+    'docs.start': [{}],
+    'docs.list': [{}],
     // The shop's tax position is the owner's business, not the floor's.
     'vat.report': [{}],
     'vat.periods': [],

@@ -29,6 +29,7 @@ const suites = [
   { name: 'statistics', file: 'tests/statistics.test.js', typescript: false },
   { name: 'shop floor', file: 'tests/shopfloor.test.js', typescript: false },
   { name: 'VAT', file: 'tests/vat.test.js', typescript: false },
+  { name: 'invoices', file: 'tests/documents.test.js', typescript: false },
   { name: 'barcode photos', file: 'tests/barcode.test.ts', typescript: true },
 ];
 

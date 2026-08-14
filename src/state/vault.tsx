@@ -26,6 +26,8 @@ import type {
   Settings,
   StatsReport,
   StockTakeProgress,
+  DraftDocument,
+  PostedDocument,
   VatPeriod,
   VatReport,
   BackupStatus,
@@ -93,6 +95,22 @@ interface VaultValue {
   recentMovements: (range?: { from?: string; to?: string; limit?: number })
     => Promise<Movement[] | null>;
   reorderList: (options?: { days?: number; cover?: number }) => Promise<ReorderList | null>;
+
+  /** Invoices and delivery notes. Posting one moves all its stock at once. */
+  drafts: DraftDocument[];
+  refreshDrafts: () => Promise<void>;
+  startDoc: (kind: 'in' | 'out') => Promise<DraftDocument | null>;
+  updateDoc: (id: string, patch: Partial<DraftDocument>) => Promise<DraftDocument | null>;
+  setDocLine: (id: string, line: {
+    itemId: string; quantity: number; unitPrice?: number | string;
+    vatRate?: number | string; lineId?: number;
+  }) => Promise<DraftDocument | null>;
+  removeDocLine: (id: string, index: number) => Promise<DraftDocument | null>;
+  discardDoc: (id: string) => Promise<void>;
+  postDoc: (id: string) => Promise<boolean>;
+  voidDoc: (id: string) => Promise<boolean>;
+  listDocs: (options?: { limit?: number }) => Promise<PostedDocument[] | null>;
+  importDocCsv: (id: string) => Promise<DraftDocument | null>;
 
   /** What the shop owes, and the calendar periods it can be filed for. */
   vatReport: (range?: { from?: string; to?: string }) => Promise<VatReport | null>;
@@ -200,6 +218,7 @@ const emptyDb: Database = {
   customFields: [],
   clients: [],
   stockTake: null,
+  drafts: [],
   items: [],
 };
 
@@ -231,6 +250,7 @@ export function VaultProvider({ children }: { children: ReactNode }) {
   // find yesterday's regular still selected.
   const [serving, setServing] = useState('');
   const [backupStatus, setBackupStatus] = useState<BackupStatus | null>(null);
+  const [drafts, setDrafts] = useState<DraftDocument[]>([]);
   // Held only long enough to be shown and written down.
   const [recoveryCode, setRecoveryCode] = useState('');
   const toastId = useRef(0);
@@ -522,6 +542,79 @@ export function VaultProvider({ children }: { children: ReactNode }) {
       run(window.myvault.stats.movements(range)),
     [run],
   );
+
+  const refreshDrafts = useCallback(async () => {
+    const list = await run(window.myvault.docs.drafts());
+    if (list) setDrafts(list);
+  }, [run]);
+
+  const startDoc = useCallback(async (kind: 'in' | 'out') => {
+    const draft = await run(window.myvault.docs.start({ kind }));
+    if (draft) setDrafts((current) => [...current, draft]);
+    return draft;
+  }, [run]);
+
+  const replaceDraft = useCallback((draft: DraftDocument) => {
+    setDrafts((current) => current.map((d) => (d.id === draft.id ? draft : d)));
+  }, []);
+
+  const updateDoc = useCallback(async (id: string, patch: Partial<DraftDocument>) => {
+    const draft = await run(window.myvault.docs.update(id, patch));
+    if (draft) replaceDraft(draft);
+    return draft;
+  }, [run, replaceDraft]);
+
+  const setDocLine = useCallback(async (id: string, line: {
+    itemId: string; quantity: number; unitPrice?: number | string;
+    vatRate?: number | string; lineId?: number;
+  }) => {
+    const draft = await run(window.myvault.docs.setLine(id, line));
+    if (draft) replaceDraft(draft);
+    return draft;
+  }, [run, replaceDraft]);
+
+  const removeDocLine = useCallback(async (id: string, index: number) => {
+    const draft = await run(window.myvault.docs.removeLine(id, index));
+    if (draft) replaceDraft(draft);
+    return draft;
+  }, [run, replaceDraft]);
+
+  const discardDoc = useCallback(async (id: string) => {
+    const list = await run(window.myvault.docs.discard(id));
+    if (list) setDrafts(list);
+  }, [run]);
+
+  const postDoc = useCallback(async (id: string) => {
+    const result = await run(window.myvault.docs.post(id));
+    if (!result) return false;
+    if (result.state) setDb(result.state);
+    setDrafts((current) => current.filter((d) => d.id !== id));
+    notify('toast.docPosted', { count: result.moved }, 'success');
+    return true;
+  }, [run, notify]);
+
+  const voidDoc = useCallback(async (id: string) => {
+    const result = await run(window.myvault.docs.void(id));
+    if (!result) return false;
+    if (result.state) setDb(result.state);
+    notify('toast.docVoided', undefined, 'info');
+    return true;
+  }, [run, notify]);
+
+  const listDocs = useCallback(
+    async (options?: { limit?: number }) => run(window.myvault.docs.list(options)),
+    [run],
+  );
+
+  const importDocCsv = useCallback(async (id: string) => {
+    const result = await run(window.myvault.docs.importCsv(id));
+    if (!result || result.canceled) return null;
+    if (result.draft) replaceDraft(result.draft);
+    const missed = result.unmatched?.length ?? 0;
+    notify(missed ? 'toast.docImportedSome' : 'toast.docImported',
+      { count: result.added ?? 0, missed }, missed ? 'info' : 'success');
+    return result.draft ?? null;
+  }, [run, replaceDraft, notify]);
 
   const vatReport = useCallback(
     async (range?: { from?: string; to?: string }) => run(window.myvault.vat.report(range)),
@@ -915,6 +1008,17 @@ export function VaultProvider({ children }: { children: ReactNode }) {
       statsReport,
       recentMovements,
       reorderList,
+      drafts,
+      refreshDrafts,
+      startDoc,
+      updateDoc,
+      setDocLine,
+      removeDocLine,
+      discardDoc,
+      postDoc,
+      voidDoc,
+      listDocs,
+      importDocCsv,
       vatReport,
       vatPeriods,
       returnItem,
@@ -969,6 +1073,8 @@ export function VaultProvider({ children }: { children: ReactNode }) {
       addItem, updateItem, adjustStock, deleteItems,
       serving, addClient, updateClient, deleteClient, clientHistory,
       statsReport, recentMovements, reorderList, vatReport, vatPeriods, returnItem,
+      drafts, refreshDrafts, startDoc, updateDoc, setDocLine, removeDocLine,
+      discardDoc, postDoc, voidDoc, listDocs, importDocCsv,
       startStockTake, stockTakeProgress, countStockTake, cancelStockTake, applyStockTake,
       printPdf, backupStatus, refreshBackupStatus, chooseBackupFolder, forgetBackupFolder, backupNow,
       addCategory, updateCategory, deleteCategory,

@@ -19,6 +19,9 @@ const {
 } = require('./roles');
 const { MovementLog } = require('./movements');
 const { normalizeRate, rateFor } = require('./vat');
+const {
+  KINDS, DocumentLog, normalizeLine, totalsFor, emptyDraft,
+} = require('./documents');
 
 const SCHEMA_VERSION = 3;
 const MAX_BACKUPS = 10;
@@ -196,6 +199,9 @@ function emptyDatabase() {
     // interrupted by customers; this is saved so closing MyVault half way
     // through does not throw the morning away.
     stockTake: null,
+    // Invoices being typed right now. Normally none or one; a posted invoice
+    // is history and lives in its own file rather than here.
+    drafts: [],
     items: [],
   };
 }
@@ -224,6 +230,12 @@ class Store {
      * more than the one before it. See ./movements.js.
      */
     this.movements = new MovementLog(dataDir);
+
+    /**
+     * Posted invoices and delivery notes, kept the same way and for the same
+     * reason: they only ever accumulate. See ./documents.js.
+     */
+    this.documents = new DocumentLog(dataDir);
   }
 
   /**
@@ -379,6 +391,26 @@ class Store {
         ),
       }
       : null;
+
+    db.drafts = Array.isArray(parsed.drafts)
+      ? parsed.drafts
+          .filter((d) => d && typeof d === 'object' && Array.isArray(d.lines))
+          .map((d) => ({
+            ...emptyDraft({ kind: d.kind }),
+            id: asString(d.id, 64) || newId(),
+            kind: KINDS.includes(d.kind) ? d.kind : 'in',
+            number: asString(d.number, 60),
+            supplier: asString(d.supplier, 120),
+            clientId: asString(d.clientId, 64),
+            date: asString(d.date, 10),
+            note: asString(d.note, 2000),
+            startedAt: asString(d.startedAt) || nowIso(),
+            by: asString(d.by, 60),
+            lines: d.lines
+              .map((line) => normalizeLine(line, { kind: d.kind }))
+              .filter(Boolean),
+          }))
+      : [];
 
     db.customFields = Array.isArray(parsed.customFields)
       ? parsed.customFields
@@ -785,6 +817,329 @@ class Store {
       });
     }
     return restored;
+  }
+
+  // --------------------------------------------------------------- invoices
+  //
+  // A whole piece of paper at a time. See ./documents.js for why posted
+  // documents live in their own file rather than in here.
+
+  /** Whether prices on this kind of document already contain VAT. */
+  inclusiveFor(kind) {
+    const settings = this.db.settings;
+    return kind === 'in' ? Boolean(settings.costsIncludeVat) : settings.pricesIncludeVat !== false;
+  }
+
+  draftTotals(draft) {
+    return totalsFor(draft.lines, { inclusive: this.inclusiveFor(draft.kind) });
+  }
+
+  /** A draft, with its totals worked out — what the screen actually needs. */
+  describeDraft(draft) {
+    return { ...draft, totals: this.draftTotals(draft) };
+  }
+
+  listDrafts() {
+    return this.db.drafts.map((draft) => this.describeDraft(draft));
+  }
+
+  startDraft({ kind = 'in', by = '' } = {}) {
+    const draft = emptyDraft({ kind, by });
+    this.db.drafts.push(draft);
+    this.persist();
+    return this.describeDraft(draft);
+  }
+
+  getDraft(id) {
+    const draft = this.db.drafts.find((candidate) => candidate.id === id);
+    if (!draft) throw new Error('That invoice is no longer open.');
+    return draft;
+  }
+
+  updateDraft(id, patch = {}) {
+    const draft = this.getDraft(id);
+    if (patch.number !== undefined) draft.number = asString(patch.number, 60);
+    if (patch.supplier !== undefined) draft.supplier = asString(patch.supplier, 120);
+    if (patch.clientId !== undefined) draft.clientId = asString(patch.clientId, 64);
+    if (patch.date !== undefined) draft.date = asString(patch.date, 10);
+    if (patch.note !== undefined) draft.note = asString(patch.note, 2000);
+    this.persist();
+    return this.describeDraft(draft);
+  }
+
+  /**
+   * Adds or replaces a line.
+   *
+   * The same product twice on one invoice is a real thing — two boxes at two
+   * prices — so lines are not merged automatically. A shop that wanted them
+   * merged would have typed one line.
+   */
+  setDraftLine(id, line) {
+    const draft = this.getDraft(id);
+    const item = this.db.items.find((candidate) => candidate.id === line?.itemId);
+    if (!item) throw new Error('That product is not in your stock list.');
+
+    const clean = normalizeLine({
+      ...line,
+      name: item.name,
+      barcode: item.barcode,
+      // Default to what MyVault already knows, so scanning a barcode fills the
+      // line in and the shop only corrects what the invoice disagrees with.
+      unitPrice: line.unitPrice === undefined || line.unitPrice === ''
+        ? (draft.kind === 'in' ? item.cost : item.price)
+        : line.unitPrice,
+      vatRate: line.vatRate === undefined || line.vatRate === ''
+        ? this.vatRateFor(item)
+        : line.vatRate,
+    }, { kind: draft.kind });
+
+    if (!clean) throw new Error('A line needs a product and a quantity.');
+
+    const index = line.lineId !== undefined
+      ? Number(line.lineId)
+      : draft.lines.findIndex((existing) => existing.itemId === clean.itemId);
+
+    if (Number.isInteger(index) && index >= 0 && index < draft.lines.length) {
+      draft.lines[index] = clean;
+    } else {
+      draft.lines.push(clean);
+    }
+    this.persist();
+    return this.describeDraft(draft);
+  }
+
+  removeDraftLine(id, index) {
+    const draft = this.getDraft(id);
+    const at = Number(index);
+    if (Number.isInteger(at) && at >= 0 && at < draft.lines.length) {
+      draft.lines.splice(at, 1);
+      this.persist();
+    }
+    return this.describeDraft(draft);
+  }
+
+  discardDraft(id) {
+    this.db.drafts = this.db.drafts.filter((draft) => draft.id !== id);
+    this.persist();
+    return this.listDrafts();
+  }
+
+  /**
+   * Turns the paper into stock.
+   *
+   * Everything happens here in one go: the stock moves, the movements are
+   * written with the document they came from, and the document is appended to
+   * this year's file. An incoming invoice also updates each product's cost
+   * price, because what the supplier charged this time is the best answer to
+   * "what does this cost me" that the shop has.
+   */
+  postDraft(id, { by = '' } = {}) {
+    const draft = this.getDraft(id);
+    if (draft.lines.length === 0) throw new Error('This invoice has no lines on it yet.');
+
+    const incoming = draft.kind === 'in';
+    const totals = this.draftTotals(draft);
+    const postedAt = nowIso();
+
+    const posted = {
+      ...draft,
+      totals,
+      postedAt,
+      by: by || draft.by,
+      voided: false,
+    };
+
+    const moved = [];
+    for (const line of draft.lines) {
+      const item = this.db.items.find((candidate) => candidate.id === line.itemId);
+      if (!item) continue;
+
+      const before = item.quantity;
+      item.quantity = Math.max(0, before + (incoming ? line.quantity : -line.quantity));
+      item.updatedAt = postedAt;
+      // What it cost this time is what it costs.
+      if (incoming && line.unitPrice > 0) item.cost = clampMoney(line.unitPrice);
+
+      const actual = item.quantity - before;
+      if (actual !== 0) {
+        moved.push({
+          itemId: item.id,
+          itemName: item.name,
+          delta: actual,
+          quantityAfter: item.quantity,
+          reason: incoming ? 'delivery' : 'sale',
+          // The invoice line is the authority on price, not today's shelf.
+          price: incoming ? item.price : line.unitPrice,
+          cost: incoming ? line.unitPrice : item.cost,
+          vatRate: line.vatRate,
+          clientId: incoming ? '' : draft.clientId,
+          docId: draft.id,
+          by: by || draft.by,
+        });
+      }
+    }
+
+    this.db.drafts = this.db.drafts.filter((candidate) => candidate.id !== id);
+    this.persist();
+
+    for (const entry of moved) this.logMovement(entry);
+    try {
+      this.documents.append(posted);
+    } catch { /* the stock moved; a missing copy of the paper is the lesser loss */ }
+
+    return { document: posted, moved: moved.length };
+  }
+
+  /**
+   * Undoes a posted invoice by posting its opposite.
+   *
+   * Deliberately not a delete. The stock really did move, the VAT really was
+   * recorded, and a history that can be quietly edited afterwards is not a
+   * history — an accountant looking at last quarter should see both the
+   * mistake and the correction.
+   */
+  voidDocument(id, { by = '' } = {}) {
+    const original = this.documents.find(id);
+    if (!original) throw new Error('That invoice is not in your records.');
+    if (original.voids) throw new Error('That is already a reversal — void the invoice itself.');
+
+    // Whether it has been voided cannot be a flag on the original: the log is
+    // append-only, so nothing already written to it is ever changed. The
+    // answer is whether a reversal naming it exists, which is also what makes
+    // the state survive being read back from disk.
+    let alreadyVoided = false;
+    this.documents.forEach({}, (document) => {
+      if (document.voids === id) alreadyVoided = true;
+    });
+    if (alreadyVoided) throw new Error('That invoice has already been voided.');
+
+    const incoming = original.kind === 'in';
+    const at = nowIso();
+    const moved = [];
+
+    for (const line of original.lines) {
+      const item = this.db.items.find((candidate) => candidate.id === line.itemId);
+      if (!item) continue;
+      const before = item.quantity;
+      // The opposite of what posting did.
+      item.quantity = Math.max(0, before + (incoming ? -line.quantity : line.quantity));
+      item.updatedAt = at;
+
+      const actual = item.quantity - before;
+      if (actual !== 0) {
+        moved.push({
+          itemId: item.id,
+          itemName: item.name,
+          delta: actual,
+          quantityAfter: item.quantity,
+          // A cancelled sale is a return; a cancelled delivery is a correction,
+          // because the goods went back to the supplier rather than to a
+          // customer who was refunded.
+          reason: incoming ? 'correction' : 'return',
+          price: incoming ? item.price : line.unitPrice,
+          cost: incoming ? line.unitPrice : item.cost,
+          vatRate: line.vatRate,
+          clientId: incoming ? '' : original.clientId,
+          docId: original.id,
+          by,
+        });
+      }
+    }
+
+    this.persist();
+    for (const entry of moved) this.logMovement(entry);
+
+    // The void is itself a document, so the file still only ever grows.
+    const record = {
+      ...original,
+      id: newId(),
+      voids: original.id,
+      voided: false,
+      number: original.number ? `${original.number} (void)` : '(void)',
+      postedAt: at,
+      by,
+      lines: original.lines.map((line) => ({ ...line, quantity: -line.quantity })),
+      totals: {
+        ...original.totals,
+        net: -original.totals.net,
+        vat: -original.totals.vat,
+        gross: -original.totals.gross,
+        units: -original.totals.units,
+      },
+    };
+    try {
+      this.documents.append(record);
+    } catch { /* best effort, as above */ }
+
+    return { document: record, moved: moved.length };
+  }
+
+  /**
+   * Reads a supplier's CSV straight onto a draft.
+   *
+   * Many suppliers email one, and typing thirty lines off a screen is no better
+   * than typing them off paper. Products are matched on barcode first and name
+   * second; anything that matches nothing is handed back rather than guessed
+   * at, because a wrong match here silently books stock against the wrong
+   * product.
+   */
+  importDraftLines(id, rows) {
+    const draft = this.getDraft(id);
+    const byBarcode = new Map(
+      this.db.items.filter((item) => item.barcode).map((item) => [item.barcode.trim(), item]),
+    );
+    const byName = new Map(
+      this.db.items.map((item) => [item.name.trim().toLowerCase(), item]),
+    );
+
+    const result = { added: 0, unmatched: [] };
+
+    for (const row of rows) {
+      const lower = {};
+      for (const [key, value] of Object.entries(row)) {
+        lower[String(key).trim().toLowerCase()] = value;
+      }
+
+      const barcode = asString(lower.barcode ?? lower.ean ?? lower.code, 64).trim();
+      const name = asString(lower.name ?? lower.product ?? lower.description, 160).trim();
+      const quantity = clampQuantity(lower.quantity ?? lower.qty ?? lower.pcs ?? 0);
+      const price = clampMoney(
+        lower.price ?? lower['unit price'] ?? lower.cost ?? lower['unit cost'] ?? 0,
+      );
+
+      if (!quantity) continue;
+
+      const item = (barcode && byBarcode.get(barcode))
+        || (name && byName.get(name.toLowerCase()));
+
+      if (!item) {
+        result.unmatched.push({ barcode, name, quantity, price });
+        continue;
+      }
+
+      draft.lines.push(normalizeLine({
+        itemId: item.id,
+        name: item.name,
+        barcode: item.barcode,
+        quantity,
+        unitPrice: price || (draft.kind === 'in' ? item.cost : item.price),
+        vatRate: this.vatRateFor(item),
+      }, { kind: draft.kind }));
+      result.added += 1;
+    }
+
+    this.persist();
+    return { ...result, draft: this.describeDraft(draft) };
+  }
+
+  listDocuments(options = {}) {
+    const voided = new Set();
+    this.documents.forEach({}, (document) => {
+      if (document.voids) voided.add(document.voids);
+    });
+    return this.documents
+      .list({ from: options.from, to: options.to, limit: Math.min(500, Number(options.limit) || 100) })
+      .map((document) => ({ ...document, voided: voided.has(document.id) }));
   }
 
   // -------------------------------------------------------------- stock take

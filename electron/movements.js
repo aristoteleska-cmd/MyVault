@@ -67,7 +67,7 @@ class MovementLog {
    */
   record({
     itemId, itemName, delta, quantityAfter, reason,
-    price = 0, cost = 0, vatRate = 0, clientId = '', by = '',
+    price = 0, cost = 0, vatRate = 0, clientId = '', docId = '', by = '',
   }, at = new Date()) {
     const amount = Math.trunc(Number(delta) || 0);
     if (!itemId || amount === 0) return null;
@@ -93,6 +93,9 @@ class MovementLog {
       // beside it: changing a rate must not rewrite a return already filed.
       vatRate: Math.max(0, Math.min(100, Number(vatRate) || 0)),
       clientId: String(clientId || ''),
+      // The invoice this came from, when it came from one. Lets a whole
+      // delivery be traced back to the piece of paper that caused it.
+      docId: String(docId || ''),
       by: String(by || '').slice(0, 60),
     };
 

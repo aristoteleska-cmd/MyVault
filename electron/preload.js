@@ -51,6 +51,20 @@ contextBridge.exposeInMainWorld('myvault', {
     reorder: (options) => invoke('stats:reorder', options),
   },
 
+  /** Invoices and delivery notes: a whole piece of paper, posted at once. */
+  docs: {
+    drafts: () => invoke('docs:drafts'),
+    start: (options) => invoke('docs:start', options),
+    update: (id, patch) => invoke('docs:update', id, patch),
+    setLine: (id, line) => invoke('docs:set-line', id, line),
+    removeLine: (id, index) => invoke('docs:remove-line', id, index),
+    discard: (id) => invoke('docs:discard', id),
+    post: (id) => invoke('docs:post', id),
+    void: (id) => invoke('docs:void', id),
+    list: (options) => invoke('docs:list', options),
+    importCsv: (id) => invoke('docs:import-csv', id),
+  },
+
   /** What the shop owes the tax office, and for which calendar period. */
   vat: {
     report: (range) => invoke('vat:report', range),

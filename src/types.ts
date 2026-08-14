@@ -185,6 +185,51 @@ export interface VatReport {
   movements: number;
 }
 
+/** An invoice or delivery note: 'in' brings stock in, 'out' sends it out. */
+export type DocumentKind = 'in' | 'out';
+
+export interface DocumentLine {
+  itemId: string;
+  name: string;
+  barcode: string;
+  quantity: number;
+  /** What the supplier charged, or what the customer was charged. */
+  unitPrice: number;
+  vatRate: number;
+  kind: DocumentKind;
+}
+
+export interface DocumentTotals {
+  net: number;
+  vat: number;
+  gross: number;
+  units: number;
+  lines: number;
+}
+
+/** A document being typed. Saved as it is typed, like a stock take. */
+export interface DraftDocument {
+  id: string;
+  kind: DocumentKind;
+  number: string;
+  supplier: string;
+  clientId: string;
+  date: string;
+  note: string;
+  lines: DocumentLine[];
+  startedAt: string;
+  by: string;
+  totals: DocumentTotals;
+}
+
+/** One that has been posted: history, never edited, only ever voided. */
+export interface PostedDocument extends DraftDocument {
+  postedAt: string;
+  voided: boolean;
+  /** Set on the reversing document, naming the one it cancels. */
+  voids?: string;
+}
+
 /** How the copy to the shop's second drive is going. */
 export interface BackupStatus {
   folder: string;
@@ -217,6 +262,8 @@ export interface Movement {
   /** The rate in force that day, so a rate change never rewrites a return. */
   vatRate: number;
   clientId: string;
+  /** The invoice this movement came from, when it came from one. */
+  docId: string;
   by: string;
 }
 
@@ -230,6 +277,7 @@ export interface Database {
   customFields: CustomField[];
   clients: Client[];
   stockTake: StockTake | null;
+  drafts: DraftDocument[];
   items: Item[];
   recoveredFrom?: string;
   downgradedFrom?: number;
@@ -368,6 +416,7 @@ export type Capability =
   | 'clients.manage'
   | 'stats.view'
   | 'vat.view'
+  | 'documents.manage'
   | 'items.return'
   | 'stocktake.run';
 

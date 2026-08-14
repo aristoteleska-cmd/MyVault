@@ -10,7 +10,7 @@ export type IconName =
   | 'chevronLeft' | 'chevronRight' | 'close' | 'check' | 'download'
   | 'upload' | 'folder' | 'alert' | 'box' | 'barcode' | 'filter'
   | 'sun' | 'moon' | 'monitor' | 'info' | 'sort' | 'save' | 'image' | 'staff'
-  | 'chart' | 'people' | 'clock' | 'undo' | 'receipt';
+  | 'chart' | 'people' | 'clock' | 'undo' | 'receipt' | 'invoice';
 
 const paths: Record<IconName, React.ReactNode> = {
   vault: (
@@ -41,6 +41,13 @@ const paths: Record<IconName, React.ReactNode> = {
       <path d="M3.5 19.5a5.5 5.5 0 0 1 11 0" />
       <path d="M16 5.4a3.2 3.2 0 0 1 0 5.2" />
       <path d="M17.5 14.4a5.5 5.5 0 0 1 3 5.1" />
+    </>
+  ),
+  invoice: (
+    <>
+      <path d="M5 3.5h9.5L19 8v12.5H5z" />
+      <path d="M14 3.5V8h5" />
+      <path d="M8 12.5h8M8 16h5" />
     </>
   ),
   receipt: (

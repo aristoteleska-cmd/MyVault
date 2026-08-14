@@ -6,6 +6,8 @@ import type {
   Client,
   ClientHistory,
   ReorderList,
+  DraftDocument,
+  PostedDocument,
   VatPeriod,
   VatReport,
   StockTake,
@@ -87,6 +89,27 @@ export interface MyVaultBridge {
     report(range?: { from?: string; to?: string }): Promise<Result<StatsReport>>;
     movements(range?: { from?: string; to?: string; limit?: number }): Promise<Result<Movement[]>>;
     reorder(options?: { days?: number; cover?: number }): Promise<Result<ReorderList>>;
+  };
+
+  docs: {
+    drafts(): Promise<Result<DraftDocument[]>>;
+    start(options?: { kind?: 'in' | 'out' }): Promise<Result<DraftDocument>>;
+    update(id: string, patch: Partial<DraftDocument>): Promise<Result<DraftDocument>>;
+    setLine(id: string, line: {
+      itemId: string; quantity: number; unitPrice?: number | string;
+      vatRate?: number | string; lineId?: number;
+    }): Promise<Result<DraftDocument>>;
+    removeLine(id: string, index: number): Promise<Result<DraftDocument>>;
+    discard(id: string): Promise<Result<DraftDocument[]>>;
+    post(id: string): Promise<Result<{ document: PostedDocument; moved: number; state: Database }>>;
+    void(id: string): Promise<Result<{ document: PostedDocument; moved: number; state: Database }>>;
+    list(options?: { limit?: number }): Promise<Result<PostedDocument[]>>;
+    importCsv(id: string): Promise<Result<{
+      canceled: boolean;
+      added?: number;
+      unmatched?: { barcode: string; name: string; quantity: number; price: number }[];
+      draft?: DraftDocument;
+    }>>;
   };
 
   vat: {
