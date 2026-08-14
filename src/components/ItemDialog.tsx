@@ -22,6 +22,7 @@ interface Draft {
   price: string;
   cost: string;
   lowStockThreshold: string;
+  vatRate: string;
   supplier: string;
   notes: string;
   custom: Record<string, CustomFieldValue>;
@@ -37,6 +38,7 @@ function draftFromItem(item: Item | null, prefillBarcode = ''): Draft {
     price: item ? String(item.price) : '',
     cost: item ? String(item.cost) : '',
     lowStockThreshold: item?.lowStockThreshold != null ? String(item.lowStockThreshold) : '',
+    vatRate: item?.vatRate != null ? String(item.vatRate) : '',
     supplier: item?.supplier ?? '',
     notes: item?.notes ?? '',
     custom: { ...(item?.custom ?? {}) },
@@ -135,6 +137,8 @@ export function ItemDialog({ item, prefillBarcode = '', onClose }: ItemDialogPro
       cost: normalizeNumberInput(draft.cost) ?? 0,
       lowStockThreshold:
         draft.lowStockThreshold.trim() === '' ? null : Number(draft.lowStockThreshold),
+      // Blank means "use the shop's rate", the same shape as the limit above.
+      vatRate: draft.vatRate.trim() === '' ? null : Number(draft.vatRate),
       supplier: draft.supplier.trim(),
       notes: draft.notes,
       custom: draft.custom,
@@ -350,6 +354,25 @@ export function ItemDialog({ item, prefillBarcode = '', onClose }: ItemDialogPro
               placeholder={t('form.lowStockPlaceholder', { count: db.settings.defaultLowStockThreshold })}
             />
           </div>
+
+          {/* Only where a shop actually charges VAT. Everyone else gets one
+              fewer box to wonder about. */}
+          {db.settings.vatEnabled && (
+            <div className="field">
+              <label htmlFor="field-vatRate">{t('form.vatRate')}</label>
+              <input
+                id="field-vatRate"
+                className="input"
+                type="number"
+                min={0}
+                max={100}
+                step={1}
+                value={draft.vatRate}
+                onChange={(e) => set('vatRate', e.target.value)}
+                placeholder={t('form.vatRateDefault', { rate: db.settings.vatRate })}
+              />
+            </div>
+          )}
 
           <div className="field">
             <label htmlFor="field-supplier">{t('form.supplier')}</label>

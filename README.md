@@ -105,6 +105,33 @@ as a **PDF**, laid out for A4 and printed on whatever printer the shop already
 has. The document is built inside MyVault and rendered on your own machine —
 nothing is uploaded to a converter.
 
+**VAT**
+
+Off unless you switch it on, because a shop that is not VAT-registered should
+not have a tax column in the way. Turn it on in **Settings → VAT**, set your
+usual rate, and each product can override it — a bookshop sets 6% as the default
+and puts 24% on the pens.
+
+The **VAT** screen then answers the question you actually have to answer:
+**what do I owe?** That is not the VAT on your sales. It is the VAT you
+collected, *less the VAT you already paid your suppliers*, and MyVault shows all
+three so the deduction is visible rather than assumed. Choose a quarter or a
+year — calendar periods, the ones a return is filed for, not a rolling ninety
+days — see the turnover and tax broken down per rate the way a return is laid
+out, and save it as a PDF for your accountant.
+
+Two settings decide whether every figure is right, so they are asked plainly:
+whether your **prices already include VAT** (in a shop they do — that is what
+the customer hands over) and whether your **cost prices do** (usually not — a
+supplier invoice is normally net). Getting either backwards moves everything by
+about a fifth.
+
+Stock takes, write-offs and corrections are deliberately **left out** of the
+sums and reported separately. Whether a write-off needs a VAT adjustment depends
+on why the stock went, which MyVault cannot know — so it says how many there
+were rather than guessing. These figures are a working total to hand an
+accountant. They are not a tax return and not advice.
+
 **Customers**
 
 Keep your regulars: name, phone, email, address and notes. Only the name is
@@ -401,6 +428,7 @@ electron/          Main process — the only code that touches the disk
   store.js         The JSON store: validation, atomic writes, backups, CSV import
   movements.js     The append-only history of every stock movement
   statistics.js    The sums behind Statistics and the order list
+  vat.js           VAT: collected less deductible, per rate, per quarter
   pdf.js           The printable documents, built and escaped here
   offline.js       The rules that keep the app off the network
   csv.js           Dependency-free CSV reader/writer
@@ -493,8 +521,8 @@ PIN and decides what they may do.
 
 | Role | What they can do |
 | --- | --- |
-| **Manager** | Everything: products, categories, extra details, settings, statistics, customers, stock takes, and who else works here. |
-| **Senior** | Adds products, books deliveries in, rings up sales, takes returns, counts the shelves, exports a CSV, reads the statistics, keeps the customer list. **Not** categories, extra details, settings, or deleting products. |
+| **Manager** | Everything: products, categories, extra details, settings, statistics, VAT, customers, stock takes, and who else works here. |
+| **Senior** | Adds products, books deliveries in, rings up sales, takes returns, counts the shelves, exports a CSV, reads the statistics, keeps the customer list. **Not** the VAT screen — the shop's tax position is the owner's — and not categories, extra details, settings, or deleting products. |
 | **Assistant** | Looks a product up and takes one off when it sells, and can say which customer they are serving. Nothing else — not the takings, not the customer list itself, not counting the shelves, not correcting a count upwards (a delivery rather than a sale), and not handing money back. A refund is a judgement about whether the shop really sold that thing, and that belongs to a senior. |
 
 **The installer asks who will manage this copy.** A page during installation

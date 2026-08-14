@@ -1613,3 +1613,8 @@ table.items tbody td > .item-meta { overflow: hidden; text-overflow: ellipsis; }
 .table tr:last-child td { border-bottom: 0; }
 .table .num { text-align: end; font-variant-numeric: tabular-nums; }
 .table .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
+
+/* The VAT bill, and whether it is a bill at all. */
+.stat-card.is-owed { border-color: var(--warning); }
+.stat-card.is-refund { border-color: var(--success); }
+.callout.warn { border-color: var(--warning); background: var(--warning-soft); }

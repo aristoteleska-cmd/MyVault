@@ -51,6 +51,12 @@ contextBridge.exposeInMainWorld('myvault', {
     reorder: (options) => invoke('stats:reorder', options),
   },
 
+  /** What the shop owes the tax office, and for which calendar period. */
+  vat: {
+    report: (range) => invoke('vat:report', range),
+    periods: () => invoke('vat:periods'),
+  },
+
   /** Counting the shelves. The count is saved as it is typed. */
   stocktake: {
     start: (options) => invoke('stocktake:start', options),

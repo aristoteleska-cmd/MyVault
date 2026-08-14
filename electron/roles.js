@@ -41,6 +41,7 @@ const CAPABILITIES = [
   'clients.view',    // see the customer list, and say who is being served
   'clients.manage',  // add a regular, correct their phone number, remove them
   'stats.view',      // takings, profit, what is selling and what is not
+  'vat.view',        // the shop's tax position, and what it owes
 ];
 
 /**

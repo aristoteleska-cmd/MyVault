@@ -67,7 +67,7 @@ class MovementLog {
    */
   record({
     itemId, itemName, delta, quantityAfter, reason,
-    price = 0, cost = 0, clientId = '', by = '',
+    price = 0, cost = 0, vatRate = 0, clientId = '', by = '',
   }, at = new Date()) {
     const amount = Math.trunc(Number(delta) || 0);
     if (!itemId || amount === 0) return null;
@@ -89,6 +89,9 @@ class MovementLog {
       // up: last month's takings would silently change.
       price: money(price),
       cost: money(cost),
+      // The VAT rate as it stood that day, for the same reason as the price
+      // beside it: changing a rate must not rewrite a return already filed.
+      vatRate: Math.max(0, Math.min(100, Number(vatRate) || 0)),
       clientId: String(clientId || ''),
       by: String(by || '').slice(0, 60),
     };

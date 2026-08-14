@@ -99,6 +99,117 @@ function SecondCopyPanel() {
   );
 }
 
+/**
+ * VAT, and the two questions that decide whether every figure is right.
+ *
+ * Whether a price already contains VAT, and whether a cost does, are not
+ * cosmetic: getting either backwards moves the whole return by about a fifth.
+ * They are asked plainly, with the answer that is true in a shop as the default.
+ */
+function VatPanel() {
+  const { db, updateSettings, can } = useVault();
+  const { t } = useI18n();
+  if (!can('settings.manage')) return null;
+  const settings = db.settings;
+
+  return (
+    <div className="panel">
+      <div className="panel-head">{t('settings.vatPanel')}</div>
+
+      <div className="setting-row">
+        <div className="setting-text">
+          <div className="setting-title">{t('settings.vatOn')}</div>
+          <div className="setting-desc">{t('settings.vatOnDesc')}</div>
+        </div>
+        <div className="setting-control">
+          <button
+            type="button"
+            className={settings.vatEnabled ? 'btn btn-primary' : 'btn'}
+            aria-pressed={settings.vatEnabled}
+            onClick={() => void updateSettings({ vatEnabled: !settings.vatEnabled })}
+          >
+            {settings.vatEnabled ? t('common.yes') : t('common.no')}
+          </button>
+        </div>
+      </div>
+
+      {settings.vatEnabled && (
+        <>
+          <div className="setting-row">
+            <div className="setting-text">
+              <div className="setting-title">{t('settings.vatRate')}</div>
+              <div className="setting-desc">{t('settings.vatRateDesc')}</div>
+            </div>
+            <div className="setting-control">
+              <div className="segmented">
+                {[24, 13, 6, 0].map((rate) => (
+                  <button
+                    key={rate}
+                    type="button"
+                    className="segment"
+                    aria-pressed={settings.vatRate === rate}
+                    onClick={() => void updateSettings({ vatRate: rate })}
+                  >
+                    {rate}%
+                  </button>
+                ))}
+              </div>
+              <input
+                className="input"
+                style={{ width: 90 }}
+                type="number"
+                min={0}
+                max={100}
+                step={1}
+                value={settings.vatRate}
+                onChange={(e) => void updateSettings({ vatRate: Number(e.target.value) })}
+                aria-label={t('settings.vatRate')}
+              />
+            </div>
+          </div>
+
+          <div className="setting-row">
+            <div className="setting-text">
+              <div className="setting-title">{t('settings.pricesIncludeVat')}</div>
+              <div className="setting-desc">{t('settings.pricesIncludeVatDesc')}</div>
+            </div>
+            <div className="setting-control">
+              <button
+                type="button"
+                className={settings.pricesIncludeVat ? 'btn btn-primary' : 'btn'}
+                aria-pressed={settings.pricesIncludeVat}
+                onClick={() => void updateSettings({ pricesIncludeVat: !settings.pricesIncludeVat })}
+              >
+                {settings.pricesIncludeVat ? t('common.yes') : t('common.no')}
+              </button>
+            </div>
+          </div>
+
+          <div className="setting-row">
+            <div className="setting-text">
+              <div className="setting-title">{t('settings.costsIncludeVat')}</div>
+              <div className="setting-desc">
+                {t('settings.costsIncludeVatDesc')}
+                <span className="setting-warn">{t('settings.vatWarning')}</span>
+              </div>
+            </div>
+            <div className="setting-control">
+              <button
+                type="button"
+                className={settings.costsIncludeVat ? 'btn btn-primary' : 'btn'}
+                aria-pressed={settings.costsIncludeVat}
+                onClick={() => void updateSettings({ costsIncludeVat: !settings.costsIncludeVat })}
+              >
+                {settings.costsIncludeVat ? t('common.yes') : t('common.no')}
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 const UPDATE_MODES: {
   value: UpdateMode;
   labelKey: TranslationKey;
@@ -521,6 +632,8 @@ export function SettingsView() {
             </div>
           </div>
         </div>
+
+        <VatPanel />
 
         <UpdatesPanel />
 

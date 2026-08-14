@@ -27,6 +27,8 @@ export interface Item {
   price: number;
   cost: number;
   lowStockThreshold: number | null;
+  /** Null means the shop's default rate applies. */
+  vatRate: number | null;
   supplier: string;
   notes: string;
   custom: Record<string, CustomFieldValue>;
@@ -54,6 +56,14 @@ export interface Settings {
   dateFormat: string;
   /** A second place to mirror backups to. Empty until the shop chooses one. */
   backupFolder: string;
+  /** VAT is off until a shop switches it on. */
+  vatEnabled: boolean;
+  /** The rate most of the shop sells at; individual products may differ. */
+  vatRate: number;
+  /** In a retail shop the shelf price already contains VAT, so this is true. */
+  pricesIncludeVat: boolean;
+  /** Supplier invoices are usually net, so this is false. */
+  costsIncludeVat: boolean;
   /** Off unless the shop deliberately switched it on. */
   updates: UpdateMode;
 }
@@ -132,6 +142,49 @@ export interface ReorderList {
   suppliers: { supplier: string; items: ReorderItem[]; units: number; cost: number }[];
 }
 
+/** One rate's worth of turnover, the way a VAT return is laid out. */
+export interface VatRateLine {
+  rate: number;
+  net: number;
+  vat: number;
+  gross: number;
+  units: number;
+}
+
+export interface VatSide {
+  rates: VatRateLine[];
+  net: number;
+  vat: number;
+  gross: number;
+}
+
+/** A calendar period a return can actually be filed for. */
+export interface VatPeriod {
+  from: string;
+  to: string;
+  year: number;
+  /** 1–4, or 0 for a whole year. */
+  quarter: number;
+}
+
+export interface VatReport {
+  range: { from: string; to: string };
+  enabled: boolean;
+  pricesIncludeVat: boolean;
+  costsIncludeVat: boolean;
+  /** VAT charged to customers. */
+  collected: VatSide;
+  /** VAT paid to suppliers on stock coming in — deductible. */
+  paid: VatSide;
+  /** Collected less paid. Negative means the shop is owed, not billed. */
+  payable: number;
+  /** Movements deliberately left out of the sums — stock takes, write-offs. */
+  excluded: { movements: number; units: number };
+  /** Stock that moved with no rate recorded, e.g. before VAT was switched on. */
+  withoutRate: number;
+  movements: number;
+}
+
 /** How the copy to the shop's second drive is going. */
 export interface BackupStatus {
   folder: string;
@@ -161,6 +214,8 @@ export interface Movement {
   reason: MovementReason;
   price: number;
   cost: number;
+  /** The rate in force that day, so a rate change never rewrites a return. */
+  vatRate: number;
   clientId: string;
   by: string;
 }
@@ -312,6 +367,7 @@ export type Capability =
   | 'clients.view'
   | 'clients.manage'
   | 'stats.view'
+  | 'vat.view'
   | 'items.return'
   | 'stocktake.run';
 

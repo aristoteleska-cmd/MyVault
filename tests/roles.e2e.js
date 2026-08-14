@@ -142,6 +142,9 @@ async function main() {
     'clients.add': [{ name: 'Not allowed' }],
     'clients.update': ['anything', { name: 'Not allowed' }],
     'clients.remove': ['anything'],
+    // The shop's tax position is the owner's business, not the floor's.
+    'vat.report': [{}],
+    'vat.periods': [],
     // Counting the shelves rewrites the stock figures wholesale.
     'stocktake.start': [{}],
     'stocktake.progress': [],

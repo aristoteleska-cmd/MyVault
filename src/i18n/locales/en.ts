@@ -640,6 +640,59 @@ export const en = {
   'settings.secondCopyLast': 'Last copied {when}',
   'toast.backupFolderSet': 'Backups will be copied there from now on.',
   'toast.backupMirrored': 'A copy has been made.',
+
+  // -------------------------------------------------------------------- VAT
+  'nav.vat': 'VAT',
+
+  'vat.title': 'VAT',
+  'vat.sub': 'What you collected, what you can deduct, and what you owe.',
+  'vat.loading': 'Working it out…',
+  'vat.periodAria': 'VAT period',
+  'vat.thisQuarter': 'This quarter',
+  'vat.lastQuarter': 'Last quarter',
+  'vat.thisYear': 'This year',
+  'vat.lastYear': 'Last year',
+
+  'vat.collected': 'VAT you collected',
+  'vat.collectedNote': 'on {money} of sales',
+  'vat.paid': 'VAT you already paid',
+  'vat.paidNote': 'On stock bought in — you deduct this',
+  'vat.payable': 'You owe',
+  'vat.payableNote': 'Collected, less what you paid on purchases',
+  'vat.refundable': 'You are owed',
+  'vat.refundableNote': 'You paid more VAT on stock than you collected on sales',
+
+  'vat.onSales': 'On what you sold',
+  'vat.onPurchases': 'On what you bought',
+  'vat.onPurchasesSub': 'Deliveries booked in during the period',
+  'vat.noSales': 'Nothing was sold in this period.',
+  'vat.noPurchases': 'No deliveries were booked in during this period.',
+  'vat.rate': 'Rate',
+  'vat.net': 'Before VAT',
+  'vat.vat': 'VAT',
+  'vat.gross': 'Total',
+  'vat.printBtn': 'Save as PDF',
+
+  'vat.excludedNote': '{count} stock movements are not counted here — stock takes, write-offs and corrections. Whether those need a VAT adjustment depends on why the stock went, so ask your accountant rather than assuming.',
+  'vat.withoutRateNote': '{count} pieces moved with no VAT rate recorded — usually stock sold before you switched VAT on. They are shown at 0%.',
+  'vat.caveat': 'These figures come from your own records on this computer. They are a working total to hand your accountant, not a tax return and not advice.',
+
+  'vat.offTitle': 'VAT is switched off',
+  'vat.offBody': 'Turn it on in Settings and MyVault will work out what you collected, what you can deduct, and what you owe for each quarter.',
+
+  'settings.vatPanel': 'VAT',
+  'settings.vatOn': 'Track VAT',
+  'settings.vatOnDesc': 'Work out what you owe from your own sales and deliveries. Leave this off if you are not VAT-registered.',
+  'settings.vatRate': 'Your usual rate',
+  'settings.vatRateDesc': 'Applied to every product unless you give that product its own rate. In Greece that is 24% for most things, 13% for most food, and 6% for medicines, books and newspapers.',
+  'settings.pricesIncludeVat': 'Prices already include VAT',
+  'settings.pricesIncludeVatDesc': 'On in a shop, where the price on the shelf is what the customer hands over. Off if you quote prices before VAT.',
+  'settings.costsIncludeVat': 'Cost prices already include VAT',
+  'settings.costsIncludeVatDesc': 'Usually off — a supplier invoice normally shows the price before VAT, with the VAT added underneath.',
+  'settings.vatWarning': 'Getting these two backwards moves every figure by about a fifth, so it is worth checking one against a receipt.',
+
+  'form.vatRate': 'VAT rate',
+  'form.vatRateDefault': 'Shop default ({rate}%)',
 };
 
 export type TranslationKey = keyof typeof en;

@@ -26,6 +26,8 @@ import type {
   Settings,
   StatsReport,
   StockTakeProgress,
+  VatPeriod,
+  VatReport,
   BackupStatus,
   UpdateStatus,
 } from '../types';
@@ -92,6 +94,10 @@ interface VaultValue {
     => Promise<Movement[] | null>;
   reorderList: (options?: { days?: number; cover?: number }) => Promise<ReorderList | null>;
 
+  /** What the shop owes, and the calendar periods it can be filed for. */
+  vatReport: (range?: { from?: string; to?: string }) => Promise<VatReport | null>;
+  vatPeriods: () => Promise<{ periods: Record<string, VatPeriod>; suggestedRates: number[] } | null>;
+
   /** Something came back over the counter: stock returns, money goes out. */
   returnItem: (id: string, quantity: number) => Promise<void>;
 
@@ -104,7 +110,7 @@ interface VaultValue {
 
   /** Saves one of MyVault's own documents as a PDF. Returns the path, or null. */
   printPdf: (request: {
-    kind: 'stocktake' | 'reorder' | 'inventory';
+    kind: 'stocktake' | 'reorder' | 'inventory' | 'vat';
     fileName?: string;
     payload: Record<string, unknown>;
   }) => Promise<string | null>;
@@ -184,6 +190,10 @@ const emptyDb: Database = {
     shopName: '',
     dateFormat: 'dd/MM/yyyy',
     backupFolder: '',
+    vatEnabled: false,
+    vatRate: 24,
+    pricesIncludeVat: true,
+    costsIncludeVat: false,
     updates: 'off',
   },
   categories: [],
@@ -513,6 +523,16 @@ export function VaultProvider({ children }: { children: ReactNode }) {
     [run],
   );
 
+  const vatReport = useCallback(
+    async (range?: { from?: string; to?: string }) => run(window.myvault.vat.report(range)),
+    [run],
+  );
+
+  const vatPeriods = useCallback(
+    async () => run(window.myvault.vat.periods()),
+    [run],
+  );
+
   const reorderList = useCallback(
     async (options?: { days?: number; cover?: number }) =>
       run(window.myvault.stats.reorder(options)),
@@ -571,7 +591,7 @@ export function VaultProvider({ children }: { children: ReactNode }) {
   // ---------------------------------------------------------------- printing
 
   const printPdf = useCallback(async (request: {
-    kind: 'stocktake' | 'reorder' | 'inventory';
+    kind: 'stocktake' | 'reorder' | 'inventory' | 'vat';
     fileName?: string;
     payload: Record<string, unknown>;
   }) => {
@@ -895,6 +915,8 @@ export function VaultProvider({ children }: { children: ReactNode }) {
       statsReport,
       recentMovements,
       reorderList,
+      vatReport,
+      vatPeriods,
       returnItem,
       startStockTake,
       stockTakeProgress,
@@ -946,7 +968,7 @@ export function VaultProvider({ children }: { children: ReactNode }) {
       notify, dismissToast,
       addItem, updateItem, adjustStock, deleteItems,
       serving, addClient, updateClient, deleteClient, clientHistory,
-      statsReport, recentMovements, reorderList, returnItem,
+      statsReport, recentMovements, reorderList, vatReport, vatPeriods, returnItem,
       startStockTake, stockTakeProgress, countStockTake, cancelStockTake, applyStockTake,
       printPdf, backupStatus, refreshBackupStatus, chooseBackupFolder, forgetBackupFolder, backupNow,
       addCategory, updateCategory, deleteCategory,

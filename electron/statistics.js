@@ -17,6 +17,8 @@
  * of the shop.
  */
 
+const { split, normalizeRate } = require('./vat');
+
 const MAX_LIST = 8;
 
 /** Days above which a chart is grouped by month instead of by day. */
@@ -141,7 +143,7 @@ function stockSnapshot(db) {
  * month) and by product, so memory follows the size of the shop, not the size
  * of its history.
  */
-function accumulate(log, { from, to, byMonth }) {
+function accumulate(log, { from, to, byMonth, salesInclude = true }) {
   const perPeriod = new Map();
   const perItem = new Map();
   const perClient = new Map();
@@ -149,6 +151,7 @@ function accumulate(log, { from, to, byMonth }) {
   const totals = {
     sold: 0, takings: 0, costOfSales: 0,
     returned: 0, refunded: 0,
+    vatCollected: 0, netTakings: 0,
     received: 0, spend: 0,
     corrections: 0, movements: 0,
   };
@@ -168,6 +171,10 @@ function accumulate(log, { from, to, byMonth }) {
       totals.sold += units;
       totals.takings += takings;
       totals.costOfSales += units * (Number(entry.cost) || 0);
+      // What of that was never the shop's money.
+      const parts = split(takings, normalizeRate(entry.vatRate) ?? 0, salesInclude);
+      totals.vatCollected += parts.vat;
+      totals.netTakings += parts.net;
       period.sold += units;
       period.takings += takings;
 
@@ -197,6 +204,9 @@ function accumulate(log, { from, to, byMonth }) {
       const refund = units * (Number(entry.price) || 0);
       totals.returned += units;
       totals.refunded += refund;
+      const back = split(refund, normalizeRate(entry.vatRate) ?? 0, salesInclude);
+      totals.vatCollected -= back.vat;
+      totals.netTakings -= back.net;
       period.sold -= units;
       period.takings -= refund;
 
@@ -245,7 +255,10 @@ function report(db, log, { from, to, now = new Date() } = {}) {
   const days = Math.max(1, Math.round(spanMs / 86400000));
   const byMonth = days > DAILY_LIMIT;
 
-  const current = accumulate(log, { from: start.toISOString(), to: end.toISOString(), byMonth });
+  const salesInclude = db.settings?.pricesIncludeVat !== false;
+  const current = accumulate(log, {
+    from: start.toISOString(), to: end.toISOString(), byMonth, salesInclude,
+  });
 
   // The same length of time, immediately before. Comparing a fortnight against
   // a month would flatter or damn the shop for no reason.
@@ -255,6 +268,7 @@ function report(db, log, { from, to, now = new Date() } = {}) {
     from: previousStart.toISOString(),
     to: previousEnd.toISOString(),
     byMonth: true,
+    salesInclude,
   });
 
   const clientName = new Map((db.clients || []).map((c) => [c.id, c.name]));
@@ -282,6 +296,11 @@ function report(db, log, { from, to, now = new Date() } = {}) {
       profit: money(current.totals.takings - current.totals.refunded - current.totals.costOfSales),
       returned: current.totals.returned,
       refunded: money(current.totals.refunded),
+      // Shown only when a shop has VAT switched on. Takings above are what went
+      // into the till; this is the part of it that belongs to the shop.
+      vatCollected: money(current.totals.vatCollected),
+      netTakings: money(current.totals.netTakings),
+      netProfit: money(current.totals.netTakings - current.totals.costOfSales),
       received: current.totals.received,
       spend: money(current.totals.spend),
       writtenOff: current.totals.corrections,

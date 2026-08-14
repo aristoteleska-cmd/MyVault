@@ -6,6 +6,8 @@ import type {
   Client,
   ClientHistory,
   ReorderList,
+  VatPeriod,
+  VatReport,
   StockTake,
   StockTakeProgress,
   CustomField,
@@ -87,6 +89,14 @@ export interface MyVaultBridge {
     reorder(options?: { days?: number; cover?: number }): Promise<Result<ReorderList>>;
   };
 
+  vat: {
+    report(range?: { from?: string; to?: string }): Promise<Result<VatReport>>;
+    periods(): Promise<Result<{
+      periods: Record<string, VatPeriod>;
+      suggestedRates: number[];
+    }>>;
+  };
+
   stocktake: {
     start(options?: { categoryId?: string }): Promise<Result<StockTake>>;
     progress(): Promise<Result<StockTakeProgress | null>>;
@@ -104,7 +114,7 @@ export interface MyVaultBridge {
   print: {
     /** The page is built in the main process — only values cross the bridge. */
     pdf(request: {
-      kind: 'stocktake' | 'reorder' | 'inventory';
+      kind: 'stocktake' | 'reorder' | 'inventory' | 'vat';
       fileName?: string;
       payload: Record<string, unknown>;
     }): Promise<Result<{ canceled: boolean; filePath?: string }>>;

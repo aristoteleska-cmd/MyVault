@@ -192,10 +192,56 @@ function inventorySheet({ title, shop, when, lines, totals, labels }) {
   });
 }
 
+/**
+ * The VAT return, as a sheet to hand an accountant.
+ *
+ * Laid out the way a return is: turnover and tax per rate, what was collected,
+ * what was paid on purchases, and the difference. The caveat at the bottom is
+ * printed on purpose — this is a shop's own arithmetic, not a filing.
+ */
+function vatSheet({ title, shop, when, lines, totals, labels }) {
+  const table = (heading, rates, empty) => `
+    <h2>${esc(heading)}</h2>
+    <table>
+      <thead><tr>
+        <th>${esc(labels.rate)}</th>
+        <th class="num">${esc(labels.net)}</th>
+        <th class="num">${esc(labels.vat)}</th>
+        <th class="num">${esc(labels.gross)}</th>
+      </tr></thead>
+      <tbody>${rates.length ? rows(rates, (r) => `
+        <td>${esc(r.rate)}</td>
+        <td class="num">${esc(r.net)}</td>
+        <td class="num">${esc(r.vat)}</td>
+        <td class="num">${esc(r.gross)}</td>`) : `<tr><td colspan="4">${esc(empty)}</td></tr>`}
+      </tbody>
+    </table>`;
+
+  return page({
+    title,
+    shop,
+    when,
+    subtitle: labels.period,
+    body: `
+      <div class="totals">
+        <div class="total"><div class="k">${esc(labels.collected)}</div><div class="v">${esc(totals.collected)}</div></div>
+        <div class="total"><div class="k">${esc(labels.paid)}</div><div class="v">${esc(totals.paid)}</div></div>
+        <div class="total"><div class="k">${esc(totals.payableLabel)}</div><div class="v">${esc(totals.payable)}</div></div>
+      </div>
+      ${table(labels.onSales, lines.collected || [], labels.noSales)}
+      ${table(labels.onPurchases, lines.paid || [], labels.noPurchases)}
+      ${totals.excluded ? `<p class="note">${esc(totals.excluded)}</p>` : ''}
+      ${totals.withoutRate ? `<p class="note">${esc(totals.withoutRate)}</p>` : ''}
+      <p class="note">${esc(labels.caveat)}</p>`,
+    footNote: labels.caveat,
+  });
+}
+
 const DOCUMENTS = {
   stocktake: stockTakeSheet,
   reorder: reorderSheet,
   inventory: inventorySheet,
+  vat: vatSheet,
 };
 
 /**
@@ -211,7 +257,11 @@ function buildDocument(kind, payload = {}) {
     when: String(payload.when || new Date().toLocaleString()),
     labels: payload.labels || {},
     totals: payload.totals || {},
-    lines: Array.isArray(payload.lines) ? payload.lines : [],
+    // Most documents are a list of rows; the VAT return is two lists, so an
+    // object is passed through untouched rather than forced into an array.
+    lines: Array.isArray(payload.lines) || (payload.lines && typeof payload.lines === 'object')
+      ? payload.lines
+      : [],
     suppliers: Array.isArray(payload.suppliers) ? payload.suppliers : [],
     blank: Boolean(payload.blank),
   });

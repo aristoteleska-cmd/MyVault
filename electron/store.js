@@ -18,6 +18,7 @@ const {
   generateRecoveryCode, hashRecoveryCode, verifyRecoveryCode,
 } = require('./roles');
 const { MovementLog } = require('./movements');
+const { normalizeRate, rateFor } = require('./vat');
 
 const SCHEMA_VERSION = 3;
 const MAX_BACKUPS = 10;
@@ -69,6 +70,27 @@ const DEFAULT_SETTINGS = {
    * matters is not on the same disk as the thing it is protecting.
    */
   backupFolder: '',
+
+  /**
+   * VAT, off until a shop turns it on.
+   *
+   * Most one-person shops using this instead of a notebook do not want a tax
+   * column in the way, and a VAT feature that cannot be switched off would be
+   * clutter for them. A shop that does need it turns it on once.
+   */
+  vatEnabled: false,
+  /** The rate most of the shop sells at. Individual products can differ. */
+  vatRate: 24,
+  /**
+   * Whether the price on the shelf already contains VAT. In a retail shop it
+   * does — that is what the customer hands over — so this is the default.
+   */
+  pricesIncludeVat: true,
+  /**
+   * Whether the cost price entered is what the supplier invoiced before VAT.
+   * Invoices are usually net, so this is off by default.
+   */
+  costsIncludeVat: false,
   /**
    * Off unless the shop turns it on. MyVault is handed over as a program that
    * does not use the internet, so the setting that would change that has to be
@@ -129,6 +151,11 @@ function normalizeSettings(input) {
   settings.language = asString(settings.language, 12);
   settings.shopName = asString(settings.shopName, 80);
   settings.backupFolder = asString(settings.backupFolder, 400).trim();
+
+  settings.vatEnabled = Boolean(settings.vatEnabled);
+  settings.vatRate = normalizeRate(settings.vatRate) ?? DEFAULT_SETTINGS.vatRate;
+  settings.pricesIncludeVat = settings.pricesIncludeVat !== false;
+  settings.costsIncludeVat = Boolean(settings.costsIncludeVat);
   settings.defaultLowStockThreshold = Math.max(0, clampQuantity(settings.defaultLowStockThreshold));
 
   // 1.1.0 stored this as a plain on/off. An old file saying true meant "look for
@@ -212,6 +239,17 @@ class Store {
     } catch {
       return null;
     }
+  }
+
+  /**
+   * The VAT rate that applies to a product right now.
+   *
+   * Written into every movement, so a shop that changes a rate — or switches
+   * VAT on for the first time — never has last year's return rewritten
+   * underneath it. Exactly the same principle as copying in the price.
+   */
+  vatRateFor(item) {
+    return rateFor(item, this.db.settings);
   }
 
   // ---------------------------------------------------------------- lifecycle
@@ -422,6 +460,10 @@ class Store {
           ? null
           : Math.max(0, clampQuantity(input.lowStockThreshold)),
       supplier: asString(input.supplier, 120).trim(),
+      // Null means "whatever the shop's default is", exactly like the low
+      // stock limit above it. A shop selling mostly books at 6% sets the
+      // default once and overrides the few things that differ.
+      vatRate: normalizeRate(input.vatRate),
       notes: asString(input.notes, 2000),
       custom,
       createdAt: asString(input.createdAt) || nowIso(),
@@ -617,6 +659,7 @@ class Store {
         reason: 'new',
         price: item.price,
         cost: item.cost,
+        vatRate: this.vatRateFor(item),
         by,
       });
     }
@@ -651,6 +694,7 @@ class Store {
         reason: 'correction',
         price: merged.price,
         cost: merged.cost,
+        vatRate: this.vatRateFor(merged),
         by,
       });
     }
@@ -687,6 +731,7 @@ class Store {
         reason: why,
         price: item.price,
         cost: item.cost,
+        vatRate: this.vatRateFor(item),
         // A sale and a refund both belong to whoever was at the counter.
         clientId: actual < 0 || why === 'return' ? clientId : '',
         by,
@@ -711,6 +756,7 @@ class Store {
         reason: 'delete',
         price: item.price,
         cost: item.cost,
+        vatRate: this.vatRateFor(item),
         by,
       });
     }
@@ -734,6 +780,7 @@ class Store {
         reason: 'restore',
         price: item.price,
         cost: item.cost,
+        vatRate: this.vatRateFor(item),
         by,
       });
     }
@@ -873,6 +920,7 @@ class Store {
         reason: 'stocktake',
         price: item.price,
         cost: item.cost,
+        vatRate: this.vatRateFor(item),
         by: by || progress.by,
       });
     }
@@ -1356,6 +1404,7 @@ class Store {
             reason: 'import',
             price: merged.price,
             cost: merged.cost,
+            vatRate: this.vatRateFor(merged),
           });
         }
       } else {
@@ -1377,6 +1426,7 @@ class Store {
             reason: 'import',
             price: item.price,
             cost: item.cost,
+            vatRate: this.vatRateFor(item),
           });
         }
       }

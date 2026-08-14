@@ -7,6 +7,7 @@ const path = require('path');
 const { Store, STANDARD_FIELDS, MAX_CUSTOM_FIELDS } = require('./store');
 const { report, reorderList, clientHistory } = require('./statistics');
 const { buildDocument } = require('./pdf');
+const { vatReport, vatPeriods, SUGGESTED_RATES } = require('./vat');
 const { NETWORK_SWITCHES, DISABLED_FEATURES, UPDATE_HOSTS, enforceOffline } = require('./offline');
 const { parseCsv, toCsv } = require('./csv');
 const { Updater } = require('./updater');
@@ -566,6 +567,23 @@ function registerIpc() {
       cover: Math.min(180, Math.max(7, Number(options.cover) || 30)),
     },
   ));
+
+  // --------------------------------------------------------------------- VAT
+
+  /**
+   * What the shop owes, for a period it can actually file.
+   *
+   * Manager only. This is the owner's tax position — what they collected, what
+   * they can deduct and what they have to pay — and that is not something the
+   * Saturday assistant or the floor senior needs on their screen.
+   */
+  handle('vat:report', 'vat.view', (range = {}) =>
+    vatReport(store.getState(), store.movements, { from: range.from, to: range.to }));
+
+  handle('vat:periods', 'vat.view', () => ({
+    periods: vatPeriods(),
+    suggestedRates: SUGGESTED_RATES,
+  }));
 
   // -------------------------------------------------------------- stock take
 
