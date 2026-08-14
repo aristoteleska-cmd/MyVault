@@ -18,6 +18,8 @@ interface ItemTableProps {
   onEdit: (item: Item) => void;
   onDelete: (ids: string[]) => void;
   onAdjust: (id: string, delta: number) => void;
+  /** Something came back over the counter. Absent where returns do not apply. */
+  onReturn?: (id: string) => void;
 }
 
 export function ItemTable({
@@ -34,6 +36,7 @@ export function ItemTable({
   onEdit,
   onDelete,
   onAdjust,
+  onReturn,
 }: ItemTableProps) {
   const { t, locale } = useI18n();
   const { can } = useVault();
@@ -169,6 +172,19 @@ export function ItemTable({
                         </button>
                       )}
                     </div>
+                    {/* A return is not a delivery: stock comes back and money
+                        goes out. Its own button, and its own permission. */}
+                    {can('items.return') && onReturn && (
+                      <button
+                        type="button"
+                        className="icon-btn"
+                        onClick={() => onReturn(item.id)}
+                        aria-label={t('table.returnOne', { name: item.name })}
+                        title={t('table.returnOneTitle')}
+                      >
+                        <Icon name="undo" size={15} />
+                      </button>
+                    )}
                   </div>
                 </td>
 

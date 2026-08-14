@@ -19,8 +19,19 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 
-/** Why the stock moved. The sign of `delta` says which way. */
-const REASONS = ['sale', 'delivery', 'correction', 'new', 'import', 'delete', 'restore'];
+/**
+ * Why the stock moved. The sign of `delta` says which way.
+ *
+ * `return` and `stocktake` both look like a delivery from the shelf's point of
+ * view — something appears — but they mean entirely different things to the
+ * takings. A return hands money back; a stock take found what was already
+ * there. Neither is a delivery, and lumping them in with one would quietly
+ * overstate what the shop bought in.
+ */
+const REASONS = [
+  'sale', 'return', 'delivery', 'correction', 'stocktake',
+  'new', 'import', 'delete', 'restore',
+];
 
 /**
  * Reading is streamed in chunks rather than with readFileSync, so a large year

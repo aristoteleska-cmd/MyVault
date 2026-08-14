@@ -42,8 +42,9 @@ const EXPECTED = {
   senior: {
     // "add item and stock, but not categories" — plus the two that come with
     // running the floor: knowing what is selling, and writing down a regular.
-    yes: ['items.view', 'items.sell', 'items.receive', 'items.create', 'items.edit',
-      'data.export', 'clients.view', 'clients.manage', 'stats.view'],
+    yes: ['items.view', 'items.sell', 'items.receive', 'items.return', 'items.create',
+      'items.edit', 'data.export', 'clients.view', 'clients.manage', 'stats.view',
+      'stocktake.run'],
     no: ['categories.manage', 'fields.manage', 'settings.manage', 'staff.manage',
       'items.delete', 'data.import'],
   },
@@ -52,9 +53,9 @@ const EXPECTED = {
     // customer list, because putting a sale against the right regular is the
     // till's job; they may not add one, and they may not see the takings.
     yes: ['items.view', 'items.sell', 'clients.view'],
-    no: ['items.receive', 'items.create', 'items.edit', 'items.delete',
+    no: ['items.receive', 'items.return', 'items.create', 'items.edit', 'items.delete',
       'categories.manage', 'fields.manage', 'settings.manage', 'staff.manage',
-      'data.export', 'data.import', 'clients.manage', 'stats.view'],
+      'data.export', 'data.import', 'clients.manage', 'stats.view', 'stocktake.run'],
   },
 };
 
@@ -90,6 +91,15 @@ assert.ok(!can('junior', 'stats.view'), 'a junior cannot read the shop\'s taking
 // But they can say who they are serving, or half the shop's sales go unattributed.
 assert.ok(can('junior', 'clients.view') && !can('junior', 'clients.manage'));
 ok('the till can name a customer without being shown the profit');
+
+// Handing money back over the counter is a judgement, not a keystroke: it is
+// the senior who decides whether the shop really sold that thing.
+assert.ok(can('admin', 'items.return') && can('senior', 'items.return'));
+assert.ok(!can('junior', 'items.return'), 'an assistant cannot refund a customer');
+// And counting the shelves corrects the stock figures wholesale, which is not
+// something to hand to whoever is on the till this Saturday.
+assert.ok(can('senior', 'stocktake.run') && !can('junior', 'stocktake.run'));
+ok('refunds and stock takes stop at the senior, not the till');
 
 assert.ok(!can('nonsense', 'items.view'), 'an unknown role is refused everything');
 assert.ok(!can('admin', 'items.teleport'), 'an unknown capability is refused');

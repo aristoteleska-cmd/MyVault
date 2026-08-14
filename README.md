@@ -71,6 +71,40 @@ per month, over longer periods), what is selling best, and — usually the most
 useful thing on the screen — **what is not moving**: stock sitting there that has
 not sold once in the period. That is money on a shelf.
 
+**Stock take**
+
+**Stock take** in the sidebar is for the day you count the shelves. Pick the
+whole shop or one category, walk round with the laptop (or print a counting
+sheet and a pen), and type what you actually see. Nothing on file changes until
+you press Apply, and every number is saved the moment you type it — a count is
+a long job that gets interrupted, so closing MyVault half way through loses
+nothing. You get a running total of what is short, what is over and what the
+missing stock was worth, and applying it writes every correction into your
+history, so next year you can see what went missing this year.
+
+**Returns**
+
+Something brought back is not a delivery. The return button on each row puts the
+stock back and takes the money off your takings, filed against the customer if
+you have one selected. Without this, a refund would quietly look like stock you
+had bought in.
+
+**Order list**
+
+**Order list** answers the morning question: what do I need to order? Everything
+at or under its limit, with a suggested quantity worked out from how fast it has
+actually been selling, grouped by supplier — because ordering happens one
+supplier at a time. Out-of-stock lines come first. Save it as a PDF and send it,
+or print it and read it down the phone. The suggestion is a starting point: you
+know about the bank holiday, and MyVault does not.
+
+**Printing**
+
+The stock take sheet, the order list and your whole inventory can each be saved
+as a **PDF**, laid out for A4 and printed on whatever printer the shop already
+has. The document is built inside MyVault and rendered on your own machine —
+nothing is uploaded to a converter.
+
 **Customers**
 
 Keep your regulars: name, phone, email, address and notes. Only the name is
@@ -98,6 +132,12 @@ have bought, what they have spent in total, and how long they have been coming.
 - Written safely (a crash mid-save can never corrupt the file) with automatic
   rolling backups
 - Backup and restore to a USB stick whenever you like
+- **A second copy on another drive.** Backups normally sit beside your data,
+  which saves you from a mistake but not from the disk failing. Point
+  **Settings → A copy on another drive** at a USB stick or a second disk and
+  every backup is copied there too. MyVault says so if the folder you picked
+  turns out to be on the same drive after all, and if the stick is unplugged it
+  tells you rather than failing quietly — it never stops you selling.
 
 ---
 
@@ -360,7 +400,8 @@ electron/          Main process — the only code that touches the disk
   preload.js       The narrow bridge exposed to the UI as window.myvault
   store.js         The JSON store: validation, atomic writes, backups, CSV import
   movements.js     The append-only history of every stock movement
-  statistics.js    The sums behind the Statistics screen
+  statistics.js    The sums behind Statistics and the order list
+  pdf.js           The printable documents, built and escaped here
   offline.js       The rules that keep the app off the network
   csv.js           Dependency-free CSV reader/writer
 src/               The user interface (React + TypeScript)
@@ -452,9 +493,9 @@ PIN and decides what they may do.
 
 | Role | What they can do |
 | --- | --- |
-| **Manager** | Everything: products, categories, extra details, settings, statistics, customers, and who else works here. |
-| **Senior** | Adds products, books deliveries in, rings up sales, exports a CSV, reads the statistics, keeps the customer list. **Not** categories, extra details, settings, or deleting products. |
-| **Assistant** | Looks a product up and takes one off when it sells, and can say which customer they are serving. Nothing else — not the takings, not the customer list itself, and not correcting a count upwards, which is a delivery rather than a sale. |
+| **Manager** | Everything: products, categories, extra details, settings, statistics, customers, stock takes, and who else works here. |
+| **Senior** | Adds products, books deliveries in, rings up sales, takes returns, counts the shelves, exports a CSV, reads the statistics, keeps the customer list. **Not** categories, extra details, settings, or deleting products. |
+| **Assistant** | Looks a product up and takes one off when it sells, and can say which customer they are serving. Nothing else — not the takings, not the customer list itself, not counting the shelves, not correcting a count upwards (a delivery rather than a sale), and not handing money back. A refund is a judgement about whether the shop really sold that thing, and that belongs to a senior. |
 
 **The installer asks who will manage this copy.** A page during installation
 collects the manager's name and PIN, so a freshly installed MyVault is never

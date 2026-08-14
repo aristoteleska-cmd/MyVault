@@ -142,6 +142,10 @@ async function main() {
     'clients.add': [{ name: 'Not allowed' }],
     'clients.update': ['anything', { name: 'Not allowed' }],
     'clients.remove': ['anything'],
+    // Counting the shelves rewrites the stock figures wholesale.
+    'stocktake.start': [{}],
+    'stocktake.progress': [],
+    'stocktake.apply': [],
   };
   for (const [route, args] of Object.entries(refusals)) {
     const result = await callBridge(window, route, args);
@@ -161,6 +165,19 @@ async function main() {
     'and the refused attempt changed nothing',
   );
   ok('a junior sells but cannot invent stock — the refusal leaves no trace');
+
+  // A refund hands money back over the counter. It arrives on the same channel
+  // as a sale, so the gate has to read the reason, not just the sign.
+  const refund = await callBridge(window, 'items.adjust', [item.id, 1, { reason: 'return' }]);
+  assert.strictEqual(refund.ok, false, 'a junior cannot take a return');
+  assert.match(refund.error, /more access/);
+  const afterRefund = await callBridge(window, 'getState');
+  assert.strictEqual(
+    afterRefund.data.items.find((i) => i.id === item.id).quantity,
+    item.quantity - 1,
+    'and no stock came back',
+  );
+  ok('a junior cannot refund a customer, even through the channel that sells');
 
   // Appearance is theirs; the shop's own settings are not.
   const theme = await callBridge(window, 'settings.update', [{ theme: 'dark' }]);

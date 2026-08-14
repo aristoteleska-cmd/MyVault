@@ -36,6 +36,69 @@ const TEXT_SIZES: { value: number; labelKey: TranslationKey }[] = [
   { value: 1.3, labelKey: 'size.xlarge' },
 ];
 
+/**
+ * The copy that lives somewhere else.
+ *
+ * A backup on the same disk as the data survives a mistake but not the disk, so
+ * this asks for a folder — a USB stick, a second drive — and says plainly when
+ * the one chosen is on the same drive after all. Failures are shown rather than
+ * swallowed: the stick spends most of its life unplugged, and a shop should
+ * find that out here rather than on the day they need it.
+ */
+function SecondCopyPanel() {
+  const {
+    db, backupStatus, refreshBackupStatus, chooseBackupFolder, forgetBackupFolder, backupNow, can,
+  } = useVault();
+  const { t, locale } = useI18n();
+
+  useEffect(() => { void refreshBackupStatus(); }, [refreshBackupStatus]);
+
+  if (!can('settings.manage')) return null;
+  const folder = db.settings.backupFolder;
+
+  return (
+    <div className="setting-row">
+      <div className="setting-text">
+        <div className="setting-title">{t('settings.secondCopy')}</div>
+        <div className="setting-desc">
+          {t('settings.secondCopyDesc')}
+          {folder && <span className="path">{folder}</span>}
+          {backupStatus?.sameDrive && (
+            <span className="setting-warn">{t('settings.sameDriveWarning')}</span>
+          )}
+          {backupStatus?.error && (
+            <span className="setting-warn">{t('settings.secondCopyFailed', { reason: backupStatus.error })}</span>
+          )}
+          {!backupStatus?.error && backupStatus?.lastAt && (
+            <span className="path">
+              {t('settings.secondCopyLast', {
+                when: new Date(backupStatus.lastAt).toLocaleString(locale || undefined),
+              })}
+            </span>
+          )}
+        </div>
+      </div>
+      <div className="setting-control">
+        <button type="button" className="btn" onClick={() => void chooseBackupFolder()}>
+          <Icon name="folder" size={16} />
+          {folder ? t('settings.changeFolder') : t('settings.chooseFolder')}
+        </button>
+        {folder && (
+          <>
+            <button type="button" className="btn" onClick={() => void backupNow()}>
+              <Icon name="save" size={16} />
+              {t('settings.copyNow')}
+            </button>
+            <button type="button" className="btn" onClick={() => void forgetBackupFolder()}>
+              {t('settings.stopCopying')}
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 const UPDATE_MODES: {
   value: UpdateMode;
   labelKey: TranslationKey;
@@ -439,6 +502,8 @@ export function SettingsView() {
               </button>
             </div>
           </div>
+
+          <SecondCopyPanel />
 
           <div className="setting-row">
             <div className="setting-text">

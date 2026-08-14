@@ -1543,3 +1543,73 @@ table.items tbody td > .item-meta { overflow: hidden; text-overflow: ellipsis; }
   .history-list li { grid-template-columns: 1fr auto auto; }
   .history-when { grid-column: 1 / -1; }
 }
+
+/* ===================================================================
+   Stock take, reorder, and the second copy
+   =================================================================== */
+
+.progress-track {
+  height: 5px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-3);
+  overflow: hidden;
+  margin-top: var(--space-2);
+}
+.progress-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: var(--radius-pill);
+  transition: width var(--speed) var(--ease);
+}
+
+/* The counted column is where the work happens, so it is wide enough to read
+   at arm's length and right-aligned to sit under the number above it. */
+.count-input {
+  width: 82px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  margin-inline-start: auto;
+}
+.count-table td { vertical-align: middle; }
+.count-table tr.is-counted td { color: var(--text-muted); }
+.count-table tr.is-counted td:first-child { color: var(--text); }
+
+/* Short is the one that costs money, so it is the one that is coloured. */
+.short { color: var(--danger); font-weight: 650; }
+.over { color: var(--success); font-weight: 650; }
+
+.supplier-panel { margin-bottom: var(--space-3); }
+.supplier-panel .panel-head { justify-content: space-between; }
+.panel-head-right { text-transform: none; letter-spacing: 0; font-weight: 600; color: var(--text); }
+.supplier-panel .badge { margin-inline-start: var(--space-2); }
+
+.btn.danger { color: var(--danger); }
+.btn.danger:hover { background: var(--danger-soft); }
+
+.setting-warn {
+  display: block;
+  margin-top: var(--space-1);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--warning);
+}
+
+/* A plain table shared by the stock-take and reorder screens. The stock list
+   has its own richer one; these are simpler and do not need it. */
+.table { width: 100%; border-collapse: collapse; }
+.table th {
+  text-align: start;
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--text-muted);
+  padding: var(--cell-pad-y) var(--cell-pad-x);
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+.table td {
+  padding: var(--cell-pad-y) var(--cell-pad-x);
+  border-bottom: 1px solid var(--border);
+}
+.table tr:last-child td { border-bottom: 0; }
+.table .num { text-align: end; font-variant-numeric: tabular-nums; }
+.table .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }

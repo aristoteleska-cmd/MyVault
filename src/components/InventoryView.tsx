@@ -39,7 +39,7 @@ export function InventoryView({
   searchRef,
   onGoToFields,
 }: InventoryViewProps) {
-  const { db, deleteItems, adjustStock, importCsv, exportCsv, can, serving, setServing } = useVault();
+  const { db, deleteItems, adjustStock, importCsv, exportCsv, can, serving, setServing, returnItem } = useVault();
   const { t, locale } = useI18n();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [page, setPage] = useState(0);
@@ -478,6 +478,7 @@ export function InventoryView({
                 onEdit={onEditItem}
                 onDelete={(ids) => void deleteItems(ids)}
                 onAdjust={(id, delta) => void adjustStock(id, delta)}
+                onReturn={(id) => void returnItem(id, 1)}
               />
 
               <div className="table-foot">

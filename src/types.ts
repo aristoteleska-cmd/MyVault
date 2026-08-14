@@ -52,6 +52,8 @@ export interface Settings {
   defaultLowStockThreshold: number;
   shopName: string;
   dateFormat: string;
+  /** A second place to mirror backups to. Empty until the shop chooses one. */
+  backupFolder: string;
   /** Off unless the shop deliberately switched it on. */
   updates: UpdateMode;
 }
@@ -70,7 +72,76 @@ export interface Client {
 
 /** Why the stock moved. The sign of `delta` says which way. */
 export type MovementReason =
-  | 'sale' | 'delivery' | 'correction' | 'new' | 'import' | 'delete' | 'restore';
+  | 'sale' | 'return' | 'delivery' | 'correction' | 'stocktake'
+  | 'new' | 'import' | 'delete' | 'restore';
+
+/** A count in progress. Saved as it is typed, so a long job survives a restart. */
+export interface StockTake {
+  startedAt: string;
+  by: string;
+  categoryId: string;
+  counts: Record<string, number>;
+}
+
+/** One product that did not match what the file said. */
+export interface StockTakeLine {
+  id: string;
+  name: string;
+  barcode: string;
+  expected: number;
+  counted: number;
+  difference: number;
+  value: number;
+}
+
+export interface StockTakeProgress {
+  startedAt: string;
+  by: string;
+  categoryId: string;
+  total: number;
+  counted: number;
+  remaining: number;
+  matching: number;
+  differing: number;
+  missingUnits: number;
+  extraUnits: number;
+  shrinkage: number;
+  lines: StockTakeLine[];
+}
+
+export interface ReorderItem {
+  id: string;
+  name: string;
+  barcode: string;
+  quantity: number;
+  threshold: number;
+  sold: number;
+  suggested: number;
+  cost: number;
+  /** Out of stock, not merely low — a customer is being turned away today. */
+  urgent: boolean;
+}
+
+export interface ReorderList {
+  days: number;
+  cover: number;
+  generatedAt: string;
+  lines: number;
+  estimatedCost: number;
+  urgent: number;
+  suppliers: { supplier: string; items: ReorderItem[]; units: number; cost: number }[];
+}
+
+/** How the copy to the shop's second drive is going. */
+export interface BackupStatus {
+  folder: string;
+  configured: boolean;
+  /** True when the chosen folder is on the same drive as the data it protects. */
+  sameDrive: boolean;
+  lastAt: string;
+  lastPath: string;
+  error: string;
+}
 
 /**
  * One line of the shop's history.
@@ -103,6 +174,7 @@ export interface Database {
   categories: Category[];
   customFields: CustomField[];
   clients: Client[];
+  stockTake: StockTake | null;
   items: Item[];
   recoveredFrom?: string;
   downgradedFrom?: number;
@@ -239,7 +311,9 @@ export type Capability =
   | 'staff.manage'
   | 'clients.view'
   | 'clients.manage'
-  | 'stats.view';
+  | 'stats.view'
+  | 'items.return'
+  | 'stocktake.run';
 
 /** A member of staff as the window is allowed to see them: never a PIN. */
 export interface StaffMember {

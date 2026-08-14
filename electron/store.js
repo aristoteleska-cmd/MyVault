@@ -62,6 +62,14 @@ const DEFAULT_SETTINGS = {
   shopName: '',
   dateFormat: 'dd/MM/yyyy',
   /**
+   * A second place to keep backups — ideally a USB stick or another drive.
+   *
+   * Empty by default, because MyVault must not write to somewhere the shop did
+   * not choose. Every backup taken is mirrored here as well, so the copy that
+   * matters is not on the same disk as the thing it is protecting.
+   */
+  backupFolder: '',
+  /**
    * Off unless the shop turns it on. MyVault is handed over as a program that
    * does not use the internet, so the setting that would change that has to be
    * a deliberate choice, not something inherited from a default.
@@ -120,6 +128,7 @@ function normalizeSettings(input) {
   settings.currency = asString(settings.currency, 4) || DEFAULT_SETTINGS.currency;
   settings.language = asString(settings.language, 12);
   settings.shopName = asString(settings.shopName, 80);
+  settings.backupFolder = asString(settings.backupFolder, 400).trim();
   settings.defaultLowStockThreshold = Math.max(0, clampQuantity(settings.defaultLowStockThreshold));
 
   // 1.1.0 stored this as a plain on/off. An old file saying true meant "look for
@@ -156,6 +165,10 @@ function emptyDatabase() {
     // stored here — it is worked out from the movement log, so the contact list
     // stays a contact list however many years of sales pile up behind it.
     clients: [],
+    // A count in progress, or null. Counting a shop takes hours and gets
+    // interrupted by customers; this is saved so closing MyVault half way
+    // through does not throw the morning away.
+    stockTake: null,
     items: [],
   };
 }
@@ -173,6 +186,8 @@ class Store {
     this.appVersion = appVersion;
     this.db = emptyDatabase();
     this.lastBackupAt = 0;
+    /** How the last copy to the shop's second location went. */
+    this.lastMirror = null;
 
     /**
      * The history of what moved, kept in its own append-only files.
@@ -309,6 +324,23 @@ class Store {
           .filter((c) => c && typeof c === 'object')
           .map((c) => this.normalizeClient(c))
       : [];
+
+    // A count in progress survives a restart. Anything malformed is dropped
+    // rather than half-restored: a stock take is worth redoing, and a
+    // half-understood one would silently correct the wrong products.
+    db.stockTake = parsed.stockTake && typeof parsed.stockTake === 'object'
+      && parsed.stockTake.counts && typeof parsed.stockTake.counts === 'object'
+      ? {
+        startedAt: asString(parsed.stockTake.startedAt) || nowIso(),
+        by: asString(parsed.stockTake.by, 60),
+        categoryId: asString(parsed.stockTake.categoryId, 64),
+        counts: Object.fromEntries(
+          Object.entries(parsed.stockTake.counts)
+            .filter(([, value]) => Number.isFinite(Number(value)))
+            .map(([key, value]) => [asString(key, 64), Math.max(0, clampQuantity(value))]),
+        ),
+      }
+      : null;
 
     db.customFields = Array.isArray(parsed.customFields)
       ? parsed.customFields
@@ -456,6 +488,74 @@ class Store {
       this.lastBackupAt = Date.now();
       this.pruneBackups();
     } catch { /* backups are best effort, never block a save */ }
+
+    // …and again somewhere else, if the shop has named a second place. A backup
+    // on the same disk as the data survives a mistake; it does not survive the
+    // disk.
+    this.mirrorBackup();
+  }
+
+  /**
+   * Copies the current data file to the shop's second location.
+   *
+   * Every failure here is swallowed on purpose. The USB stick is unplugged more
+   * often than it is plugged in, and a shop must never find that it cannot sell
+   * anything because a backup drive is missing. The outcome is recorded so the
+   * settings screen can say so plainly instead of failing silently forever.
+   */
+  mirrorBackup({ force = false } = {}) {
+    const folder = (this.db.settings?.backupFolder || '').trim();
+    if (!folder) return null;
+    if (!fs.existsSync(this.file)) return null;
+
+    try {
+      fs.mkdirSync(folder, { recursive: true });
+      const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+      const target = path.join(folder, `myvault-backup-${stamp}.json`);
+      fs.copyFileSync(this.file, target);
+      this.pruneMirror(folder);
+      this.lastMirror = { at: nowIso(), path: target, error: '' };
+    } catch (error) {
+      this.lastMirror = {
+        at: this.lastMirror?.at || '',
+        path: this.lastMirror?.path || '',
+        error: error?.message || String(error),
+      };
+      if (force) throw error;
+    }
+    return this.lastMirror;
+  }
+
+  /** The same rolling window as the local backups, so a stick never fills up. */
+  pruneMirror(folder) {
+    try {
+      const entries = fs
+        .readdirSync(folder)
+        .filter((name) => name.startsWith('myvault-backup-') && name.endsWith('.json'))
+        .sort();
+      while (entries.length > MAX_BACKUPS) {
+        const oldest = entries.shift();
+        try {
+          fs.unlinkSync(path.join(folder, oldest));
+        } catch { /* ignore */ }
+      }
+    } catch { /* the folder may have gone away between writing and tidying */ }
+  }
+
+  /** What the settings screen shows about the second copy. */
+  mirrorStatus() {
+    const folder = (this.db.settings?.backupFolder || '').trim();
+    return {
+      folder,
+      configured: Boolean(folder),
+      // Whether it is genuinely a different disk. On Windows that is the drive
+      // letter; the whole point of the setting is defeated if it is not.
+      sameDrive: folder ? path.parse(path.resolve(folder)).root
+        === path.parse(path.resolve(this.dataDir)).root : false,
+      lastAt: this.lastMirror?.at || '',
+      lastPath: this.lastMirror?.path || '',
+      error: this.lastMirror?.error || '',
+    };
   }
 
   /**
@@ -578,15 +678,17 @@ class Store {
     // stock the shop never had.
     const actual = item.quantity - before;
     if (actual !== 0) {
+      const why = reason || (actual < 0 ? 'sale' : 'delivery');
       this.logMovement({
         itemId: item.id,
         itemName: item.name,
         delta: actual,
         quantityAfter: item.quantity,
-        reason: reason || (actual < 0 ? 'sale' : 'delivery'),
+        reason: why,
         price: item.price,
         cost: item.cost,
-        clientId: actual < 0 ? clientId : '',
+        // A sale and a refund both belong to whoever was at the counter.
+        clientId: actual < 0 || why === 'return' ? clientId : '',
         by,
       });
     }
@@ -636,6 +738,158 @@ class Store {
       });
     }
     return restored;
+  }
+
+  // -------------------------------------------------------------- stock take
+  //
+  // Counting a shop is a long job done on foot, interrupted by customers, and
+  // usually finished the next morning. So the count is saved as it is typed and
+  // nothing is corrected until the shop presses apply — up to that moment the
+  // stock on file is untouched, and a stock take can be abandoned with no
+  // consequences at all.
+
+  startStockTake({ categoryId = '', by = '' } = {}) {
+    if (this.db.stockTake) throw new Error('A count is already in progress.');
+    this.db.stockTake = {
+      startedAt: nowIso(),
+      by: asString(by, 60),
+      categoryId: asString(categoryId, 64),
+      counts: {},
+    };
+    this.persist();
+    return this.db.stockTake;
+  }
+
+  /**
+   * Records one shelf's worth of counting.
+   *
+   * Saved immediately rather than at the end, because the alternative is losing
+   * two hours of work to a power cut in a shop that already lost two hours.
+   */
+  countStockTake(itemId, counted) {
+    if (!this.db.stockTake) throw new Error('No count is in progress.');
+    if (!this.db.items.some((item) => item.id === itemId)) {
+      throw new Error('That product is no longer in the stock list.');
+    }
+    if (counted === null || counted === '') {
+      delete this.db.stockTake.counts[itemId];
+    } else {
+      this.db.stockTake.counts[itemId] = Math.max(0, clampQuantity(counted));
+    }
+    this.persist();
+    return this.db.stockTake;
+  }
+
+  /** What has been counted so far, against what the file says should be there. */
+  stockTakeProgress() {
+    const take = this.db.stockTake;
+    if (!take) return null;
+
+    const inScope = this.db.items.filter(
+      (item) => !take.categoryId || item.categoryId === take.categoryId,
+    );
+
+    const lines = [];
+    let missingUnits = 0;
+    let extraUnits = 0;
+    let shrinkage = 0;
+    let counted = 0;
+    let matching = 0;
+
+    for (const item of inScope) {
+      const seen = take.counts[item.id];
+      if (seen === undefined) continue;
+      counted += 1;
+      const difference = seen - item.quantity;
+      if (difference === 0) matching += 1;
+      else if (difference < 0) {
+        missingUnits += -difference;
+        // Missing stock is valued at what it would have sold for — that is the
+        // number the shop feels, not what they paid for it.
+        shrinkage += -difference * (Number(item.price) || 0);
+      } else {
+        extraUnits += difference;
+      }
+      if (difference !== 0) {
+        lines.push({
+          id: item.id,
+          name: item.name,
+          barcode: item.barcode,
+          expected: item.quantity,
+          counted: seen,
+          difference,
+          value: Math.round(difference * (Number(item.price) || 0) * 100) / 100,
+        });
+      }
+    }
+
+    return {
+      startedAt: take.startedAt,
+      by: take.by,
+      categoryId: take.categoryId,
+      total: inScope.length,
+      counted,
+      remaining: Math.max(0, inScope.length - counted),
+      matching,
+      differing: lines.length,
+      missingUnits,
+      extraUnits,
+      shrinkage: Math.round(shrinkage * 100) / 100,
+      // Biggest discrepancies first: that is the order a shop wants to check
+      // them in, because the top of the list is where a real mistake will be.
+      lines: lines.sort((a, b) => Math.abs(b.difference) - Math.abs(a.difference)),
+    };
+  }
+
+  /**
+   * Puts the counted figures into the stock, in one go.
+   *
+   * Every correction goes through the movement log, so a stock take leaves a
+   * permanent record of who counted what and by how much it was out — which is
+   * the part that makes the exercise worth doing twice.
+   */
+  applyStockTake({ by = '' } = {}) {
+    const progress = this.stockTakeProgress();
+    if (!progress) throw new Error('No count is in progress.');
+
+    const applied = [];
+    for (const line of progress.lines) {
+      const item = this.db.items.find((candidate) => candidate.id === line.id);
+      if (!item) continue;
+      item.quantity = Math.max(0, line.counted);
+      item.updatedAt = nowIso();
+      applied.push({ item, difference: line.difference });
+    }
+
+    this.db.stockTake = null;
+    this.persist();
+
+    for (const { item, difference } of applied) {
+      this.logMovement({
+        itemId: item.id,
+        itemName: item.name,
+        delta: difference,
+        quantityAfter: item.quantity,
+        reason: 'stocktake',
+        price: item.price,
+        cost: item.cost,
+        by: by || progress.by,
+      });
+    }
+
+    return {
+      corrected: applied.length,
+      missingUnits: progress.missingUnits,
+      extraUnits: progress.extraUnits,
+      shrinkage: progress.shrinkage,
+    };
+  }
+
+  /** Throws the count away. The stock on file was never touched. */
+  cancelStockTake() {
+    this.db.stockTake = null;
+    this.persist();
+    return null;
   }
 
   // ----------------------------------------------------------------- clients

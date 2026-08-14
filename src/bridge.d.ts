@@ -1,9 +1,13 @@
 import type {
   AppInfo,
   AuthState,
+  BackupStatus,
   Category,
   Client,
   ClientHistory,
+  ReorderList,
+  StockTake,
+  StockTakeProgress,
   CustomField,
   Database,
   FieldType,
@@ -80,6 +84,39 @@ export interface MyVaultBridge {
   stats: {
     report(range?: { from?: string; to?: string }): Promise<Result<StatsReport>>;
     movements(range?: { from?: string; to?: string; limit?: number }): Promise<Result<Movement[]>>;
+    reorder(options?: { days?: number; cover?: number }): Promise<Result<ReorderList>>;
+  };
+
+  stocktake: {
+    start(options?: { categoryId?: string }): Promise<Result<StockTake>>;
+    progress(): Promise<Result<StockTakeProgress | null>>;
+    count(itemId: string, counted: number | null): Promise<Result<StockTakeProgress>>;
+    cancel(): Promise<Result<null>>;
+    apply(): Promise<Result<{
+      corrected: number;
+      missingUnits: number;
+      extraUnits: number;
+      shrinkage: number;
+      state: Database;
+    }>>;
+  };
+
+  print: {
+    /** The page is built in the main process — only values cross the bridge. */
+    pdf(request: {
+      kind: 'stocktake' | 'reorder' | 'inventory';
+      fileName?: string;
+      payload: Record<string, unknown>;
+    }): Promise<Result<{ canceled: boolean; filePath?: string }>>;
+  };
+
+  backup: {
+    status(): Promise<Result<BackupStatus>>;
+    chooseFolder(): Promise<Result<{
+      canceled: boolean; status?: BackupStatus; settings?: Settings;
+    }>>;
+    forgetFolder(): Promise<Result<{ status: BackupStatus; settings: Settings }>>;
+    now(): Promise<Result<BackupStatus>>;
   };
 
   categories: {

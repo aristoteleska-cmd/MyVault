@@ -148,6 +148,7 @@ function accumulate(log, { from, to, byMonth }) {
 
   const totals = {
     sold: 0, takings: 0, costOfSales: 0,
+    returned: 0, refunded: 0,
     received: 0, spend: 0,
     corrections: 0, movements: 0,
   };
@@ -187,6 +188,30 @@ function accumulate(log, { from, to, byMonth }) {
         client.orders += 1;
         if (entry.at > client.lastAt) client.lastAt = entry.at;
         perClient.set(entry.clientId, client);
+      }
+    } else if (entry.reason === 'return') {
+      // Stock comes back and money goes out. Counted against the day it was
+      // refunded, not against the day of the original sale — the shop's till
+      // was short today, and that is the day they will be reconciling.
+      const units = Math.abs(delta);
+      const refund = units * (Number(entry.price) || 0);
+      totals.returned += units;
+      totals.refunded += refund;
+      period.sold -= units;
+      period.takings -= refund;
+
+      // A returned item is not a sale of that product, so it comes back off the
+      // best-seller figures too. Otherwise a product bought and returned all
+      // month would look like the shop's strongest line.
+      const item = perItem.get(entry.itemId);
+      if (item) {
+        item.units -= units;
+        item.takings -= refund;
+      }
+      const client = entry.clientId ? perClient.get(entry.clientId) : null;
+      if (client) {
+        client.units -= units;
+        client.takings -= refund;
       }
     } else if (delta > 0) {
       totals.received += delta;
@@ -248,10 +273,15 @@ function report(db, log, { from, to, now = new Date() } = {}) {
     stock: stockSnapshot(db),
 
     sales: {
-      units: current.totals.sold,
-      takings: money(current.totals.takings),
+      // Net of refunds, both of them: what the shop actually sold and what it
+      // actually took. A gross figure that ignored returns would be a number
+      // the till could never be reconciled against.
+      units: current.totals.sold - current.totals.returned,
+      takings: money(current.totals.takings - current.totals.refunded),
       costOfSales: money(current.totals.costOfSales),
-      profit: money(current.totals.takings - current.totals.costOfSales),
+      profit: money(current.totals.takings - current.totals.refunded - current.totals.costOfSales),
+      returned: current.totals.returned,
+      refunded: money(current.totals.refunded),
       received: current.totals.received,
       spend: money(current.totals.spend),
       writtenOff: current.totals.corrections,
@@ -260,9 +290,9 @@ function report(db, log, { from, to, now = new Date() } = {}) {
 
     /** The same figures for the period before, so the screen can say "up" or "down". */
     previous: {
-      units: previous.totals.sold,
-      takings: money(previous.totals.takings),
-      profit: money(previous.totals.takings - previous.totals.costOfSales),
+      units: previous.totals.sold - previous.totals.returned,
+      takings: money(previous.totals.takings - previous.totals.refunded),
+      profit: money(previous.totals.takings - previous.totals.refunded - previous.totals.costOfSales),
     },
 
     /** Oldest first, ready to draw left to right. */
@@ -271,6 +301,8 @@ function report(db, log, { from, to, now = new Date() } = {}) {
       .map((period) => ({ ...period, takings: money(period.takings) })),
 
     bestSellers: [...current.perItem.values()]
+      // A product sold three times and returned three times sold nothing.
+      .filter((item) => item.units > 0)
       .sort((a, b) => b.units - a.units)
       .slice(0, MAX_LIST)
       .map((item) => ({ ...item, takings: money(item.takings) })),
@@ -301,6 +333,104 @@ function report(db, log, { from, to, now = new Date() } = {}) {
       .filter((client) => client.name)
       .sort((a, b) => b.takings - a.takings)
       .slice(0, MAX_LIST),
+  };
+}
+
+/**
+ * What to order this morning.
+ *
+ * The shop already knows what is low; what it does not know without doing the
+ * arithmetic by hand is how fast each thing actually sells, and therefore how
+ * many to ask for. This joins the two: everything at or under its limit, with a
+ * suggested quantity based on what really left the shelf over `days`, grouped
+ * by the supplier the order has to be sent to.
+ *
+ * Deliberately a suggestion and not an instruction. A shopkeeper knows about
+ * the bank holiday and the school term; the number is a starting point they can
+ * type over.
+ */
+function reorderList(db, log, { days = 30, cover = 30, now = new Date() } = {}) {
+  const from = new Date(now.getTime() - days * 86400000);
+  const defaultThreshold = Number(db.settings?.defaultLowStockThreshold) || 0;
+
+  // How many of each actually sold, net of anything handed back.
+  const soldByItem = new Map();
+  log.forEach({ from: from.toISOString(), to: now.toISOString() }, (entry) => {
+    const delta = Number(entry.delta) || 0;
+    if (entry.reason === 'sale') {
+      soldByItem.set(entry.itemId, (soldByItem.get(entry.itemId) || 0) - delta);
+    } else if (entry.reason === 'return') {
+      soldByItem.set(entry.itemId, (soldByItem.get(entry.itemId) || 0) - Math.abs(delta));
+    }
+  });
+
+  const bySupplier = new Map();
+  let lines = 0;
+  let estimatedCost = 0;
+
+  for (const item of db.items || []) {
+    const quantity = Number(item.quantity) || 0;
+    const threshold = item.lowStockThreshold ?? defaultThreshold;
+    const isLow = quantity <= 0 || (threshold > 0 && quantity <= threshold);
+    if (!isLow) continue;
+
+    const sold = Math.max(0, soldByItem.get(item.id) || 0);
+    const perDay = sold / days;
+
+    // Enough to cover the next stretch at the rate it has been selling, or —
+    // for something with no recent sales but a limit set — enough to get back
+    // above that limit. Never less than one, or the line is pointless.
+    const forDemand = Math.ceil(perDay * cover) - quantity;
+    const toThreshold = threshold > 0 ? (threshold * 2) - quantity : 0;
+    const suggested = Math.max(1, forDemand, toThreshold);
+
+    const supplier = (item.supplier || '').trim();
+    const key = supplier.toLowerCase();
+    const bucket = bySupplier.get(key)
+      || { supplier, items: [], units: 0, cost: 0 };
+
+    const cost = Math.round(suggested * (Number(item.cost) || 0) * 100) / 100;
+    bucket.items.push({
+      id: item.id,
+      name: item.name,
+      barcode: item.barcode,
+      quantity,
+      threshold,
+      sold,
+      suggested,
+      cost,
+      // Out of stock is a different urgency from merely low: one is a customer
+      // being turned away today.
+      urgent: quantity <= 0,
+    });
+    bucket.units += suggested;
+    bucket.cost = Math.round((bucket.cost + cost) * 100) / 100;
+    bySupplier.set(key, bucket);
+
+    lines += 1;
+    estimatedCost += cost;
+  }
+
+  const suppliers = [...bySupplier.values()]
+    .map((bucket) => ({
+      ...bucket,
+      // Anything out of stock first, then whatever is selling fastest.
+      items: bucket.items.sort((a, b) => (Number(b.urgent) - Number(a.urgent)) || (b.sold - a.sold)),
+    }))
+    // Named suppliers first; the "no supplier" pile belongs at the bottom.
+    .sort((a, b) => {
+      if (!a.supplier !== !b.supplier) return a.supplier ? -1 : 1;
+      return b.cost - a.cost;
+    });
+
+  return {
+    days,
+    cover,
+    generatedAt: now.toISOString(),
+    lines,
+    suppliers,
+    estimatedCost: Math.round(estimatedCost * 100) / 100,
+    urgent: suppliers.reduce((sum, s) => sum + s.items.filter((i) => i.urgent).length, 0),
   };
 }
 
@@ -350,4 +480,6 @@ function clientHistory(log, clientId, { limit = 100 } = {}) {
   };
 }
 
-module.exports = { report, stockSnapshot, clientHistory, MAX_LIST, DAILY_LIMIT };
+module.exports = {
+  report, stockSnapshot, reorderList, clientHistory, MAX_LIST, DAILY_LIMIT,
+};

@@ -27,6 +27,7 @@ const suites = [
   { name: 'updater flow', file: 'tests/updater-flow.test.js', typescript: false },
   { name: 'movement log', file: 'tests/movements.test.js', typescript: false },
   { name: 'statistics', file: 'tests/statistics.test.js', typescript: false },
+  { name: 'shop floor', file: 'tests/shopfloor.test.js', typescript: false },
   { name: 'barcode photos', file: 'tests/barcode.test.ts', typescript: true },
 ];
 

@@ -27,6 +27,8 @@ const CAPABILITIES = [
   'items.view',
   'items.sell',      // take stock down: something was sold
   'items.receive',   // put stock up: a delivery arrived
+  'items.return',    // take something back and hand the money over
+  'stocktake.run',   // count the shelves and correct what is wrong
   'items.create',
   'items.edit',
   'items.delete',
@@ -62,12 +64,14 @@ const ROLE_CAPABILITIES = {
     'items.view',
     'items.sell',
     'items.receive',
+    'items.return',
     'items.create',
     'items.edit',
     'data.export',
     'clients.view',
     'clients.manage',
     'stats.view',
+    'stocktake.run',
   ],
 
   // On the till. Look something up, and take one off the shelf when it sells.
@@ -77,6 +81,9 @@ const ROLE_CAPABILITIES = {
   // the right customer is the till's job and the alternative is a counter
   // assistant who cannot record half the shop's business. Writing the customer
   // down in the first place is not theirs, and neither is the takings screen.
+  // Taking a return is deliberately not theirs. It is the one counter action
+  // that hands money back across the counter, and "the customer said they
+  // bought it here" is exactly the judgement a shop wants a senior to make.
   junior: [
     'items.view',
     'items.sell',

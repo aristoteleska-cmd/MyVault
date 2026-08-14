@@ -48,6 +48,32 @@ contextBridge.exposeInMainWorld('myvault', {
   stats: {
     report: (range) => invoke('stats:report', range),
     movements: (range) => invoke('stats:movements', range),
+    reorder: (options) => invoke('stats:reorder', options),
+  },
+
+  /** Counting the shelves. The count is saved as it is typed. */
+  stocktake: {
+    start: (options) => invoke('stocktake:start', options),
+    progress: () => invoke('stocktake:progress'),
+    count: (itemId, counted) => invoke('stocktake:count', itemId, counted),
+    cancel: () => invoke('stocktake:cancel'),
+    apply: () => invoke('stocktake:apply'),
+  },
+
+  /**
+   * Printing. The window names a document and supplies values; the page itself
+   * is built on the other side, so no markup crosses the bridge.
+   */
+  print: {
+    pdf: (request) => invoke('print:pdf', request),
+  },
+
+  /** The second copy, on a stick or another drive. */
+  backup: {
+    status: () => invoke('backup:status'),
+    chooseFolder: () => invoke('backup:choose-folder'),
+    forgetFolder: () => invoke('backup:forget-folder'),
+    now: () => invoke('backup:now'),
   },
 
   categories: {

@@ -5,7 +5,8 @@ const fs = require('fs');
 const path = require('path');
 
 const { Store, STANDARD_FIELDS, MAX_CUSTOM_FIELDS } = require('./store');
-const { report, clientHistory } = require('./statistics');
+const { report, reorderList, clientHistory } = require('./statistics');
+const { buildDocument } = require('./pdf');
 const { NETWORK_SWITCHES, DISABLED_FEATURES, UPDATE_HOSTS, enforceOffline } = require('./offline');
 const { parseCsv, toCsv } = require('./csv');
 const { Updater } = require('./updater');
@@ -503,14 +504,17 @@ function registerIpc() {
   // down when something sells, but correcting a count upwards is not theirs.
   handle('items:adjust', null, (id, delta, options = {}) => {
     const selling = Number(delta) < 0;
-    requireCapability(selling ? 'items.sell' : 'items.receive');
+    // A return puts stock back like a delivery does, but it hands money over
+    // the counter, so it is its own permission rather than "receiving".
+    if (options.reason === 'return') requireCapability('items.return');
+    else requireCapability(selling ? 'items.sell' : 'items.receive');
+    const knowsClients = allows(store.getState().users, signedInId, 'clients.view');
     return store.adjustStock(id, delta, {
       reason: options.reason,
-      // Only a sale belongs to a customer, and only if whoever is at the screen
-      // is allowed to know the customer list at all.
-      clientId: selling && allows(store.getState().users, signedInId, 'clients.view')
-        ? options.clientId
-        : '',
+      // A sale and a return both belong to a customer — a refund against the
+      // right regular is the whole reason their history is worth keeping — and
+      // only if whoever is at the screen may know the customer list at all.
+      clientId: (selling || options.reason === 'return') && knowsClients ? options.clientId : '',
       by: whoAmI(),
     });
   });
@@ -552,6 +556,100 @@ function registerIpc() {
     to: range.to,
     limit: Math.min(500, Number(range.limit) || 100),
   }));
+
+  /** What to order this morning, grouped by who to order it from. */
+  handle('stats:reorder', 'stats.view', (options = {}) => reorderList(
+    store.getState(),
+    store.movements,
+    {
+      days: Math.min(365, Math.max(7, Number(options.days) || 30)),
+      cover: Math.min(180, Math.max(7, Number(options.cover) || 30)),
+    },
+  ));
+
+  // -------------------------------------------------------------- stock take
+
+  handle('stocktake:start', 'stocktake.run', (options = {}) =>
+    store.startStockTake({ categoryId: options.categoryId, by: whoAmI() }));
+  handle('stocktake:progress', 'stocktake.run', () => store.stockTakeProgress());
+  handle('stocktake:count', 'stocktake.run', (itemId, counted) => {
+    store.countStockTake(itemId, counted);
+    return store.stockTakeProgress();
+  });
+  handle('stocktake:cancel', 'stocktake.run', () => store.cancelStockTake());
+  handle('stocktake:apply', 'stocktake.run', () => ({
+    ...store.applyStockTake({ by: whoAmI() }),
+    state: store.publicState(),
+  }));
+
+  // ---------------------------------------------------------------- printing
+
+  /**
+   * Prints one of MyVault's own documents to a PDF the shop chooses a home for.
+   *
+   * The window supplies values and a document name, never markup — the page is
+   * assembled in ./pdf.js with everything escaped, and rendered in an offscreen
+   * window that is thrown away immediately. Nothing here touches the network:
+   * the page is loaded from a data: URL, which is one of the few schemes the
+   * offline rules allow at all.
+   */
+  handle('print:pdf', 'items.view', async ({ kind, payload, fileName } = {}) => {
+    const html = buildDocument(kind, payload);
+
+    const { canceled, filePath } = await dialog.showSaveDialog(mainWindow, {
+      title: 'Save as PDF',
+      defaultPath: `${fileName || 'myvault'}-${new Date().toISOString().slice(0, 10)}.pdf`,
+      filters: [{ name: 'PDF', extensions: ['pdf'] }],
+    });
+    if (canceled || !filePath) return { canceled: true };
+
+    const sheet = new BrowserWindow({
+      show: false,
+      webPreferences: { offscreen: true, javascript: false, sandbox: true, contextIsolation: true },
+    });
+    try {
+      await sheet.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
+      const pdf = await sheet.webContents.printToPDF({
+        pageSize: 'A4',
+        printBackground: false,
+        margins: { marginType: 'default' },
+      });
+      fs.writeFileSync(filePath, pdf);
+    } finally {
+      sheet.destroy();
+    }
+    return { canceled: false, filePath };
+  });
+
+  // ------------------------------------------------------- the second backup
+
+  handle('backup:status', 'settings.manage', () => store.mirrorStatus());
+
+  handle('backup:choose-folder', 'settings.manage', async () => {
+    const { canceled, filePaths } = await dialog.showOpenDialog(mainWindow, {
+      title: 'Choose a folder for the second copy',
+      properties: ['openDirectory', 'createDirectory'],
+    });
+    if (canceled || !filePaths?.length) return { canceled: true };
+    store.updateSettings({ backupFolder: filePaths[0] });
+    // Prove it works now rather than discovering at the worst moment that the
+    // folder was read-only.
+    store.mirrorBackup();
+    return { canceled: false, status: store.mirrorStatus(), settings: store.getState().settings };
+  });
+
+  handle('backup:forget-folder', 'settings.manage', () => {
+    store.updateSettings({ backupFolder: '' });
+    store.lastMirror = null;
+    return { status: store.mirrorStatus(), settings: store.getState().settings };
+  });
+
+  handle('backup:now', 'data.export', () => {
+    const folder = (store.getState().settings.backupFolder || '').trim();
+    if (!folder) throw new Error('No second folder has been chosen yet.');
+    store.mirrorBackup({ force: true });
+    return store.mirrorStatus();
+  });
 
   handle('categories:add', 'categories.manage', (input) => store.addCategory(input));
   handle('categories:update', 'categories.manage', (id, patch) => store.updateCategory(id, patch));

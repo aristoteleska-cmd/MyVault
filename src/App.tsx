@@ -6,6 +6,8 @@ import type { Capability, Filters, Item, SortState } from './types';
 import { Icon, type IconName } from './components/Icon';
 import { InventoryView } from './components/InventoryView';
 import { StatisticsView } from './components/StatisticsView';
+import { StockTakeView } from './components/StockTakeView';
+import { ReorderView } from './components/ReorderView';
 import { ClientsView } from './components/ClientsView';
 import { CategoriesView } from './components/CategoriesView';
 import { FieldsView } from './components/FieldsView';
@@ -16,7 +18,7 @@ import { SignInView } from './components/SignInView';
 import { RecoveryCode } from './components/RecoveryCode';
 import { Toasts } from './components/Toasts';
 
-type ViewName = 'inventory' | 'statistics' | 'clients' | 'categories' | 'fields' | 'settings' | 'staff';
+type ViewName = 'inventory' | 'statistics' | 'reorder' | 'stocktake' | 'clients' | 'categories' | 'fields' | 'settings' | 'staff';
 
 /**
  * The sidebar, and what each entry needs before it is offered.
@@ -33,6 +35,8 @@ const NAV: {
 }[] = [
   { id: 'inventory', labelKey: 'nav.stock', icon: 'box' },
   { id: 'statistics', labelKey: 'nav.statistics', icon: 'chart', needs: 'stats.view' },
+  { id: 'reorder', labelKey: 'nav.reorder', icon: 'upload', needs: 'stats.view' },
+  { id: 'stocktake', labelKey: 'nav.stocktake', icon: 'check', needs: 'stocktake.run' },
   { id: 'clients', labelKey: 'nav.clients', icon: 'people', needs: 'clients.view' },
   { id: 'categories', labelKey: 'nav.categories', icon: 'tag', needs: 'categories.manage' },
   { id: 'fields', labelKey: 'nav.details', icon: 'fields', needs: 'fields.manage' },
@@ -299,6 +303,15 @@ export function App() {
             }}
           />
         )}
+        {view === 'reorder' && (
+          <ReorderView
+            onBrowseItem={(name) => {
+              setFilters((current) => ({ ...current, query: name, scope: 'all' }));
+              setView('inventory');
+            }}
+          />
+        )}
+        {view === 'stocktake' && <StockTakeView />}
         {view === 'clients' && <ClientsView />}
         {view === 'categories' && (
           <CategoriesView

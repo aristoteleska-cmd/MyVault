@@ -22,8 +22,11 @@ import type {
   FieldType,
   Item,
   Movement,
+  ReorderList,
   Settings,
   StatsReport,
+  StockTakeProgress,
+  BackupStatus,
   UpdateStatus,
 } from '../types';
 import type { ImportResult, Result } from '../bridge';
@@ -87,6 +90,30 @@ interface VaultValue {
   statsReport: (range?: { from?: string; to?: string }) => Promise<StatsReport | null>;
   recentMovements: (range?: { from?: string; to?: string; limit?: number })
     => Promise<Movement[] | null>;
+  reorderList: (options?: { days?: number; cover?: number }) => Promise<ReorderList | null>;
+
+  /** Something came back over the counter: stock returns, money goes out. */
+  returnItem: (id: string, quantity: number) => Promise<void>;
+
+  /** Counting the shelves. The count is saved as it is typed. */
+  startStockTake: (categoryId: string) => Promise<StockTakeProgress | null>;
+  stockTakeProgress: () => Promise<StockTakeProgress | null>;
+  countStockTake: (itemId: string, counted: number | null) => Promise<StockTakeProgress | null>;
+  cancelStockTake: () => Promise<void>;
+  applyStockTake: () => Promise<{ corrected: number; missingUnits: number; shrinkage: number } | null>;
+
+  /** Saves one of MyVault's own documents as a PDF. Returns the path, or null. */
+  printPdf: (request: {
+    kind: 'stocktake' | 'reorder' | 'inventory';
+    fileName?: string;
+    payload: Record<string, unknown>;
+  }) => Promise<string | null>;
+
+  backupStatus: BackupStatus | null;
+  refreshBackupStatus: () => Promise<void>;
+  chooseBackupFolder: () => Promise<void>;
+  forgetBackupFolder: () => Promise<void>;
+  backupNow: () => Promise<void>;
 
   addCategory: (name: string, color: string) => Promise<Category | null>;
   updateCategory: (id: string, patch: Partial<Category>) => Promise<void>;
@@ -156,11 +183,13 @@ const emptyDb: Database = {
     defaultLowStockThreshold: 5,
     shopName: '',
     dateFormat: 'dd/MM/yyyy',
+    backupFolder: '',
     updates: 'off',
   },
   categories: [],
   customFields: [],
   clients: [],
+  stockTake: null,
   items: [],
 };
 
@@ -191,6 +220,7 @@ export function VaultProvider({ children }: { children: ReactNode }) {
   // customer, not to this shop, and the next person to open MyVault should not
   // find yesterday's regular still selected.
   const [serving, setServing] = useState('');
+  const [backupStatus, setBackupStatus] = useState<BackupStatus | null>(null);
   // Held only long enough to be shown and written down.
   const [recoveryCode, setRecoveryCode] = useState('');
   const toastId = useRef(0);
@@ -483,6 +513,104 @@ export function VaultProvider({ children }: { children: ReactNode }) {
     [run],
   );
 
+  const reorderList = useCallback(
+    async (options?: { days?: number; cover?: number }) =>
+      run(window.myvault.stats.reorder(options)),
+    [run],
+  );
+
+  // ---------------------------------------------------------------- returns
+
+  const returnItem = useCallback(
+    async (id: string, quantity: number) => {
+      const amount = Math.max(1, Math.round(quantity) || 1);
+      const item = await run(window.myvault.items.adjust(id, amount, {
+        reason: 'return',
+        clientId: serving,
+      }));
+      if (item) {
+        replaceItem(item);
+        notify('toast.returned', { name: item.name, count: amount }, 'success');
+      }
+    },
+    [run, replaceItem, notify, serving],
+  );
+
+  // ------------------------------------------------------------- stock take
+
+  const startStockTake = useCallback(async (categoryId: string) => {
+    const started = await run(window.myvault.stocktake.start({ categoryId }));
+    if (!started) return null;
+    return run(window.myvault.stocktake.progress());
+  }, [run]);
+
+  const stockTakeProgress = useCallback(
+    async () => run(window.myvault.stocktake.progress()),
+    [run],
+  );
+
+  const countStockTake = useCallback(
+    async (itemId: string, counted: number | null) =>
+      run(window.myvault.stocktake.count(itemId, counted)),
+    [run],
+  );
+
+  const cancelStockTake = useCallback(async () => {
+    await run(window.myvault.stocktake.cancel());
+    setDb((current) => ({ ...current, stockTake: null }));
+  }, [run]);
+
+  const applyStockTake = useCallback(async () => {
+    const result = await run(window.myvault.stocktake.apply());
+    if (!result) return null;
+    if (result.state) setDb(result.state);
+    notify('toast.stockTakeApplied', { count: result.corrected }, 'success');
+    return result;
+  }, [run, notify]);
+
+  // ---------------------------------------------------------------- printing
+
+  const printPdf = useCallback(async (request: {
+    kind: 'stocktake' | 'reorder' | 'inventory';
+    fileName?: string;
+    payload: Record<string, unknown>;
+  }) => {
+    const result = await run(window.myvault.print.pdf(request));
+    if (!result || result.canceled || !result.filePath) return null;
+    notify('toast.pdfSaved', { path: result.filePath }, 'success');
+    return result.filePath;
+  }, [run, notify]);
+
+  // --------------------------------------------------------- second backup
+
+  const refreshBackupStatus = useCallback(async () => {
+    const status = await run(window.myvault.backup.status());
+    if (status) setBackupStatus(status);
+  }, [run]);
+
+  const chooseBackupFolder = useCallback(async () => {
+    const result = await run(window.myvault.backup.chooseFolder());
+    if (!result || result.canceled) return;
+    if (result.status) setBackupStatus(result.status);
+    if (result.settings) setDb((current) => ({ ...current, settings: result.settings! }));
+    notify('toast.backupFolderSet', undefined, 'success');
+  }, [run, notify]);
+
+  const forgetBackupFolder = useCallback(async () => {
+    const result = await run(window.myvault.backup.forgetFolder());
+    if (!result) return;
+    setBackupStatus(result.status);
+    setDb((current) => ({ ...current, settings: result.settings }));
+  }, [run]);
+
+  const backupNow = useCallback(async () => {
+    const status = await run(window.myvault.backup.now());
+    if (!status) return;
+    setBackupStatus(status);
+    if (status.error) notifyRaw(status.error);
+    else notify('toast.backupMirrored', undefined, 'success');
+  }, [run, notify, notifyRaw]);
+
   // ----------------------------------------------------------- custom fields
 
   const addField = useCallback(
@@ -766,6 +894,19 @@ export function VaultProvider({ children }: { children: ReactNode }) {
       clientHistory,
       statsReport,
       recentMovements,
+      reorderList,
+      returnItem,
+      startStockTake,
+      stockTakeProgress,
+      countStockTake,
+      cancelStockTake,
+      applyStockTake,
+      printPdf,
+      backupStatus,
+      refreshBackupStatus,
+      chooseBackupFolder,
+      forgetBackupFolder,
+      backupNow,
       addCategory,
       updateCategory,
       deleteCategory,
@@ -805,7 +946,9 @@ export function VaultProvider({ children }: { children: ReactNode }) {
       notify, dismissToast,
       addItem, updateItem, adjustStock, deleteItems,
       serving, addClient, updateClient, deleteClient, clientHistory,
-      statsReport, recentMovements,
+      statsReport, recentMovements, reorderList, returnItem,
+      startStockTake, stockTakeProgress, countStockTake, cancelStockTake, applyStockTake,
+      printPdf, backupStatus, refreshBackupStatus, chooseBackupFolder, forgetBackupFolder, backupNow,
       addCategory, updateCategory, deleteCategory,
       addField, updateField, deleteField, moveField,
       updateSettings, exportCsv, importCsv, backup, restore, openDataFolder,
