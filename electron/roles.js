@@ -43,6 +43,7 @@ const CAPABILITIES = [
   'stats.view',      // takings, profit, what is selling and what is not
   'vat.view',        // the shop's tax position, and what it owes
   'documents.manage', // enter an invoice or delivery note and post it to stock
+  'pricing.view',     // margins, what a product usually costs, and what to charge
 ];
 
 /**
@@ -75,6 +76,10 @@ const ROLE_CAPABILITIES = {
     'stats.view',
     'stocktake.run',
     'documents.manage',
+    // Comes with taking deliveries in. Someone typing a supplier's invoice is
+    // already looking at what the shop paid, so telling them the cost went up is
+    // not showing them anything the paper in their hand does not.
+    'pricing.view',
   ],
 
   // On the till. Look something up, and take one off the shelf when it sells.

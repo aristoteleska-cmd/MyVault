@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useVault } from '../state/vault';
 import { useI18n, useT } from '../i18n';
 import { formatDate, formatDateTime, formatMoney, formatNumber } from '../lib/format';
-import type { DraftDocument, PostedDocument } from '../types';
+import type { DeliveryReview, DraftDocument, PostedDocument } from '../types';
 import { Icon } from './Icon';
 
 /**
@@ -30,6 +30,12 @@ export function InvoicesView() {
   const [quantity, setQuantity] = useState('1');
   const [busy, setBusy] = useState(false);
   const [confirming, setConfirming] = useState(false);
+  /**
+   * Set only when a delivery just came in at prices the shop does not usually
+   * pay. Shown as a panel rather than a toast: a cost that moved is worth a
+   * decision, and a decision needs the figures to stay on the screen.
+   */
+  const [priceNews, setPriceNews] = useState<DeliveryReview | null>(null);
 
   const currency = db.settings.currency;
   const vatOn = db.settings.vatEnabled;
@@ -62,13 +68,19 @@ export function InvoicesView() {
   async function post() {
     if (!draft) return;
     setBusy(true);
-    const done = await postDoc(draft.id);
+    const prices = await postDoc(draft.id);
     setBusy(false);
     setConfirming(false);
-    if (done) { setOpenId(null); void refreshHistory(); }
+    if (!prices) return;
+    setOpenId(null);
+    void refreshHistory();
+    // Only when something actually moved. A delivery at the usual prices is the
+    // normal case and must not put a panel on the screen to be dismissed.
+    setPriceNews(prices.lines.length > 0 ? prices : null);
   }
 
   const clientName = (id: string) => db.clients.find((c) => c.id === id)?.name ?? '';
+  const money = (value: number) => formatMoney(value, currency, locale);
 
   return (
     <div className="view">
@@ -76,6 +88,47 @@ export function InvoicesView() {
         <h1 className="view-title">{t('docs.title')}</h1>
         <p className="view-sub">{t('docs.sub')}</p>
       </header>
+
+      {/* The one moment the shop is looking at what it paid and can act on it.
+          Kept to the figures and a way through to the Prices screen — the
+          decision itself belongs there, next to the suggestions. */}
+      {priceNews && (
+        <div className="panel panel-notice">
+          <div className="panel-head">{t('docs.pricesTitle')}</div>
+          <p className="panel-sub">
+            {[
+              priceNews.cheaper ? t('docs.pricesCheaper', { count: priceNews.cheaper }) : '',
+              priceNews.dearer ? t('docs.pricesDearer', { count: priceNews.dearer }) : '',
+            ].filter(Boolean).join(' · ')}
+            {' '}
+            {t('docs.pricesWorth', { money: money(Math.abs(priceNews.saving ?? 0)) })}
+          </p>
+          <ul className="notice-list">
+            {priceNews.lines.map((line) => (
+              <li key={line.id}>
+                <span className="cell-strong">{line.name}</span>
+                <span className="cell-note">
+                  {t(
+                    line.change?.kind === 'cheaper'
+                      ? 'prices.changeCheaper'
+                      : 'prices.changeDearer',
+                    {
+                      percent: formatNumber(line.change?.percent ?? 0, locale),
+                      was: money(line.change?.from ?? 0),
+                      now: money(line.change?.to ?? 0),
+                    },
+                  )}
+                </span>
+              </li>
+            ))}
+          </ul>
+          <div className="toolbar">
+            <button type="button" className="btn" onClick={() => setPriceNews(null)}>
+              {t('docs.pricesDismiss')}
+            </button>
+          </div>
+        </div>
+      )}
 
       {!draft && (
         <div className="toolbar">

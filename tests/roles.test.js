@@ -44,7 +44,7 @@ const EXPECTED = {
     // running the floor: knowing what is selling, and writing down a regular.
     yes: ['items.view', 'items.sell', 'items.receive', 'items.return', 'items.create',
       'items.edit', 'data.export', 'clients.view', 'clients.manage', 'stats.view',
-      'stocktake.run', 'documents.manage'],
+      'stocktake.run', 'documents.manage', 'pricing.view'],
     no: ['categories.manage', 'fields.manage', 'settings.manage', 'staff.manage',
       'items.delete', 'data.import'],
   },
@@ -56,7 +56,7 @@ const EXPECTED = {
     no: ['items.receive', 'items.return', 'items.create', 'items.edit', 'items.delete',
       'categories.manage', 'fields.manage', 'settings.manage', 'staff.manage',
       'data.export', 'data.import', 'clients.manage', 'stats.view', 'stocktake.run',
-      'vat.view', 'documents.manage'],
+      'vat.view', 'documents.manage', 'pricing.view'],
   },
 };
 

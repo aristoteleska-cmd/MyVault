@@ -40,6 +40,9 @@ export type ThemeChoice = 'light' | 'dark' | 'system';
 
 export type AccentChoice = 'blue' | 'teal' | 'green' | 'purple' | 'orange' | 'graphite';
 
+/** How a suggested price is rounded: to five cents, to a ,99, or not at all. */
+export type RoundingStyle = 'none' | 'nearest05' | 'nearest10' | 'ends9' | 'ends99';
+
 export type DensityChoice = 'comfortable' | 'compact';
 
 export interface Settings {
@@ -64,6 +67,13 @@ export interface Settings {
   pricesIncludeVat: boolean;
   /** Supplier invoices are usually net, so this is false. */
   costsIncludeVat: boolean;
+  /**
+   * The margin the shop wants, as a percentage of the price it charges. Zero
+   * means "not set", which is the default — MyVault does not invent a target.
+   */
+  targetMargin: number;
+  /** How a suggested price is rounded off before it is offered. */
+  priceRounding: RoundingStyle;
   /** Off unless the shop deliberately switched it on. */
   updates: UpdateMode;
 }
@@ -183,6 +193,106 @@ export interface VatReport {
   /** Stock that moved with no rate recorded, e.g. before VAT was switched on. */
   withoutRate: number;
   movements: number;
+}
+
+/**
+ * What one product's costs have done, and what the shop could charge.
+ *
+ * Every money figure is in the same terms the shop enters them: `price` is what
+ * is on the shelf label, `netPrice` is what is left of it after VAT. Margins are
+ * always on the net, and null rather than zero when there is no price to work
+ * them out from.
+ */
+export interface PriceSuggestion {
+  /**
+   *   hold     leave the price alone and keep the extra margin
+   *   passOn   drop the price to what keeps the margin it used to earn
+   *   restore  put the price up to undo a cost rise
+   *   target   reach the margin the shop said it wants
+   *   cover    stop selling below cost
+   */
+  kind: 'hold' | 'passOn' | 'restore' | 'target' | 'cover';
+  price: number;
+  /** What this price would actually earn once rounded — not what was asked for. */
+  margin: number | null;
+  profit: number;
+  /** How far it moves the shelf price. Negative is a price cut. */
+  difference: number;
+  /** A translation key naming the reason, or empty. */
+  note: string;
+  /** hold only: what the cheap batch earns above the usual cost. */
+  extra?: number;
+  /** hold only: the margin this product earned before the cost changed. */
+  wasMargin?: number | null;
+}
+
+export interface CostChange {
+  kind: 'cheaper' | 'dearer';
+  /** The usual cost, and what this delivery actually cost. */
+  from: number;
+  to: number;
+  difference: number;
+  /** As a percentage of the usual cost, rounded the way it is displayed. */
+  percent: number;
+  at: string;
+  units: number;
+  /** Worth across the whole delivery. Negative when the cost went up. */
+  saving: number;
+}
+
+export interface PriceAdvice {
+  id: string;
+  name: string;
+  barcode: string;
+  quantity: number;
+  vatRate: number;
+  rounding: RoundingStyle;
+  price: number;
+  netPrice: number;
+  cost: number;
+  netCost: number;
+  margin: number | null;
+  markup: number | null;
+  /** Per unit, and only the shop's own share of it. */
+  profit: number;
+  history: {
+    deliveries: number;
+    last: number | null;
+    lastAt: string;
+    lastUnits: number;
+    usual: number | null;
+    lowest: number | null;
+    highest: number | null;
+  };
+  /** Null unless the last delivery moved by more than 5% against the usual. */
+  change: CostChange | null;
+  /** Selling at or below what it cost. */
+  losing: boolean;
+  suggestions: PriceSuggestion[];
+}
+
+export interface PriceReview {
+  /** The shop's own target margin, or 0 when it has not set one. */
+  target: number;
+  rounding: RoundingStyle;
+  generatedAt: string;
+  cheaper: PriceAdvice[];
+  dearer: PriceAdvice[];
+  thin: PriceAdvice[];
+  losing: PriceAdvice[];
+  counts: {
+    cheaper: number; dearer: number; thin: number; losing: number; items: number;
+  };
+}
+
+/** Which lines on a delivery just came in at a different price than usual. */
+export interface DeliveryReview {
+  number?: string;
+  supplier?: string;
+  lines: PriceAdvice[];
+  cheaper?: number;
+  dearer?: number;
+  saving?: number;
 }
 
 /** An invoice or delivery note: 'in' brings stock in, 'out' sends it out. */
@@ -421,7 +531,8 @@ export type Capability =
   | 'vat.view'
   | 'documents.manage'
   | 'items.return'
-  | 'stocktake.run';
+  | 'stocktake.run'
+  | 'pricing.view';
 
 /** A member of staff as the window is allowed to see them: never a PIN. */
 export interface StaffMember {

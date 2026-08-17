@@ -30,6 +30,9 @@ import type {
   PostedDocument,
   VatPeriod,
   VatReport,
+  PriceAdvice,
+  PriceReview,
+  DeliveryReview,
   BackupStatus,
   UpdateStatus,
 } from '../types';
@@ -96,6 +99,14 @@ interface VaultValue {
     => Promise<Movement[] | null>;
   reorderList: (options?: { days?: number; cover?: number }) => Promise<ReorderList | null>;
 
+  /**
+   * Margins, and what the shop usually pays. Read-only: applyPrice is an
+   * ordinary product edit, not a separate power.
+   */
+  priceReview: (options?: { limit?: number }) => Promise<PriceReview | null>;
+  priceAdvice: (id: string) => Promise<PriceAdvice | null>;
+  applyPrice: (id: string, price: number) => Promise<Item | null>;
+
   /** Invoices and delivery notes. Posting one moves all its stock at once. */
   drafts: DraftDocument[];
   refreshDrafts: () => Promise<void>;
@@ -107,7 +118,11 @@ interface VaultValue {
   }) => Promise<DraftDocument | null>;
   removeDocLine: (id: string, index: number) => Promise<DraftDocument | null>;
   discardDoc: (id: string) => Promise<void>;
-  postDoc: (id: string) => Promise<boolean>;
+  /**
+   * Posts the paper, and hands back which of its lines came in at a price the
+   * shop does not usually pay. Null if the post was refused.
+   */
+  postDoc: (id: string) => Promise<DeliveryReview | null>;
   voidDoc: (id: string) => Promise<boolean>;
   listDocs: (options?: { limit?: number }) => Promise<PostedDocument[] | null>;
   importDocCsv: (id: string) => Promise<DraftDocument | null>;
@@ -128,7 +143,7 @@ interface VaultValue {
 
   /** Saves one of MyVault's own documents as a PDF. Returns the path, or null. */
   printPdf: (request: {
-    kind: 'stocktake' | 'reorder' | 'inventory' | 'vat';
+    kind: 'stocktake' | 'reorder' | 'inventory' | 'vat' | 'prices';
     fileName?: string;
     payload: Record<string, unknown>;
   }) => Promise<string | null>;
@@ -212,6 +227,8 @@ const emptyDb: Database = {
     vatRate: 24,
     pricesIncludeVat: true,
     costsIncludeVat: false,
+    targetMargin: 0,
+    priceRounding: 'nearest05',
     updates: 'off',
   },
   categories: [],
@@ -586,11 +603,14 @@ export function VaultProvider({ children }: { children: ReactNode }) {
 
   const postDoc = useCallback(async (id: string) => {
     const result = await run(window.myvault.docs.post(id));
-    if (!result) return false;
+    if (!result) return null;
     if (result.state) setDb(result.state);
     setDrafts((current) => current.filter((d) => d.id !== id));
     notify('toast.docPosted', { count: result.moved }, 'success');
-    return true;
+    // Handed back rather than announced in a toast. A cost that moved is worth a
+    // decision, and a decision needs the figures on screen next to a button —
+    // not a message that disappears after four seconds.
+    return result.prices ?? { lines: [] };
   }, [run, notify]);
 
   const voidDoc = useCallback(async (id: string) => {
@@ -631,6 +651,31 @@ export function VaultProvider({ children }: { children: ReactNode }) {
       run(window.myvault.stats.reorder(options)),
     [run],
   );
+
+  // ----------------------------------------------------------------- prices
+
+  const priceReview = useCallback(
+    async (options?: { limit?: number }) => run(window.myvault.pricing.review(options)),
+    [run],
+  );
+
+  const priceAdvice = useCallback(
+    async (id: string) => run(window.myvault.pricing.advice(id)),
+    [run],
+  );
+
+  /**
+   * Takes a suggestion and makes it the price.
+   *
+   * Nothing about this is special: it is the same edit as typing the number into
+   * the product, which is why it goes through updateItem rather than a channel of
+   * its own. A suggestion the shop never presses changes nothing at all.
+   */
+  const applyPrice = useCallback(async (id: string, price: number) => {
+    const item = await updateItem(id, { price });
+    if (item) notify('toast.priceApplied', { name: item.name }, 'success');
+    return item;
+  }, [updateItem, notify]);
 
   // ---------------------------------------------------------------- returns
 
@@ -684,7 +729,7 @@ export function VaultProvider({ children }: { children: ReactNode }) {
   // ---------------------------------------------------------------- printing
 
   const printPdf = useCallback(async (request: {
-    kind: 'stocktake' | 'reorder' | 'inventory' | 'vat';
+    kind: 'stocktake' | 'reorder' | 'inventory' | 'vat' | 'prices';
     fileName?: string;
     payload: Record<string, unknown>;
   }) => {
@@ -1008,6 +1053,9 @@ export function VaultProvider({ children }: { children: ReactNode }) {
       statsReport,
       recentMovements,
       reorderList,
+      priceReview,
+      priceAdvice,
+      applyPrice,
       drafts,
       refreshDrafts,
       startDoc,
@@ -1073,6 +1121,7 @@ export function VaultProvider({ children }: { children: ReactNode }) {
       addItem, updateItem, adjustStock, deleteItems,
       serving, addClient, updateClient, deleteClient, clientHistory,
       statsReport, recentMovements, reorderList, vatReport, vatPeriods, returnItem,
+      priceReview, priceAdvice, applyPrice,
       drafts, refreshDrafts, startDoc, updateDoc, setDocLine, removeDocLine,
       discardDoc, postDoc, voidDoc, listDocs, importDocCsv,
       startStockTake, stockTakeProgress, countStockTake, cancelStockTake, applyStockTake,

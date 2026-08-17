@@ -1,6 +1,8 @@
 import { useEffect } from 'react';
 import { useVault } from '../state/vault';
-import type { AccentChoice, DensityChoice, ThemeChoice, UpdateMode } from '../types';
+import type {
+  AccentChoice, DensityChoice, RoundingStyle, ThemeChoice, UpdateMode,
+} from '../types';
 import { LANGUAGES, resolveLanguage, useI18n, type TranslationKey } from '../i18n';
 import { TRANSLATED_LANGUAGES } from '../i18n/catalogues';
 import { Icon, type IconName } from './Icon';
@@ -206,6 +208,89 @@ function VatPanel() {
           </div>
         </>
       )}
+    </div>
+  );
+}
+
+const ROUNDING_CHOICES: { value: RoundingStyle; labelKey: TranslationKey }[] = [
+  { value: 'none', labelKey: 'settings.roundingNone' },
+  { value: 'nearest05', labelKey: 'settings.roundingNearest05' },
+  { value: 'nearest10', labelKey: 'settings.roundingNearest10' },
+  { value: 'ends9', labelKey: 'settings.roundingEnds9' },
+  { value: 'ends99', labelKey: 'settings.roundingEnds99' },
+];
+
+/**
+ * What the shop is aiming for, and how it likes a price to look.
+ *
+ * The target margin starts at zero, meaning "not set", and that is deliberate:
+ * a number invented here would flag half a shop's catalogue as underpriced on
+ * the first morning, which is how a shop learns to ignore a screen. Until they
+ * say what they are aiming for, MyVault only reports what actually changed.
+ */
+function PricingPanel() {
+  const { db, updateSettings, can } = useVault();
+  const { t } = useI18n();
+  if (!can('settings.manage')) return null;
+  const settings = db.settings;
+
+  return (
+    <div className="panel">
+      <div className="panel-head">{t('settings.pricingPanel')}</div>
+
+      <div className="setting-row">
+        <div className="setting-text">
+          <div className="setting-title">{t('settings.targetMargin')}</div>
+          <div className="setting-desc">{t('settings.targetMarginDesc')}</div>
+        </div>
+        <div className="setting-control">
+          <div className="segmented">
+            {[0, 20, 30, 40, 50].map((margin) => (
+              <button
+                key={margin}
+                type="button"
+                className="segment"
+                aria-pressed={settings.targetMargin === margin}
+                onClick={() => void updateSettings({ targetMargin: margin })}
+              >
+                {margin === 0 ? t('common.no') : `${margin}%`}
+              </button>
+            ))}
+          </div>
+          <input
+            className="input"
+            style={{ width: 90 }}
+            type="number"
+            min={0}
+            max={95}
+            step={1}
+            value={settings.targetMargin}
+            onChange={(e) => void updateSettings({ targetMargin: Number(e.target.value) })}
+            aria-label={t('settings.targetMargin')}
+          />
+        </div>
+      </div>
+
+      <div className="setting-row">
+        <div className="setting-text">
+          <div className="setting-title">{t('settings.priceRounding')}</div>
+          <div className="setting-desc">{t('settings.priceRoundingDesc')}</div>
+        </div>
+        <div className="setting-control">
+          <select
+            className="input"
+            value={settings.priceRounding}
+            onChange={(e) => void updateSettings({
+              priceRounding: e.target.value as RoundingStyle,
+            })}
+            aria-label={t('settings.priceRounding')}
+          >
+            {ROUNDING_CHOICES.map((choice) => (
+              <option key={choice.value} value={choice.value}>{t(choice.labelKey)}</option>
+            ))}
+          </select>
+        </div>
+      </div>
     </div>
   );
 }
@@ -634,6 +719,7 @@ export function SettingsView() {
         </div>
 
         <VatPanel />
+        <PricingPanel />
 
         <UpdatesPanel />
 

@@ -8,6 +8,9 @@ const { Store, STANDARD_FIELDS, MAX_CUSTOM_FIELDS } = require('./store');
 const { report, reorderList, clientHistory } = require('./statistics');
 const { buildDocument } = require('./pdf');
 const { vatReport, vatPeriods, SUGGESTED_RATES } = require('./vat');
+const {
+  priceAdvice, priceReview, deliveryReview, ROUNDING_STYLES,
+} = require('./pricing');
 const { NETWORK_SWITCHES, DISABLED_FEATURES, UPDATE_HOSTS, enforceOffline } = require('./offline');
 const { parseCsv, toCsv } = require('./csv');
 const { Updater } = require('./updater');
@@ -578,11 +581,23 @@ function registerIpc() {
   handle('docs:remove-line', 'documents.manage', (id, index) => store.removeDraftLine(id, index));
   handle('docs:discard', 'documents.manage', (id) => store.discardDraft(id));
 
-  /** The only thing here that touches stock, and it does the whole paper at once. */
-  handle('docs:post', 'documents.manage', (id) => ({
-    ...store.postDraft(id, { by: whoAmI() }),
-    state: store.publicState(),
-  }));
+  /**
+   * The only thing here that touches stock, and it does the whole paper at once.
+   *
+   * The answer carries the cost review with it. Straight after posting is the one
+   * moment the shop is looking at what it paid and can act on it, and asking for
+   * it separately would mean the screen either makes a second call or never
+   * bothers. Nothing new is revealed either way: whoever posted the invoice typed
+   * those costs in from the paper in their hand.
+   */
+  handle('docs:post', 'documents.manage', (id) => {
+    const posted = store.postDraft(id, { by: whoAmI() });
+    return {
+      ...posted,
+      prices: deliveryReview(store.getState(), store.movements, posted.document),
+      state: store.publicState(),
+    };
+  });
 
   handle('docs:void', 'documents.manage', (id) => ({
     ...store.voidDocument(id, { by: whoAmI() }),
@@ -620,6 +635,28 @@ function registerIpc() {
     periods: vatPeriods(),
     suggestedRates: SUGGESTED_RATES,
   }));
+
+  // ------------------------------------------------------------------ prices
+
+  /**
+   * What the shop is charging against what it is paying.
+   *
+   * Same reasoning as the statistics screen: the log is read on this side of the
+   * bridge and what crosses is a handful of numbers per product. A shop with two
+   * thousand lines and five years of deliveries would otherwise be handing the
+   * window a decade of history to divide.
+   */
+  handle('pricing:review', 'pricing.view', (options = {}) => priceReview(
+    store.getState(),
+    store.movements,
+    { limit: Math.min(50, Math.max(1, Number(options.limit) || 12)) },
+  ));
+
+  /** One product, in full, for its own page. */
+  handle('pricing:advice', 'pricing.view', (id) =>
+    priceAdvice(store.getState(), store.movements, id));
+
+  handle('pricing:styles', 'pricing.view', () => ({ rounding: ROUNDING_STYLES }));
 
   // -------------------------------------------------------------- stock take
 

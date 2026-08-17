@@ -71,6 +71,19 @@ contextBridge.exposeInMainWorld('myvault', {
     periods: () => invoke('vat:periods'),
   },
 
+  /**
+   * Margins, and what a product usually costs.
+   *
+   * Read-only on purpose. Nothing here changes a price — a suggestion is worked
+   * out here and written on the screen, and it becomes a price only when the shop
+   * presses the button that saves the product like any other edit.
+   */
+  pricing: {
+    review: (options) => invoke('pricing:review', options),
+    advice: (id) => invoke('pricing:advice', id),
+    styles: () => invoke('pricing:styles'),
+  },
+
   /** Counting the shelves. The count is saved as it is typed. */
   stocktake: {
     start: (options) => invoke('stocktake:start', options),

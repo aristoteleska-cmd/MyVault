@@ -1636,3 +1636,49 @@ table.items tbody td > .item-meta { overflow: hidden; text-overflow: ellipsis; }
 .match-row:hover { background: var(--surface-2); }
 .record.is-voided { opacity: 0.62; }
 .record.is-voided .record-title { text-decoration: line-through; }
+
+/* ------------------------------------------------------------------ prices
+   The price review. Each row carries a product, its margin and a short list of
+   things the shop could do about it, so the suggestion column is a list rather
+   than a cell — a table of one-line rows could not hold the reason as well as
+   the figure, and the reason is the half that gets a shopkeeper to press the
+   button. */
+
+.panel-count {
+  margin-inline-start: var(--space-2);
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--surface-3);
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 600;
+  vertical-align: middle;
+}
+
+.cell-strong { font-weight: 600; color: var(--text); }
+.cell-note { font-size: 12px; color: var(--text-muted); margin-top: 2px; line-height: 1.35; }
+
+/* A tint on the whole row, so the four lists stay distinguishable when they are
+   printed or read at a glance from behind the counter. */
+.table tr.is-bad td { background: var(--danger-soft); }
+.table tr.is-good td { background: var(--success-soft); }
+.table tr.is-warn td { background: var(--warning-soft); }
+
+.suggestion-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-3); }
+.suggestion-list > li {
+  display: grid;
+  gap: 2px;
+  padding-inline-start: var(--space-3);
+  border-inline-start: 3px solid var(--border-strong);
+}
+.suggestion-head { font-weight: 600; font-size: 13px; color: var(--text); }
+.suggestion-figures { font-size: 13px; color: var(--text); font-variant-numeric: tabular-nums; }
+.suggestion-note { font-size: 12px; color: var(--text-muted); line-height: 1.35; max-width: 42ch; }
+.suggestion-list .btn { justify-self: start; margin-top: 2px; }
+
+/* The panel that appears once, straight after a delivery came in at a price the
+   shop does not usually pay. Accented rather than alarming: it is news, not a
+   fault. */
+.panel-notice { border-color: var(--accent); box-shadow: var(--shadow-sm); }
+.notice-list { list-style: none; margin: 0 0 var(--space-3); padding: 0; display: grid; gap: var(--space-2); }
+.notice-list > li { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: baseline; }

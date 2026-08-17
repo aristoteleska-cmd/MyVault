@@ -22,6 +22,7 @@ const { normalizeRate, rateFor } = require('./vat');
 const {
   KINDS, DocumentLog, normalizeLine, totalsFor, emptyDraft,
 } = require('./documents');
+const { ROUNDING_STYLES } = require('./pricing');
 
 const SCHEMA_VERSION = 3;
 const MAX_BACKUPS = 10;
@@ -94,6 +95,23 @@ const DEFAULT_SETTINGS = {
    * Invoices are usually net, so this is off by default.
    */
   costsIncludeVat: false,
+
+  /**
+   * The margin the shop wants to make, as a percentage of the price it charges.
+   *
+   * Zero means "not set", and that is the default on purpose. A number invented
+   * here would flag half a shop's catalogue as underpriced on the first morning,
+   * which teaches the shop to ignore the screen. Until they say what they are
+   * aiming for, MyVault only reports what changed and what it used to be.
+   */
+  targetMargin: 0,
+  /**
+   * How a suggested price should be rounded off — 2,3871 is arithmetic, not a
+   * price. Which ending suits depends on what the shop sells, so it is theirs
+   * to choose. Five cents is the least surprising default.
+   */
+  priceRounding: 'nearest05',
+
   /**
    * Off unless the shop turns it on. MyVault is handed over as a program that
    * does not use the internet, so the setting that would change that has to be
@@ -160,6 +178,12 @@ function normalizeSettings(input) {
   settings.pricesIncludeVat = settings.pricesIncludeVat !== false;
   settings.costsIncludeVat = Boolean(settings.costsIncludeVat);
   settings.defaultLowStockThreshold = Math.max(0, clampQuantity(settings.defaultLowStockThreshold));
+
+  // A target of 100% or more is not reachable at any price, so it is clamped to
+  // something a price can actually be worked out from.
+  const margin = toNumber(settings.targetMargin, 0);
+  settings.targetMargin = Math.min(95, Math.max(0, Math.round(margin * 10) / 10));
+  settings.priceRounding = pickFrom(ROUNDING_STYLES, settings.priceRounding, 'nearest05');
 
   // 1.1.0 stored this as a plain on/off. An old file saying true meant "look for
   // updates and tell me", which is what "check" is now; anything unrecognised,

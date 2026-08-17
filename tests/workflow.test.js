@@ -33,6 +33,7 @@ const path = require('path');
 const { Store } = require('../electron/store');
 const { report, stockSnapshot, reorderList, clientHistory } = require('../electron/statistics');
 const { vatReport } = require('../electron/vat');
+const { priceAdvice, priceReview } = require('../electron/pricing');
 
 let passed = 0;
 const ok = (label) => { passed += 1; console.log('  ok  ' + label); };
@@ -157,6 +158,9 @@ const applied = store.applyStockTake({ by: 'Aris' });
 assert.strictEqual(applied.corrected, 1);
 assert.strictEqual(applied.missingUnits, 2);
 ok('the stock take finds the two broken bottles and writes the correction down');
+
+/** The three products, by the name this file knows them by. */
+const whatIsThere = { water: water.id, ouzo: ouzo.id, tsipouro: tsipouro.id };
 
 // ============================================== does the month reconcile at all
 //
@@ -348,6 +352,46 @@ ok('the stock take finds the two broken bottles and writes the correction down')
     'the invoice is part of the takings, not all of them — the till is the rest',
   );
   ok('the filed invoices are a subset of the takings, and the till accounts for the rest');
+}
+
+// ============================================ and the margins agree with it too
+{
+  // Read-only: nothing here moves stock. The point is that the Prices screen is
+  // looking at the same shop as everything above it.
+  const review = priceReview(store.getState(), store.movements, {});
+  const shelves = stockSnapshot(store.getState());
+
+  assert.strictEqual(review.counts.items, 3);
+  assert.strictEqual(review.counts.losing, 0, 'nothing is priced under its cost');
+  assert.strictEqual(review.counts.cheaper, 0, 'one delivery each, so nothing to compare against');
+  assert.strictEqual(review.counts.dearer, 0);
+
+  // The delivery costs matched the opening costs to the cent, so every margin is
+  // the one the opening prices implied.
+  const water = priceAdvice(store.getState(), store.movements, whatIsThere.water);
+  assert.strictEqual(water.netPrice, 0.55, '0,62 at 13%');
+  assert.strictEqual(water.netCost, 0.25);
+  assert.strictEqual(water.margin, 54.5);
+  assert.strictEqual(water.history.deliveries, 1, 'the one delivery');
+  assert.strictEqual(water.history.usual, null, 'and nothing before it to be usual');
+  assert.strictEqual(water.suggestions.length, 0, 'so there is nothing to suggest');
+
+  // And the per-unit profit, summed across the shelves, is the stock screen's
+  // potential profit less the VAT sitting inside those shelf prices.
+  const perUnit = store.getState().items.map((item) => {
+    const advice = priceAdvice(store.getState(), store.movements, item.id);
+    return cents(advice.profit * item.quantity);
+  });
+  const netPotential = cents(perUnit.reduce((sum, value) => sum + value, 0));
+  const vatInStock = cents(store.getState().items.reduce((sum, item) => {
+    const advice = priceAdvice(store.getState(), store.movements, item.id);
+    return sum + (advice.price - advice.netPrice) * item.quantity;
+  }, 0));
+  assert.strictEqual(
+    cents(netPotential + vatInStock), shelves.potentialProfit,
+    'the margins on the shelves and the stock screen\'s potential profit must reconcile',
+  );
+  ok('the price screen and the stock screen are looking at the same shelves');
 }
 
 // ============================================ and it survives being reopened

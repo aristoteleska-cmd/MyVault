@@ -149,6 +149,11 @@ async function main() {
     // The shop's tax position is the owner's business, not the floor's.
     'vat.report': [{}],
     'vat.periods': [],
+    // What the shop pays and what it makes on each line. A junior sees a shelf
+    // price because they have to ring it up; the margin behind it is not theirs.
+    'pricing.review': [{}],
+    'pricing.advice': [item.id],
+    'pricing.styles': [],
     // Counting the shelves rewrites the stock figures wholesale.
     'stocktake.start': [{}],
     'stocktake.progress': [],

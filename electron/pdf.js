@@ -199,6 +199,49 @@ function inventorySheet({ title, shop, when, lines, totals, labels }) {
  * what was paid on purchases, and the difference. The caveat at the bottom is
  * printed on purpose — this is a shop's own arithmetic, not a filing.
  */
+/**
+ * The price review, for going round the shelves with a pen.
+ *
+ * Sections in the order they came off the screen, which is the order the shop
+ * should work through them — the lines losing money first. Each section is only
+ * printed if it has anything in it, because a page of empty headings is a page
+ * that teaches the shop the report is not worth printing.
+ */
+function pricesSheet({ title, shop, when, sections, target, labels }) {
+  const list = Array.isArray(sections) ? sections : [];
+  const body = list.map((section) => `
+    <h2>${esc(section.title)}</h2>
+    <table>
+      <thead><tr>
+        <th>${esc(labels.product)}</th>
+        <th class="num">${esc(labels.price)}</th>
+        <th class="num">${esc(labels.cost)}</th>
+        <th class="num">${esc(labels.usual)}</th>
+        <th class="num">${esc(labels.margin)}</th>
+        <th class="num">${esc(labels.suggested)}</th>
+        <th class="num">&nbsp;</th>
+      </tr></thead>
+      <tbody>${rows(section.rows || [], (row) => `
+        <td>${esc(row.name)}</td>
+        <td class="num">${esc(row.price)}</td>
+        <td class="num">${esc(row.cost)}</td>
+        <td class="num">${esc(row.usual)}</td>
+        <td class="num">${esc(row.margin)}</td>
+        <td class="num">${esc(row.suggested)}</td>
+        <td class="num"><span class="write-in">&nbsp;</span></td>`)}
+      </tbody>
+    </table>`).join('');
+
+  return page({
+    title,
+    shop,
+    when,
+    subtitle: target ? `${labels.targetLabel} ${target}` : '',
+    body: body || `<p class="note">${esc(labels.caveat)}</p>`,
+    footNote: labels.caveat,
+  });
+}
+
 function vatSheet({ title, shop, when, lines, totals, labels }) {
   const table = (heading, rates, empty) => `
     <h2>${esc(heading)}</h2>
@@ -242,6 +285,7 @@ const DOCUMENTS = {
   reorder: reorderSheet,
   inventory: inventorySheet,
   vat: vatSheet,
+  prices: pricesSheet,
 };
 
 /**
@@ -263,6 +307,8 @@ function buildDocument(kind, payload = {}) {
       ? payload.lines
       : [],
     suppliers: Array.isArray(payload.suppliers) ? payload.suppliers : [],
+    sections: Array.isArray(payload.sections) ? payload.sections : [],
+    target: String(payload.target || ''),
     blank: Boolean(payload.blank),
   });
 }

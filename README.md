@@ -155,6 +155,52 @@ on why the stock went, which MyVault cannot know — so it says how many there
 were rather than guessing. These figures are a working total to hand an
 accountant. They are not a tax return and not advice.
 
+**Prices and margins**
+
+MyVault already knows what you paid for the last delivery — the invoice is in
+it. What it could not tell you before is what that means for the shelf. Two
+things in particular go unnoticed for months, and both cost money:
+
+- **You bought something cheaper than usual.** The supplier ran a deal or you
+  took a bigger box. Nothing on any screen changed, so either you never notice
+  the extra margin you are earning, or you drop the shelf price to celebrate and
+  forget to put it back when the next delivery arrives at the old price.
+- **You bought something dearer than usual.** The cost crept up over three
+  deliveries and the price never moved. This is the one that quietly turns a
+  product into a loss, and it is invisible precisely *because* nothing happened —
+  no alert fires when a number stays the same.
+
+The **Prices** screen answers three questions per product: what do I normally
+pay, what did I pay this time, and what would I have to charge to keep the margin
+I had. It sorts your shop into four lists, worst first: **selling below cost**,
+**bought cheaper than usual**, **cost went up but the price did not**, and —
+only if you set a target — **below your target margin**. Each line comes with
+what you could do about it and the margin that choice would actually earn, so you
+choose on the number rather than the wording.
+
+And when a delivery is posted, the lines that came in at an unusual price are
+shown **there and then**, because that is the one moment you are looking at what
+you paid and can still act on it.
+
+Two things worth knowing about the arithmetic:
+
+- **Margin is worked out on the net price.** A shelf price of €12,40 contains
+  €2,40 that was never your money. A margin taken against the gross would flatter
+  every product in your shop by the VAT rate.
+- **"Usually" excludes the delivery being judged.** Otherwise buying cheap three
+  times makes cheap the norm, and the fourth cheap delivery looks like business
+  as usual. A product's *first* delivery is never called a discount either —
+  there is nothing to compare it to.
+
+Nothing here changes a price by itself. Every suggestion sits next to a button
+and you press it or you don't: you know about the shop down the road and MyVault
+does not. Suggested prices are rounded the way your shop likes them — to five
+cents, to a ,99, or not at all — and the margin shown is always the one the
+*rounded* price earns, not the one it was calculated from.
+
+Junior staff cannot see this screen. A shelf price is theirs to ring up; what
+you paid for it is not.
+
 **Customers**
 
 Keep your regulars: name, phone, email, address and notes. Only the name is
@@ -452,6 +498,7 @@ electron/          Main process — the only code that touches the disk
   movements.js     The append-only history of every stock movement
   statistics.js    The sums behind Statistics and the order list
   vat.js           VAT: collected less deductible, per rate, per quarter
+  pricing.js       Margins, what a product usually costs, and what to charge
   documents.js     Invoices and delivery notes, posted a whole page at a time
   pdf.js           The printable documents, built and escaped here
   offline.js       The rules that keep the app off the network
@@ -481,6 +528,10 @@ justify trusting the numbers rather than the code:
   customer's own page and the stock on the shelf all tell the same story. Every
   expected figure in it was worked out on paper first and is written down beside
   its arithmetic, so nothing is asserted against another part of MyVault.
+- `tests/pricing.test.js` checks the margin arithmetic against sums done on
+  paper, including every combination of the two VAT settings and every rounding
+  style — a suggestion that quietly rounds a price back under its cost is worse
+  than no suggestion.
 - `tests/edges.test.js` is the opposite: a product deleted while it sits on a
   half-typed invoice, an order for ten when there are three on the shelf, a
   category thrown away mid-count, a minus sign typed into a price. Every check

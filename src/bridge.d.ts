@@ -10,6 +10,10 @@ import type {
   PostedDocument,
   VatPeriod,
   VatReport,
+  PriceAdvice,
+  PriceReview,
+  DeliveryReview,
+  RoundingStyle,
   StockTake,
   StockTakeProgress,
   CustomField,
@@ -101,7 +105,13 @@ export interface MyVaultBridge {
     }): Promise<Result<DraftDocument>>;
     removeLine(id: string, index: number): Promise<Result<DraftDocument>>;
     discard(id: string): Promise<Result<DraftDocument[]>>;
-    post(id: string): Promise<Result<{ document: PostedDocument; moved: number; state: Database }>>;
+    post(id: string): Promise<Result<{
+      document: PostedDocument;
+      moved: number;
+      /** Which lines came in at a different price than usual. Empty for an 'out'. */
+      prices: DeliveryReview;
+      state: Database;
+    }>>;
     void(id: string): Promise<Result<{ document: PostedDocument; moved: number; state: Database }>>;
     list(options?: { limit?: number }): Promise<Result<PostedDocument[]>>;
     importCsv(id: string): Promise<Result<{
@@ -118,6 +128,13 @@ export interface MyVaultBridge {
       periods: Record<string, VatPeriod>;
       suggestedRates: number[];
     }>>;
+  };
+
+  /** Read-only. Nothing here changes a price; the shop saves the product to do that. */
+  pricing: {
+    review(options?: { limit?: number }): Promise<Result<PriceReview>>;
+    advice(id: string): Promise<Result<PriceAdvice | null>>;
+    styles(): Promise<Result<{ rounding: RoundingStyle[] }>>;
   };
 
   stocktake: {
@@ -137,7 +154,7 @@ export interface MyVaultBridge {
   print: {
     /** The page is built in the main process — only values cross the bridge. */
     pdf(request: {
-      kind: 'stocktake' | 'reorder' | 'inventory' | 'vat';
+      kind: 'stocktake' | 'reorder' | 'inventory' | 'vat' | 'prices';
       fileName?: string;
       payload: Record<string, unknown>;
     }): Promise<Result<{ canceled: boolean; filePath?: string }>>;
