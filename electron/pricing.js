@@ -221,25 +221,46 @@ function median(values) {
   return money((sorted[middle - 1] + sorted[middle]) / 2);
 }
 
+/** How many deliveries per product are held in memory while working this out. */
+const HISTORY_LIMIT = 24;
+
 /**
- * Everything the log knows about what one product has cost.
+ * One pass of the log, bucketing what each product has cost into a list.
+ *
+ * Everything here reads the log exactly once. That is not a detail: asking this
+ * question per product instead meant a thirty-line delivery took thirty passes
+ * over a shop's entire history, and on five years of movements that was two and
+ * a half seconds of frozen window every time an invoice was posted.
  *
  * Only deliveries count. An opening count carries whatever cost was typed when
  * the product was created, which is a guess at worst and a memory at best — and
  * a stock-take correction carries a cost so the shrinkage can be valued, not
  * because anything was bought. Neither is a price a supplier charged.
+ *
+ * Nor is a delivery the shop has since voided. Voiding sends the goods back to
+ * the supplier and writes a correction naming the invoice, so those invoices are
+ * collected on the way past and their lines dropped at the end — otherwise a
+ * mistyped cost the shop had already cancelled would still count as a price it
+ * paid, and would drag the "usual" figure with it for months.
  */
-function costHistory(log, itemId, { limit = 24 } = {}) {
-  const wanted = String(itemId || '');
-  if (!wanted) return [];
+function deliveriesByItem(log, ids) {
+  const wanted = ids ? new Set(ids) : null;
+  const buckets = new Map();
+  const reversed = new Set();
 
-  const deliveries = [];
   log.forEach({}, (entry) => {
-    if (entry.itemId !== wanted) return;
-    if (entry.reason !== 'delivery') return;
+    if (wanted && !wanted.has(entry.itemId)) return;
     const delta = Number(entry.delta) || 0;
-    if (delta <= 0) return;
-    deliveries.push({
+
+    if (entry.reason === 'correction' && delta < 0 && entry.docId) {
+      reversed.add(entry.docId);
+      return;
+    }
+    if (entry.reason !== 'delivery' || delta <= 0) return;
+
+    const bucket = buckets.get(entry.itemId) || [];
+    bucket.push({
+      itemId: entry.itemId,
       at: entry.at,
       units: delta,
       cost: money(entry.cost),
@@ -247,10 +268,23 @@ function costHistory(log, itemId, { limit = 24 } = {}) {
     });
     // Bounded like every other read of the log: a ten-year shop must not have
     // to hold a decade of deliveries in memory to be told what it usually pays.
-    if (deliveries.length > limit * 2) deliveries.splice(0, deliveries.length - limit);
+    if (bucket.length > HISTORY_LIMIT * 2) bucket.splice(0, bucket.length - HISTORY_LIMIT);
+    buckets.set(entry.itemId, bucket);
   });
 
-  return deliveries.slice(-limit);
+  for (const [id, list] of buckets) {
+    buckets.set(id, list
+      .filter((entry) => !entry.docId || !reversed.has(entry.docId))
+      .slice(-HISTORY_LIMIT));
+  }
+  return buckets;
+}
+
+/** Everything the log knows about what one product has cost. */
+function costHistory(log, itemId) {
+  const wanted = String(itemId || '');
+  if (!wanted) return [];
+  return deliveriesByItem(log, [wanted]).get(wanted) || [];
 }
 
 /**
@@ -301,6 +335,13 @@ function costProfile(log, item, settings = {}) {
   // against there is no such thing as "cheaper than usual", and saying otherwise
   // would put a discount badge on every product the first time it was delivered.
   if (profile.usual === null || profile.usual <= 0) return profile;
+
+  // And nothing is said at all once the shop has typed its own cost over the
+  // one the delivery set. The two figures then measure different things — the
+  // margin is worked out from what the shop says it costs, while the badge would
+  // be describing an invoice that no longer decides anything — and showing them
+  // side by side reads as a contradiction, because it is one.
+  if (profile.cost !== latest.cost) return profile;
 
   const difference = money(latest.cost - profile.usual);
   // The one figure, rounded once, used both for the decision and for the screen —
@@ -383,8 +424,15 @@ function priceAdvice(db, log, itemId) {
       highest: profile.highest,
     },
     change: profile.change,
-    /** Selling at or below what it cost, which is worth saying out loud. */
-    losing: netPrice > 0 && profile.netCost >= netPrice,
+    /**
+     * Selling at or below what it cost, which is worth saying out loud.
+     *
+     * Keyed off the cost rather than the price, so a product that has a real
+     * cost and no price yet is caught. Ringing that one up hands the stock over
+     * for nothing, which is the most expensive thing on this screen and used to
+     * appear on no list at all.
+     */
+    losing: profile.netCost > 0 && profile.netCost >= netPrice,
     suggestions: [],
   };
 
@@ -407,37 +455,37 @@ function priceAdvice(db, log, itemId) {
   const netCostNow = profile.netCost;
   const change = profile.change;
 
-  if (change && change.kind === 'cheaper') {
+  // Everything a cost change has to say is only worth saying while the product
+  // is still making money. Below cost there is exactly one thing to do about it,
+  // and offering "leave the price alone" or "pass the saving on" beside "you are
+  // selling this at a loss" is advice that cancels itself out.
+  if (change && !advice.losing) {
     // The usual cost, netted the same way, so the two margins are comparable.
     const usualNet = netOf(change.from, rate, Boolean(settings.costsIncludeVat));
     const usualMargin = marginOf(netPrice, usualNet);
 
-    // Hold first, because it is usually right. The saving is already earned; the
-    // only question is whether to give it away.
-    advice.suggestions.push({
-      kind: 'hold',
-      price,
-      margin: marginNow,
-      profit: money(netPrice - netCostNow),
-      difference: 0,
-      note: 'earnsExtra',
-      /** What holding the price is worth over the batch that arrived cheap. */
-      extra: money((usualNet - netCostNow) * change.units),
-      wasMargin: usualMargin,
-    });
+    if (change.kind === 'cheaper') {
+      // Hold first, because it is usually right. The saving is already earned;
+      // the only question is whether to give it away.
+      advice.suggestions.push({
+        kind: 'hold',
+        price,
+        margin: marginNow,
+        profit: money(netPrice - netCostNow),
+        difference: 0,
+        note: 'earnsExtra',
+        /** What holding the price is worth over the batch that arrived cheap. */
+        extra: money((usualNet - netCostNow) * change.units),
+        wasMargin: usualMargin,
+      });
 
-    // Or pass the deal on and keep the margin the product had before it.
-    if (usualMargin !== null) {
-      suggest('passOn', grossOf(priceForMargin(netCostNow, usualMargin), rate, pricesInclude), 'oneOffCost');
-    }
-  }
-
-  if (change && change.kind === 'dearer') {
-    const usualNet = netOf(change.from, rate, Boolean(settings.costsIncludeVat));
-    const usualMargin = marginOf(netPrice, usualNet);
-    // Put the margin back where it was before the cost went up. This is the
-    // suggestion the shop never asks for and most needs.
-    if (usualMargin !== null) {
+      // Or pass the deal on and keep the margin the product had before it.
+      if (usualMargin !== null) {
+        suggest('passOn', grossOf(priceForMargin(netCostNow, usualMargin), rate, pricesInclude), 'oneOffCost');
+      }
+    } else if (usualMargin !== null) {
+      // Put the margin back where it was before the cost went up. This is the
+      // suggestion the shop never asks for and most needs.
       suggest('restore', grossOf(priceForMargin(netCostNow, usualMargin), rate, pricesInclude), 'costRose');
     }
   }
@@ -486,20 +534,7 @@ function priceReview(db, log, { limit = MAX_LIST } = {}) {
   const items = db.items || [];
   const target = Number(settings.targetMargin) || 0;
 
-  const byItem = new Map();
-  for (const item of items) byItem.set(item.id, []);
-
-  log.forEach({}, (entry) => {
-    if (entry.reason !== 'delivery') return;
-    const delta = Number(entry.delta) || 0;
-    if (delta <= 0) return;
-    const bucket = byItem.get(entry.itemId);
-    if (!bucket) return;
-    bucket.push({
-      itemId: entry.itemId, at: entry.at, units: delta, cost: money(entry.cost),
-    });
-    if (bucket.length > 48) bucket.splice(0, bucket.length - 24);
-  });
+  const byItem = deliveriesByItem(log, items.map((item) => item.id));
 
   const cheaper = [];
   const dearer = [];
@@ -575,9 +610,21 @@ function adviceFromBucket(db, itemId, entries) {
 function deliveryReview(db, log, document) {
   if (!document || document.kind !== 'in') return { lines: [] };
 
+  // One pass for the whole document, not one per line. A thirty-line delivery
+  // used to mean thirty passes over the shop's entire history, which on five
+  // years of movements froze the window for two and a half seconds at exactly
+  // the moment the shop had just pressed Post.
+  const ids = (document.lines || []).map((line) => line.itemId);
+  const byItem = deliveriesByItem(log, ids);
+
   const lines = [];
+  const seen = new Set();
   for (const line of document.lines || []) {
-    const advice = priceAdvice(db, log, line.itemId);
+    // The same product can appear on two lines of one delivery note. It is one
+    // product either way, and listing it twice would just double the figures.
+    if (seen.has(line.itemId)) continue;
+    seen.add(line.itemId);
+    const advice = adviceFromBucket(db, line.itemId, byItem.get(line.itemId));
     if (!advice || !advice.change) continue;
     lines.push(advice);
   }

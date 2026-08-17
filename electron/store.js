@@ -1098,6 +1098,31 @@ class Store {
       }
     }
 
+    // Voiding an incoming invoice has to put the cost price back as well as the
+    // stock. Posting it overwrote each product's cost with what that invoice
+    // said, so leaving it there means a mistyped cost the shop has already
+    // cancelled still values the shelves and every margin off a price nobody
+    // paid — a delivery entered as 0,01 by accident would make the stock look
+    // worthless and the margins look enormous, for ever.
+    //
+    // What it goes back to is the last delivery before this one, which the
+    // movement log already knows. A product whose cost has been typed over since
+    // is left alone: that figure is the shop's own answer, not this invoice's.
+    if (incoming) {
+      const previous = new Map();
+      this.movements.forEach({}, (entry) => {
+        if (entry.reason !== 'delivery' || (Number(entry.delta) || 0) <= 0) return;
+        if (entry.docId === original.id) return;
+        previous.set(entry.itemId, clampMoney(entry.cost));
+      });
+      for (const line of original.lines) {
+        const item = this.db.items.find((candidate) => candidate.id === line.itemId);
+        if (!item) continue;
+        const before = previous.get(item.id);
+        if (before !== undefined && item.cost === clampMoney(line.unitPrice)) item.cost = before;
+      }
+    }
+
     this.persist();
     for (const entry of moved) this.logMovement(entry);
 

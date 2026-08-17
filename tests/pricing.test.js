@@ -549,6 +549,12 @@ const find = (advice, kind) => advice.suggestions.find((entry) => entry.kind ===
       reason: 'delivery', price: 12.40, cost: week === 1 ? 4.80 : 6.00, vatRate: 24,
     }, new Date(Date.now() - week * 7 * 86400000));
   }
+  // Posting a delivery sets the product's cost to what that delivery charged.
+  // These movements were written straight to the log to build five years in a
+  // loop, so the cost is set by hand to match — otherwise the product looks like
+  // one whose cost the shop has typed over, and the comparison is suppressed on
+  // purpose.
+  store.updateItem(item.id, { cost: 4.80 });
 
   const history = costHistory(store.movements, item.id);
   assert.strictEqual(history.length, 24, 'only the recent deliveries are held');
@@ -562,6 +568,173 @@ const find = (advice, kind) => advice.suggestions.find((entry) => entry.kind ===
   assert.ok(took < 1000, `260 deliveries took ${took}ms`);
   console.log(`      260 deliveries → usual 6,00, latest 4,80, in ${took}ms`);
   ok('five years of deliveries stays bounded in memory and quick to read');
+}
+
+// ================================================= advice that contradicts itself
+{
+  // Bought cheaper than usual and still sold below cost are both true at once.
+  // The screen used to offer "leave the price alone — it earns you more" beside
+  // "you are selling this at a loss", which is advice that cancels itself out.
+  const store = shop();
+  const item = store.addItem({ name: 'Ouzo', quantity: 0, price: 5.00, cost: 8.00 });
+  deliver(store, item.id, 10, 8.00);
+  deliver(store, item.id, 10, 8.00);
+  deliver(store, item.id, 10, 6.00); // 25% cheaper, still dearer than the 5,00 price
+
+  const advice = priceAdvice(store.getState(), store.movements, item.id);
+  assert.ok(advice.losing, '6,00 net against a price that nets 4,03');
+  assert.strictEqual(advice.change.kind, 'cheaper', 'the bargain is still reported');
+  assert.deepStrictEqual(
+    advice.suggestions.map((entry) => entry.kind), ['cover'],
+    'but the only thing to do about it is stop losing money',
+  );
+  ok('a product sold at a loss is never also told to leave its price alone');
+}
+
+// ============================================ priced at nothing, costing money
+{
+  // Not "losing money" by any test that starts from the price — there is no
+  // price. Ringing it up hands the stock over for nothing, which is the most
+  // expensive line in the shop, and it used to appear on no list at all.
+  const store = shop();
+  const item = store.addItem({ name: 'Ouzo', quantity: 10, price: 0, cost: 5.00 });
+
+  const advice = priceAdvice(store.getState(), store.movements, item.id);
+  assert.strictEqual(advice.margin, null, 'unpriced still has no margin');
+  assert.ok(advice.losing, 'but it is certainly not making money');
+  assert.strictEqual(advice.suggestions[0].kind, 'cover');
+  assert.ok(advice.suggestions[0].price >= 5.00, `suggested ${advice.suggestions[0].price}`);
+
+  const review = priceReview(store.getState(), store.movements, {});
+  assert.strictEqual(review.counts.losing, 1, 'and it is on a list');
+  ok('a product with a real cost and no price is caught rather than overlooked');
+
+  // A genuinely free product — no cost either — is not nagged about.
+  const free = store.addItem({ name: 'Bag', quantity: 100, price: 0, cost: 0 });
+  const second = priceAdvice(store.getState(), store.movements, free.id);
+  assert.strictEqual(second.losing, false, 'nothing costs nothing');
+  assert.strictEqual(second.suggestions.length, 0);
+  ok('and something that genuinely costs nothing is left alone');
+}
+
+// ========================================= a cost the shop has typed over itself
+{
+  const store = shop();
+  const item = store.addItem({ name: 'Ouzo', quantity: 0, price: 12.40, cost: 6.00 });
+  deliver(store, item.id, 10, 6.00);
+  deliver(store, item.id, 10, 6.00);
+  deliver(store, item.id, 10, 4.80);
+
+  assert.strictEqual(
+    priceAdvice(store.getState(), store.movements, item.id).change.kind, 'cheaper',
+    'reported while the delivery is what decides the cost',
+  );
+
+  // Now the shop corrects the cost by hand — carriage, or a rebate, or simply
+  // knowing better. The margin is worked out from 9,00 while the badge would
+  // still be describing an invoice that no longer decides anything, and the two
+  // shown side by side read as a contradiction.
+  store.updateItem(item.id, { cost: 9.00 });
+  const advice = priceAdvice(store.getState(), store.movements, item.id);
+  assert.strictEqual(advice.cost, 9.00);
+  assert.strictEqual(advice.change, null, 'so nothing is claimed about the change');
+  assert.strictEqual(advice.history.last, 4.80, 'though the delivery is still on record');
+  ok('a hand-typed cost silences the comparison rather than contradicting it');
+}
+
+// ============================================ a delivery the shop has cancelled
+{
+  const store = shop();
+  const item = store.addItem({ name: 'Ouzo', quantity: 0, price: 12.40, cost: 6.00 });
+  deliver(store, item.id, 10, 6.00);
+  deliver(store, item.id, 10, 6.00);
+  // A cost typed with the decimal point in the wrong place.
+  const typo = deliver(store, item.id, 10, 0.01);
+  assert.strictEqual(store.getState().items[0].cost, 0.01, 'which posting duly believed');
+
+  store.voidDocument(typo.document.id, {});
+
+  // Voiding put the stock back. It has to put the cost back too, or the shelves
+  // stay valued at a price nobody paid and every margin reads as enormous.
+  assert.strictEqual(store.getState().items[0].cost, 6.00, 'back to the delivery before it');
+  assert.strictEqual(store.getState().items[0].quantity, 20, 'and the stock went back as well');
+
+  const advice = priceAdvice(store.getState(), store.movements, item.id);
+  assert.strictEqual(advice.history.deliveries, 2, 'the cancelled one is not a price we paid');
+  assert.strictEqual(advice.history.last, 6.00);
+  assert.strictEqual(advice.history.lowest, 6.00, 'and cannot drag the range down either');
+  assert.strictEqual(advice.change, null);
+  assert.strictEqual(advice.margin, 40, 'the margin is the one it always was');
+  ok('a voided delivery leaves neither its cost on the product nor its price in the history');
+
+  // A cost the shop has since changed on purpose is not overwritten by a void.
+  const other = shop();
+  const second = other.addItem({ name: 'Raki', quantity: 0, price: 12.40, cost: 6.00 });
+  deliver(other, second.id, 10, 6.00);
+  const wrong = deliver(other, second.id, 10, 3.00);
+  other.updateItem(second.id, { cost: 7.50 });
+  other.voidDocument(wrong.document.id, {});
+  assert.strictEqual(
+    other.getState().items[0].cost, 7.50,
+    'the shop\'s own figure is not replaced by a void',
+  );
+  ok('and a void does not overwrite a cost the shop typed itself');
+}
+
+// ====================================== one pass of the log, not one per line
+{
+  // The delivery review runs the moment an invoice is posted, so its cost is
+  // paid by a shopkeeper watching the screen. Asking per line meant thirty
+  // passes over the shop's whole history for a thirty-line note.
+  const store = shop();
+  const ids = [];
+  for (let n = 0; n < 30; n += 1) {
+    const made = store.addItem({ name: 'P' + n, quantity: 0, price: 10, cost: 5 });
+    ids.push(made.id);
+    deliver(store, made.id, 10, 5);
+    deliver(store, made.id, 10, 5);
+  }
+  for (let n = 0; n < 20000; n += 1) {
+    store.movements.record({
+      itemId: ids[n % 30], itemName: 'P', delta: -1, quantityAfter: 0,
+      reason: 'sale', price: 10, cost: 5, vatRate: 24,
+    }, new Date(Date.now() - n * 60000));
+  }
+
+  const draft = store.startDraft({ kind: 'in' });
+  for (const id of ids) store.setDraftLine(draft.id, { itemId: id, quantity: 10, unitPrice: 4 });
+  const posted = store.postDraft(draft.id, {});
+
+  const startedOne = Date.now();
+  const review = deliveryReview(store.getState(), store.movements, posted.document);
+  const one = Date.now() - startedOne;
+
+  const startedAll = Date.now();
+  priceReview(store.getState(), store.movements, {});
+  const all = Date.now() - startedAll;
+
+  assert.strictEqual(review.lines.length, 30, 'every line came in cheaper');
+  assert.ok(
+    one <= all * 2,
+    `reviewing one 30-line delivery took ${one}ms against ${all}ms for the whole shop`,
+  );
+  console.log(`      30-line delivery reviewed in ${one}ms; whole shop in ${all}ms`);
+  ok('reviewing a delivery costs one pass of the log, not one per line');
+
+  // And the same product twice on one note is one product, not two rows.
+  const twice = shop();
+  const single = twice.addItem({ name: 'Ouzo', quantity: 0, price: 12.40, cost: 6.00 });
+  deliver(twice, single.id, 10, 6.00);
+  deliver(twice, single.id, 10, 6.00);
+  const both = twice.startDraft({ kind: 'in' });
+  twice.setDraftLine(both.id, { itemId: single.id, quantity: 10, unitPrice: 4.80 });
+  twice.setDraftLine(both.id, { itemId: single.id, quantity: 5, unitPrice: 4.80, lineId: 99 });
+  const two = twice.postDraft(both.id, {});
+  assert.strictEqual(
+    deliveryReview(twice.getState(), twice.movements, two.document).lines.length, 1,
+    'two lines of one product is still one product',
+  );
+  ok('a product on two lines of the same note is reported once');
 }
 
 // ============================================ and the printout is safe to print
