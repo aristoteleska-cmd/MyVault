@@ -155,8 +155,11 @@ function normalizeLine(input, { kind }) {
     barcode: String(input.barcode || '').slice(0, 64),
     quantity,
     // On a supplier's invoice this is what the shop paid; on a customer's, what
-    // the shop charged. Same field, opposite direction.
-    unitPrice: money(input.unitPrice),
+    // the shop charged. Same field, opposite direction — and never below zero,
+    // because a negative price on one line quietly subtracts from the total of
+    // the whole invoice. A refund is a document the other way round, not a
+    // minus sign on a line.
+    unitPrice: Math.max(0, money(input.unitPrice)),
     vatRate: Math.max(0, Math.min(100, Number(input.vatRate) || 0)),
     kind,
   };

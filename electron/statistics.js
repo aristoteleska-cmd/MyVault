@@ -204,6 +204,11 @@ function accumulate(log, { from, to, byMonth, salesInclude = true }) {
       const refund = units * (Number(entry.price) || 0);
       totals.returned += units;
       totals.refunded += refund;
+      // The stock is back on the shelf, so what it cost is no longer the cost of
+      // anything sold. Without this the refund came off the takings but its cost
+      // stayed in, and a returned item reduced the reported profit twice — once
+      // by the price and again by the cost.
+      totals.costOfSales -= units * (Number(entry.cost) || 0);
       const back = split(refund, normalizeRate(entry.vatRate) ?? 0, salesInclude);
       totals.vatCollected -= back.vat;
       totals.netTakings -= back.net;
@@ -467,6 +472,8 @@ function clientHistory(log, clientId, { limit = 100 } = {}) {
   let units = 0;
   let spent = 0;
   let orders = 0;
+  let returned = 0;
+  let refunded = 0;
   let firstAt = '';
   let lastAt = '';
 
@@ -477,11 +484,26 @@ function clientHistory(log, clientId, { limit = 100 } = {}) {
   // The filtering happens before the limit is applied, not after: a delivery
   // that happened to fall inside the window must not cost the customer a row.
   log.forEach({}, (entry) => {
-    if (entry.clientId !== wanted || entry.reason !== 'sale') return;
-    const bought = -(Number(entry.delta) || 0);
-    units += bought;
-    spent += bought * (Number(entry.price) || 0);
-    orders += 1;
+    if (entry.clientId !== wanted) return;
+    if (entry.reason !== 'sale' && entry.reason !== 'return') return;
+
+    if (entry.reason === 'sale') {
+      const bought = -(Number(entry.delta) || 0);
+      units += bought;
+      spent += bought * (Number(entry.price) || 0);
+      orders += 1;
+    } else {
+      // Money handed back is money this customer did not spend. Leaving it out
+      // made a customer's own page disagree with their row on the statistics
+      // screen, which has always subtracted refunds — so the same person
+      // appeared to have spent two different amounts.
+      const back = Math.abs(Number(entry.delta) || 0);
+      units -= back;
+      spent -= back * (Number(entry.price) || 0);
+      returned += back;
+      refunded += back * (Number(entry.price) || 0);
+    }
+
     if (!firstAt || entry.at < firstAt) firstAt = entry.at;
     if (entry.at > lastAt) lastAt = entry.at;
 
@@ -494,6 +516,8 @@ function clientHistory(log, clientId, { limit = 100 } = {}) {
     units,
     spent: money(spent),
     orders,
+    returned,
+    refunded: money(refunded),
     firstAt,
     lastAt,
   };

@@ -938,6 +938,34 @@ class Store {
     if (draft.lines.length === 0) throw new Error('This invoice has no lines on it yet.');
 
     const incoming = draft.kind === 'in';
+
+    // The document that gets filed has to be the document that actually posted.
+    //
+    // Two things can make that untrue, and both used to pass silently: a product
+    // deleted while the invoice was still being typed, and an outgoing invoice
+    // for more than is on the shelf. In either case the line kept its money on
+    // the paper while the stock either did not move or moved only as far as zero
+    // — so the invoice said one figure and the VAT return built from the
+    // movements said another. Refusing here, before a single number moves, is
+    // the only answer that keeps them equal: the shop either corrects the stock
+    // or corrects the line, and both are one press away.
+    const problems = [];
+    for (const line of draft.lines) {
+      const item = this.db.items.find((candidate) => candidate.id === line.itemId);
+      if (!item) {
+        problems.push(`${line.name || 'A product on this invoice'} is no longer in your stock list.`);
+      } else if (!incoming && item.quantity < line.quantity) {
+        problems.push(`${item.name}: the invoice says ${line.quantity}, but you have ${item.quantity}.`);
+      }
+    }
+    if (problems.length > 0) {
+      const shown = problems.slice(0, 6);
+      if (problems.length > shown.length) {
+        shown.push(`…and ${problems.length - shown.length} more.`);
+      }
+      throw new Error(`This invoice cannot be posted as it stands.\n\n${shown.join('\n')}`);
+    }
+
     const totals = this.draftTotals(draft);
     const postedAt = nowIso();
 
@@ -1187,9 +1215,18 @@ class Store {
     const take = this.db.stockTake;
     if (!take) return null;
 
-    const inScope = this.db.items.filter(
+    const scoped = this.db.items.filter(
       (item) => !take.categoryId || item.categoryId === take.categoryId,
     );
+
+    // A figure already typed is work done, and it stays in the count even if the
+    // product has since left the scope — moved to another category, or had its
+    // category deleted underneath it. Scope decides what still needs counting;
+    // it does not get to discard an afternoon of counting after the fact.
+    const alreadyIn = new Set(scoped.map((item) => item.id));
+    const inScope = scoped.concat(this.db.items.filter(
+      (item) => !alreadyIn.has(item.id) && take.counts[item.id] !== undefined,
+    ));
 
     const lines = [];
     let missingUnits = 0;

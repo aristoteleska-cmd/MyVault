@@ -329,9 +329,12 @@ export interface StatsReport {
 /** What one customer has bought: recent lines, totals over everything. */
 export interface ClientHistory {
   lines: Movement[];
+  /** Net of anything handed back, so it agrees with the statistics screen. */
   units: number;
   spent: number;
   orders: number;
+  returned: number;
+  refunded: number;
   firstAt: string;
   lastAt: string;
 }

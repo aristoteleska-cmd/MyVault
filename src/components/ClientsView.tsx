@@ -290,10 +290,13 @@ export function ClientsView() {
                     {openId === client.id && (
                       <div className="client-history">
                         {loadingHistory && <p className="panel-empty">{t('clients.loading')}</p>}
-                        {!loadingHistory && history && history.orders === 0 && (
+                        {/* Gated on the lines rather than the order count: a
+                            customer whose only record is a refund has a history,
+                            and telling them there is nothing yet is a puzzle. */}
+                        {!loadingHistory && history && history.lines.length === 0 && (
                           <p className="panel-empty">{t('clients.nothingYet')}</p>
                         )}
-                        {!loadingHistory && history && history.orders > 0 && (
+                        {!loadingHistory && history && history.lines.length > 0 && (
                           <>
                             <div className="client-totals">
                               <div>

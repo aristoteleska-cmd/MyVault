@@ -175,17 +175,28 @@ function shop(settings = {}) {
   ok('a line can be removed and a whole draft thrown away, without touching stock');
 }
 
-// Selling more than is on the shelf floors at zero, and the record says what
-// actually left rather than what the paper claimed.
+// An invoice for more than the shelf holds is refused outright.
+//
+// This check used to say the opposite: that the stock floored at zero and the
+// log recorded the three that really moved. That is right at the till, where the
+// only record is the movement — but on an invoice it left the paper claiming ten
+// while the movements said three, so the document total and the VAT return built
+// from those movements disagreed by the difference. There is no version of
+// posting this that is honest, so it is not posted: the shop is told which line
+// is short and by how much, and corrects the count or the line.
 {
   const store = shop();
   const item = store.addItem({ name: 'Coffee', quantity: 3, price: 4, cost: 2 });
   const draft = store.startDraft({ kind: 'out' });
   store.setDraftLine(draft.id, { itemId: item.id, quantity: 10 });
-  store.postDraft(draft.id, {});
-  assert.strictEqual(store.getState().items[0].quantity, 0);
-  assert.strictEqual(store.movements.list()[0].delta, -3, 'three left the shelf, not ten');
-  ok('an invoice for more than the shelf holds records what really moved');
+
+  let refusal = '';
+  try { store.postDraft(draft.id, {}); } catch (error) { refusal = error.message; }
+  assert.ok(refusal.includes('the invoice says 10, but you have 3'), refusal);
+  assert.strictEqual(store.getState().items[0].quantity, 3, 'no stock moved');
+  assert.strictEqual(store.movements.list().length, 1, 'and nothing but the opening count');
+  assert.strictEqual(store.listDrafts().length, 1, 'the draft is still there to fix');
+  ok('an invoice for more than the shelf holds is refused, naming the line and the shortfall');
 }
 
 // ------------------------------------------------------- the supplier's file

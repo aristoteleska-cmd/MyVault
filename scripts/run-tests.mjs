@@ -31,6 +31,8 @@ const suites = [
   { name: 'VAT', file: 'tests/vat.test.js', typescript: false },
   { name: 'invoices', file: 'tests/documents.test.js', typescript: false },
   { name: 'a real invoice', file: 'tests/real-invoice.test.js', typescript: false },
+  { name: 'awkward days', file: 'tests/edges.test.js', typescript: false },
+  { name: 'a month in a shop', file: 'tests/workflow.test.js', typescript: false },
   { name: 'barcode photos', file: 'tests/barcode.test.ts', typescript: true },
 ];
 

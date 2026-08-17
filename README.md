@@ -472,6 +472,20 @@ validated in `electron/store.js` before anything is written. React is bundled
 into `dist/` at build time, which is why `dependencies` is empty — the packaged
 app ships only MyVault's own code.
 
+Two of the test files are worth knowing about, because they are the ones that
+justify trusting the numbers rather than the code:
+
+- `tests/workflow.test.js` runs one month through one shop — opening stock, a
+  supplier's delivery, till sales, a wholesale invoice, a refund, a stock take —
+  and then checks that the takings screen, the VAT return, the order list, the
+  customer's own page and the stock on the shelf all tell the same story. Every
+  expected figure in it was worked out on paper first and is written down beside
+  its arithmetic, so nothing is asserted against another part of MyVault.
+- `tests/edges.test.js` is the opposite: a product deleted while it sits on a
+  half-typed invoice, an order for ten when there are three on the shelf, a
+  category thrown away mid-count, a minus sign typed into a price. Every check
+  in it started as a probe that failed.
+
 ---
 
 ## Reading a barcode from a photograph
