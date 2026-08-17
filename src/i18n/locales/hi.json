@@ -725,5 +725,13 @@
   "docs.pricesDearer": "{count} आम से महँगे",
   "docs.pricesWorth": "आम तौर पर आप जो देते हैं, उसके मुक़ाबले {money} का फ़र्क़।",
   "docs.pricesDismiss": "अभी नहीं",
-  "toast.priceApplied": "{name} — नई क़ीमत सहेजी गई।"
+  "toast.priceApplied": "{name} — नई क़ीमत सहेजी गई।",
+  "form.service": "यह सेवा है, शेल्फ़ पर रखी कोई चीज़ नहीं",
+  "form.serviceHint": "फ़िटिंग, डिलीवरी, एक घंटे की मज़दूरी, मरम्मत। इसकी क़ीमत और जीएसटी दर होती है और यह बाक़ी सब की तरह बिल पर आती है — बस इसकी कभी मात्रा नहीं होती, इसलिए यह आपके स्टॉक मूल्य, कम-स्टॉक चेतावनियों, ऑर्डर सूची और गिनती से बाहर रहती है।",
+  "form.costHistory": "यह आपको क्या पड़ी है",
+  "form.costRange": "चुकाई गई सीमा",
+  "form.deliveriesSeen": "इसकी पिछली {count} खेपों से",
+  "docs.discount": "छूट %",
+  "docs.discountFor": "{name} पर छूट",
+  "docs.wasBeforeDiscount": "पहले {money}"
 }

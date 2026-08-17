@@ -725,5 +725,13 @@
   "docs.pricesDearer": "{count} 项比平时贵",
   "docs.pricesWorth": "相比你平时付的，相当于 {money}。",
   "docs.pricesDismiss": "暂时不用",
-  "toast.priceApplied": "{name} — 新价格已保存。"
+  "toast.priceApplied": "{name} — 新价格已保存。",
+  "form.service": "这是服务，不是货架上的东西",
+  "form.serviceHint": "安装、送货、一小时工时、一次维修。它有价格和税率，跟别的一样开在单据上 — 只是永远没有数量，所以不进库存金额、不进缺货提醒、不进订货单，也不参加盘点。",
+  "form.costHistory": "它让你花了多少",
+  "form.costRange": "进价区间",
+  "form.deliveriesSeen": "根据最近 {count} 次进货",
+  "docs.discount": "折扣 %",
+  "docs.discountFor": "{name} 的折扣",
+  "docs.wasBeforeDiscount": "原为 {money}"
 }

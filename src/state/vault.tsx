@@ -114,7 +114,7 @@ interface VaultValue {
   updateDoc: (id: string, patch: Partial<DraftDocument>) => Promise<DraftDocument | null>;
   setDocLine: (id: string, line: {
     itemId: string; quantity: number; unitPrice?: number | string;
-    vatRate?: number | string; lineId?: number;
+    discount?: number | string; vatRate?: number | string; lineId?: number;
   }) => Promise<DraftDocument | null>;
   removeDocLine: (id: string, index: number) => Promise<DraftDocument | null>;
   discardDoc: (id: string) => Promise<void>;

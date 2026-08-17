@@ -725,5 +725,13 @@
   "docs.pricesDearer": "{count} lebih mahal dari biasanya",
   "docs.pricesWorth": "Setara {money} dibanding yang biasanya Anda bayar.",
   "docs.pricesDismiss": "Nanti saja",
-  "toast.priceApplied": "{name} — harga baru disimpan."
+  "toast.priceApplied": "{name} — harga baru disimpan.",
+  "form.service": "Ini jasa, bukan barang di rak",
+  "form.serviceHint": "Pemasangan, pengiriman, satu jam kerja, perbaikan. Ada harga dan tarif PPN-nya dan masuk ke faktur seperti yang lain — hanya saja tidak pernah punya jumlah, jadi tetap di luar nilai stok, peringatan stok menipis, daftar pesanan, dan opname Anda.",
+  "form.costHistory": "Berapa biayanya selama ini",
+  "form.costRange": "Rentang yang dibayar",
+  "form.deliveriesSeen": "Dari {count} kiriman terakhirnya",
+  "docs.discount": "Diskon %",
+  "docs.discountFor": "Diskon untuk {name}",
+  "docs.wasBeforeDiscount": "tadinya {money}"
 }

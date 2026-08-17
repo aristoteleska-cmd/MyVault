@@ -725,5 +725,13 @@
   "docs.pricesDearer": "{count} đắt hơn bình thường",
   "docs.pricesWorth": "Tương đương {money} so với số bạn thường trả.",
   "docs.pricesDismiss": "Để sau",
-  "toast.priceApplied": "{name} — đã lưu giá mới."
+  "toast.priceApplied": "{name} — đã lưu giá mới.",
+  "form.service": "Đây là dịch vụ, không phải hàng trên kệ",
+  "form.serviceHint": "Lắp đặt, giao hàng, một giờ công, một lần sửa. Nó có giá và thuế suất, và lên hóa đơn như mọi thứ khác — chỉ là không bao giờ có số lượng, nên nằm ngoài giá trị tồn kho, cảnh báo sắp hết, danh sách đặt hàng và các lần kiểm kê.",
+  "form.costHistory": "Nó đã tốn của bạn bao nhiêu",
+  "form.costRange": "Khoảng đã trả",
+  "form.deliveriesSeen": "Từ {count} lô gần nhất",
+  "docs.discount": "Giảm %",
+  "docs.discountFor": "Giảm giá cho {name}",
+  "docs.wasBeforeDiscount": "trước là {money}"
 }

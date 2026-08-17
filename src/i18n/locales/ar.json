@@ -725,5 +725,13 @@
   "docs.pricesDearer": "{count} أغلى من المعتاد",
   "docs.pricesWorth": "بقيمة {money} مقابل ما تدفعه عادةً.",
   "docs.pricesDismiss": "ليس الآن",
-  "toast.priceApplied": "{name} — تم حفظ السعر الجديد."
+  "toast.priceApplied": "{name} — تم حفظ السعر الجديد.",
+  "form.service": "هذه خدمة، وليست شيئاً على الرف",
+  "form.serviceHint": "تركيب، توصيل، ساعة عمل، إصلاح. لها سعر ونسبة ضريبة وتوضع في فاتورة مثل أي شيء آخر — لكنها لا تحمل كمية أبداً، فتبقى خارج قيمة مخزونك وتنبيهات النقص وقائمة الطلب والجرد.",
+  "form.costHistory": "كم كلّفك",
+  "form.costRange": "مدى ما دفعته",
+  "form.deliveriesSeen": "من آخر {count} دفعات منه",
+  "docs.discount": "خصم %",
+  "docs.discountFor": "خصم على {name}",
+  "docs.wasBeforeDiscount": "كان {money}"
 }

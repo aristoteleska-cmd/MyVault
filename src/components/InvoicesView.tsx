@@ -257,6 +257,7 @@ export function InvoicesView() {
                   <th>{t('docs.product')}</th>
                   <th className="num">{t('docs.quantity')}</th>
                   <th className="num">{t('docs.unitPrice')}</th>
+                  <th className="num">{t('docs.discount')}</th>
                   {vatOn && <th className="num">{t('vat.rate')}</th>}
                   <th className="num">{t('docs.lineTotal')}</th>
                   <th />
@@ -278,6 +279,7 @@ export function InvoicesView() {
                           itemId: line.itemId,
                           quantity: Number(e.target.value.replace(/[^0-9]/g, '')) || 0,
                           unitPrice: line.unitPrice,
+                          discount: line.discount,
                           vatRate: line.vatRate,
                           lineId: index,
                         })}
@@ -293,15 +295,48 @@ export function InvoicesView() {
                           itemId: line.itemId,
                           quantity: line.quantity,
                           unitPrice: e.target.value,
+                          discount: line.discount,
                           vatRate: line.vatRate,
                           lineId: index,
                         })}
                         aria-label={t('docs.priceFor', { name: line.name })}
                       />
                     </td>
+                    <td className="num">
+                      <input
+                        className="input count-input"
+                        inputMode="decimal"
+                        value={String(line.discount ?? 0)}
+                        onChange={(e) => void setDocLine(draft.id, {
+                          itemId: line.itemId,
+                          quantity: line.quantity,
+                          unitPrice: line.unitPrice,
+                          discount: e.target.value,
+                          vatRate: line.vatRate,
+                          lineId: index,
+                        })}
+                        aria-label={t('docs.discountFor', { name: line.name })}
+                      />
+                    </td>
                     {vatOn && <td className="num">{line.vatRate}%</td>}
                     <td className="num">
-                      {formatMoney(line.quantity * line.unitPrice, currency, locale)}
+                      {/* The discounted unit price times the quantity, which is
+                          exactly what posts and exactly what the VAT return will
+                          say — never the list price, or the paper and the return
+                          would show different money. */}
+                      {formatMoney(
+                        Math.round(line.unitPrice * (1 - (line.discount ?? 0) / 100) * 100)
+                          / 100 * line.quantity,
+                        currency,
+                        locale,
+                      )}
+                      {(line.discount ?? 0) > 0 && (
+                        <div className="cell-note">
+                          {t('docs.wasBeforeDiscount', {
+                            money: formatMoney(line.quantity * line.unitPrice, currency, locale),
+                          })}
+                        </div>
+                      )}
                     </td>
                     <td className="num">
                       <button

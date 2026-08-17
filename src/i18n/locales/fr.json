@@ -725,5 +725,13 @@
   "docs.pricesDearer": "{count} plus cher que d'habitude",
   "docs.pricesWorth": "Soit {money} par rapport à ce que vous payez normalement.",
   "docs.pricesDismiss": "Pas maintenant",
-  "toast.priceApplied": "{name} — nouveau prix enregistré."
+  "toast.priceApplied": "{name} — nouveau prix enregistré.",
+  "form.service": "C'est une prestation, pas quelque chose en rayon",
+  "form.serviceHint": "Pose, livraison, une heure de main-d'œuvre, une réparation. Elle a un prix et un taux de TVA et se met sur une facture comme le reste — elle n'a simplement jamais de quantité, donc elle reste hors de la valeur du stock, des alertes de stock bas, de la liste de commande et des inventaires.",
+  "form.costHistory": "Ce qu'elle vous a coûté",
+  "form.costRange": "Fourchette payée",
+  "form.deliveriesSeen": "Sur vos {count} dernières livraisons",
+  "docs.discount": "Remise %",
+  "docs.discountFor": "Remise sur {name}",
+  "docs.wasBeforeDiscount": "était {money}"
 }

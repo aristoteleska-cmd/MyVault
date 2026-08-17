@@ -68,6 +68,7 @@ class MovementLog {
   record({
     itemId, itemName, delta, quantityAfter, reason,
     price = 0, cost = 0, vatRate = 0, clientId = '', docId = '', by = '',
+    service = false,
   }, at = new Date()) {
     const amount = Math.trunc(Number(delta) || 0);
     if (!itemId || amount === 0) return null;
@@ -98,6 +99,11 @@ class MovementLog {
       docId: String(docId || ''),
       by: String(by || '').slice(0, 60),
     };
+
+    // Only written when it is true, so ten years of ordinary movements do not
+    // each carry a false. Anything reconciling the log against the shelves has
+    // to skip these: a service was billed, but nothing left a shelf.
+    if (service) entry.service = true;
 
     fs.mkdirSync(this.dir, { recursive: true });
     fs.appendFileSync(this.fileFor(at.getUTCFullYear()), `${JSON.stringify(entry)}\n`, 'utf8');

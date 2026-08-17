@@ -725,5 +725,13 @@
   "docs.pricesDearer": "{count} más caros de lo habitual",
   "docs.pricesWorth": "Equivale a {money} frente a lo que paga normalmente.",
   "docs.pricesDismiss": "Ahora no",
-  "toast.priceApplied": "{name}: precio nuevo guardado."
+  "toast.priceApplied": "{name}: precio nuevo guardado.",
+  "form.service": "Es un servicio, no algo que esté en una estantería",
+  "form.serviceHint": "Instalación, entrega, una hora de trabajo, una reparación. Tiene precio y tipo de IVA y se pone en una factura como todo lo demás; simplemente nunca tiene cantidad, así que queda fuera del valor del stock, de los avisos de stock bajo, de la lista de pedidos y de los inventarios.",
+  "form.costHistory": "Lo que le ha costado",
+  "form.costRange": "Horquilla pagada",
+  "form.deliveriesSeen": "De sus últimas {count} entregas",
+  "docs.discount": "Descuento %",
+  "docs.discountFor": "Descuento en {name}",
+  "docs.wasBeforeDiscount": "era {money}"
 }

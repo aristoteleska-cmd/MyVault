@@ -101,7 +101,7 @@ export interface MyVaultBridge {
     update(id: string, patch: Partial<DraftDocument>): Promise<Result<DraftDocument>>;
     setLine(id: string, line: {
       itemId: string; quantity: number; unitPrice?: number | string;
-      vatRate?: number | string; lineId?: number;
+      discount?: number | string; vatRate?: number | string; lineId?: number;
     }): Promise<Result<DraftDocument>>;
     removeLine(id: string, index: number): Promise<Result<DraftDocument>>;
     discard(id: string): Promise<Result<DraftDocument[]>>;

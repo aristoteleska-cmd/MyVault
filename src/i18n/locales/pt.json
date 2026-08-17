@@ -725,5 +725,13 @@
   "docs.pricesDearer": "{count} mais caros do que o habitual",
   "docs.pricesWorth": "Vale {money} face ao que paga normalmente.",
   "docs.pricesDismiss": "Agora não",
-  "toast.priceApplied": "{name} — novo preço guardado."
+  "toast.priceApplied": "{name} — novo preço guardado.",
+  "form.service": "É um serviço, não algo que esteja numa prateleira",
+  "form.serviceHint": "Montagem, entrega, uma hora de trabalho, uma reparação. Tem preço e taxa de IVA e vai para uma fatura como tudo o resto — apenas nunca tem quantidade, por isso fica de fora do valor do stock, dos avisos de stock baixo, da lista de encomendas e dos inventários.",
+  "form.costHistory": "O que lhe tem custado",
+  "form.costRange": "Intervalo pago",
+  "form.deliveriesSeen": "Das suas últimas {count} entregas",
+  "docs.discount": "Desconto %",
+  "docs.discountFor": "Desconto em {name}",
+  "docs.wasBeforeDiscount": "era {money}"
 }

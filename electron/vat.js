@@ -177,6 +177,24 @@ function vatReport(db, log, { from, to, now = new Date() } = {}) {
       return;
     }
 
+    // A voided supplier invoice takes its deduction back with it.
+    //
+    // Voiding sends the goods back and writes a correction naming the invoice —
+    // and only a void ever puts a document id on a correction, which is what
+    // separates this from an ordinary write-off. Without it the shop went on
+    // deducting the VAT on an invoice it had already cancelled: a delivery
+    // entered twice by mistake, then voided, left the second one's VAT claimed
+    // on the return for good.
+    if (entry.reason === 'correction' && delta < 0 && entry.docId) {
+      if (rate === null) { missingRate += Math.abs(delta); return; }
+      const amount = Math.abs(delta) * (Number(entry.cost) || 0);
+      const parts = split(amount, rate, costsInclude);
+      bucket(input, rate, {
+        net: -parts.net, vat: -parts.vat, gross: -parts.gross,
+      }, delta);
+      return;
+    }
+
     // Counted, named, and kept out of the arithmetic.
     excluded += 1;
     excludedUnits += Math.abs(delta);

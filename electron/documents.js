@@ -160,9 +160,47 @@ function normalizeLine(input, { kind }) {
     // the whole invoice. A refund is a document the other way round, not a
     // minus sign on a line.
     unitPrice: Math.max(0, money(input.unitPrice)),
+    /**
+     * A discount on this line, as a percentage, the way real invoices print it.
+     *
+     * Per line rather than per document because that is how a supplier gives
+     * one: 10% off the wine, nothing off the spirits. A hundred per cent is
+     * allowed — a line given away free is a real thing, and it still belongs on
+     * the paper with its VAT worked out at zero rather than left off.
+     */
+    discount: Math.max(0, Math.min(100, Math.round((Number(input.discount) || 0) * 100) / 100)),
     vatRate: Math.max(0, Math.min(100, Number(input.vatRate) || 0)),
     kind,
   };
+}
+
+/**
+ * What one unit of a discounted line actually costs, to the cent.
+ *
+ * The discount is applied to the unit price and rounded there, not to the line
+ * total, and everything downstream is built from this one figure — the invoice
+ * totals, the movement written when it posts, and therefore the VAT return.
+ *
+ * That ordering is deliberate. A movement stores a price per unit, so a VAT
+ * return worked out as units × price can only agree with the paper if the paper
+ * was worked out from the same per-unit figure. Discounting the line total
+ * instead would leave the two a cent or two apart on awkward quantities, and an
+ * invoice its own VAT return disagrees with is the exact fault this file has
+ * already been fixed for twice.
+ *
+ * The cost is that a supplier's own paper, which discounts the line total, can
+ * differ by a cent or so on a quantity like seven. The shop can always type the
+ * discounted figure straight into the unit price instead, and the line total is
+ * on screen next to it either way.
+ */
+function unitAfterDiscount(line) {
+  const off = Math.max(0, Math.min(100, Number(line?.discount) || 0));
+  return money((Number(line?.unitPrice) || 0) * (1 - off / 100));
+}
+
+/** What one line comes to, after its discount and before VAT. */
+function lineAmount(line) {
+  return money(unitAfterDiscount(line) * (Number(line?.quantity) || 0));
 }
 
 /**
@@ -176,7 +214,9 @@ function totalsFor(lines, { inclusive }) {
   let units = 0;
 
   for (const line of lines) {
-    const amount = money(line.quantity * line.unitPrice);
+    // Discounted first, then rounded, then taxed — the order a printed invoice
+    // does it in. Taxing before the discount would put VAT on money nobody paid.
+    const amount = lineAmount(line);
     const rate = Number(line.vatRate) || 0;
     let lineNet;
     let lineVat;
@@ -222,6 +262,8 @@ module.exports = {
   KINDS,
   DocumentLog,
   normalizeLine,
+  unitAfterDiscount,
+  lineAmount,
   totalsFor,
   emptyDraft,
   money,

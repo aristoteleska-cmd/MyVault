@@ -155,6 +155,25 @@ on why the stock went, which MyVault cannot know — so it says how many there
 were rather than guessing. These figures are a working total to hand an
 accountant. They are not a tax return and not advice.
 
+**Services, and discounts on a line**
+
+Half the lines on a real invoice are often not things on a shelf: fitting,
+delivery, an hour's labour, a repair. Tick **"This is a service"** on a product
+and it carries a price and a VAT rate like anything else and goes on an invoice
+like anything else — it just never has a quantity. So it stays out of your stock
+value, your low-stock warnings, your order list and your stock takes, and billing
+one no longer takes stock off a shelf that was never there.
+
+Each invoice line can also carry a **discount percentage**, because that is how a
+supplier actually gives one: 10% off the wine, nothing off the spirits. The
+discount comes off the **unit price** rather than the line total. That is a
+deliberate choice with a visible consequence — on an awkward quantity it can land
+a cent or two away from what a supplier's own paper prints, because their paper
+discounts the line. MyVault does it the other way because a movement stores a
+price per unit, and the VAT return is built from units × price: any other
+ordering leaves your invoice and your VAT return quietly disagreeing. If you want
+the supplier's exact figure, type it straight into the unit price instead.
+
 **Prices and margins**
 
 MyVault already knows what you paid for the last delivery — the invoice is in

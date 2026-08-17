@@ -1682,3 +1682,13 @@ table.items tbody td > .item-meta { overflow: hidden; text-overflow: ellipsis; }
 .panel-notice { border-color: var(--accent); box-shadow: var(--shadow-sm); }
 .notice-list { list-style: none; margin: 0 0 var(--space-3); padding: 0; display: grid; gap: var(--space-2); }
 .notice-list > li { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: baseline; }
+
+/* A service has no count, so the checkbox stands where the quantity box was. */
+.field-check label { display: flex; align-items: center; gap: var(--space-2); cursor: pointer; }
+.field-check input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--accent); }
+
+/* What a product has cost, on the product's own page. */
+.cost-figures { display: flex; flex-wrap: wrap; gap: var(--space-5); margin-bottom: var(--space-3); }
+.cost-figures > div { display: grid; gap: 2px; }
+.cost-figures strong { font-size: 15px; font-variant-numeric: tabular-nums; }
+.setting-warn.is-good { color: var(--success); }

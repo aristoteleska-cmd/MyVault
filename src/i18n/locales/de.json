@@ -725,5 +725,13 @@
   "docs.pricesDearer": "{count} teurer als üblich",
   "docs.pricesWorth": "Wert {money} gegenüber dem, was Sie normalerweise zahlen.",
   "docs.pricesDismiss": "Jetzt nicht",
-  "toast.priceApplied": "{name} — neuer Preis gespeichert."
+  "toast.priceApplied": "{name} — neuer Preis gespeichert.",
+  "form.service": "Das ist eine Leistung, nichts im Regal",
+  "form.serviceHint": "Montage, Lieferung, eine Arbeitsstunde, eine Reparatur. Sie hat einen Preis und einen Steuersatz und kommt wie alles andere auf eine Rechnung — sie hat nur nie eine Menge und bleibt damit außerhalb Ihres Lagerwerts, Ihrer Warnungen, Ihrer Bestellliste und Ihrer Inventuren.",
+  "form.costHistory": "Was es Sie gekostet hat",
+  "form.costRange": "Preisspanne",
+  "form.deliveriesSeen": "Aus Ihren letzten {count} Lieferungen davon",
+  "docs.discount": "Rabatt %",
+  "docs.discountFor": "Rabatt auf {name}",
+  "docs.wasBeforeDiscount": "vorher {money}"
 }

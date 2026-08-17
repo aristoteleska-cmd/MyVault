@@ -20,7 +20,7 @@ const {
 const { MovementLog } = require('./movements');
 const { normalizeRate, rateFor } = require('./vat');
 const {
-  KINDS, DocumentLog, normalizeLine, totalsFor, emptyDraft,
+  KINDS, DocumentLog, normalizeLine, unitAfterDiscount, totalsFor, emptyDraft,
 } = require('./documents');
 const { ROUNDING_STYLES } = require('./pricing');
 
@@ -508,7 +508,19 @@ class Store {
       barcode: asString(input.barcode, 64).trim(),
       sku: asString(input.sku, 64).trim(),
       categoryId: categoryIds.has(categoryId) ? categoryId : '',
-      quantity: clampQuantity(input.quantity),
+      /**
+       * A thing the shop does rather than a thing it has: fitting, delivery, an
+       * hour's labour, a repair.
+       *
+       * Half the lines on a real Greek invoice are often these, and billing one
+       * used to take stock off a shelf that was never there — so the count went
+       * to zero, the product looked out of stock, and the order list asked the
+       * shop to buy more of its own labour. A service carries a price and a VAT
+       * rate like anything else, and carries no quantity at all.
+       */
+      service: Boolean(input.service),
+      // Nothing is ever on the shelf, so the count is not the shop's to set.
+      quantity: input.service ? 0 : clampQuantity(input.quantity),
       price: clampMoney(input.price),
       cost: clampMoney(input.cost),
       lowStockThreshold:
@@ -767,6 +779,11 @@ class Store {
   adjustStock(id, delta, { reason = '', clientId = '', by = '' } = {}) {
     const item = this.db.items.find((i) => i.id === id);
     if (!item) throw new Error('Item not found');
+    // A service has no count to put up or down. Billing one is a line on an
+    // invoice, which is where the money and the VAT are recorded.
+    if (item.service) {
+      throw new Error(`"${item.name}" is a service — put it on an invoice rather than counting it.`);
+    }
 
     const before = item.quantity;
     item.quantity = Math.max(0, item.quantity + clampQuantity(delta));
@@ -978,6 +995,10 @@ class Store {
       const item = this.db.items.find((candidate) => candidate.id === line.itemId);
       if (!item) {
         problems.push(`${line.name || 'A product on this invoice'} is no longer in your stock list.`);
+      } else if (item.service) {
+        // Nothing to run short of. An hour of labour is not on a shelf, and a
+        // shortage check would refuse every service line the shop ever billed.
+        continue;
       } else if (!incoming && item.quantity < line.quantity) {
         problems.push(`${item.name}: the invoice says ${line.quantity}, but you have ${item.quantity}.`);
       }
@@ -1006,11 +1027,42 @@ class Store {
       const item = this.db.items.find((candidate) => candidate.id === line.itemId);
       if (!item) continue;
 
+      // A service bills money and moves nothing. It still writes a movement,
+      // because the money and the VAT on it are as real as any other line — the
+      // movement simply says what was done rather than what left a shelf, and
+      // the count on it stays where it was.
+      if (item.service) {
+        item.updatedAt = postedAt;
+        if (incoming && line.unitPrice > 0) item.cost = clampMoney(unitAfterDiscount(line));
+        moved.push({
+          itemId: item.id,
+          itemName: item.name,
+          delta: incoming ? line.quantity : -line.quantity,
+          quantityAfter: item.quantity,
+          reason: incoming ? 'delivery' : 'sale',
+          price: incoming ? item.price : unitAfterDiscount(line),
+          cost: incoming ? unitAfterDiscount(line) : item.cost,
+          vatRate: line.vatRate,
+          clientId: incoming ? '' : draft.clientId,
+          docId: draft.id,
+          /**
+           * So the log describes itself. Anything reconciling movements against
+           * the shelves has to leave these out, and it must be able to tell
+           * without the product — which may have been renamed, or deleted, long
+           * after the invoice was filed.
+           */
+          service: true,
+          by: by || draft.by,
+        });
+        continue;
+      }
+
       const before = item.quantity;
       item.quantity = Math.max(0, before + (incoming ? line.quantity : -line.quantity));
       item.updatedAt = postedAt;
-      // What it cost this time is what it costs.
-      if (incoming && line.unitPrice > 0) item.cost = clampMoney(line.unitPrice);
+      // What it cost this time is what it costs — after the discount, because
+      // that is the money that actually left the shop.
+      if (incoming && line.unitPrice > 0) item.cost = clampMoney(unitAfterDiscount(line));
 
       const actual = item.quantity - before;
       if (actual !== 0) {
@@ -1020,9 +1072,11 @@ class Store {
           delta: actual,
           quantityAfter: item.quantity,
           reason: incoming ? 'delivery' : 'sale',
-          // The invoice line is the authority on price, not today's shelf.
-          price: incoming ? item.price : line.unitPrice,
-          cost: incoming ? line.unitPrice : item.cost,
+          // The invoice line is the authority on price, not today's shelf — and
+          // after any discount on it, so units × price is the line total the
+          // paper shows and the VAT return cannot drift from the invoice.
+          price: incoming ? item.price : unitAfterDiscount(line),
+          cost: incoming ? unitAfterDiscount(line) : item.cost,
           vatRate: line.vatRate,
           clientId: incoming ? '' : draft.clientId,
           docId: draft.id,
@@ -1088,8 +1142,10 @@ class Store {
           // because the goods went back to the supplier rather than to a
           // customer who was refunded.
           reason: incoming ? 'correction' : 'return',
-          price: incoming ? item.price : line.unitPrice,
-          cost: incoming ? line.unitPrice : item.cost,
+          // The same figures the posting used, discount and all, so a void
+          // cancels exactly what was recorded rather than approximately.
+          price: incoming ? item.price : unitAfterDiscount(line),
+          cost: incoming ? unitAfterDiscount(line) : item.cost,
           vatRate: line.vatRate,
           clientId: incoming ? '' : original.clientId,
           docId: original.id,
@@ -1119,7 +1175,9 @@ class Store {
         const item = this.db.items.find((candidate) => candidate.id === line.itemId);
         if (!item) continue;
         const before = previous.get(item.id);
-        if (before !== undefined && item.cost === clampMoney(line.unitPrice)) item.cost = before;
+        if (before !== undefined && item.cost === clampMoney(unitAfterDiscount(line))) {
+          item.cost = before;
+        }
       }
     }
 
@@ -1247,8 +1305,13 @@ class Store {
    */
   countStockTake(itemId, counted) {
     if (!this.db.stockTake) throw new Error('No count is in progress.');
-    if (!this.db.items.some((item) => item.id === itemId)) {
-      throw new Error('That product is no longer in the stock list.');
+    const item = this.db.items.find((candidate) => candidate.id === itemId);
+    if (!item) throw new Error('That product is no longer in the stock list.');
+    // Refused here rather than only left off the list, because a figure that got
+    // in would be kept by the rule below that protects counting already done —
+    // and a service would then be "corrected" to a quantity it cannot have.
+    if (item.service) {
+      throw new Error(`"${item.name}" is a service, so it is no longer in the stock list to count.`);
     }
     if (counted === null || counted === '') {
       delete this.db.stockTake.counts[itemId];
@@ -1264,8 +1327,9 @@ class Store {
     const take = this.db.stockTake;
     if (!take) return null;
 
+    // Services are never counted: there is nothing on a shelf to walk up to.
     const scoped = this.db.items.filter(
-      (item) => !take.categoryId || item.categoryId === take.categoryId,
+      (item) => !item.service && (!take.categoryId || item.categoryId === take.categoryId),
     );
 
     // A figure already typed is work done, and it stays in the count even if the
@@ -1274,7 +1338,8 @@ class Store {
     // it does not get to discard an afternoon of counting after the fact.
     const alreadyIn = new Set(scoped.map((item) => item.id));
     const inScope = scoped.concat(this.db.items.filter(
-      (item) => !alreadyIn.has(item.id) && take.counts[item.id] !== undefined,
+      (item) => !item.service
+        && !alreadyIn.has(item.id) && take.counts[item.id] !== undefined,
     ));
 
     const lines = [];
@@ -1741,8 +1806,13 @@ class Store {
     const moved = [];
     const core = new Set([
       'name', 'barcode', 'sku', 'category', 'quantity', 'price', 'cost',
-      'low stock', 'lowstock', 'low stock threshold', 'supplier', 'notes',
+      'low stock', 'lowstock', 'low stock threshold', 'supplier', 'service', 'notes',
     ]);
+
+    /** "yes", "true", "1", "x" — whatever a spreadsheet put in the box. */
+    const isYes = (value) => ['yes', 'y', 'true', '1', 'x', 'service'].includes(
+      String(value ?? '').trim().toLowerCase(),
+    );
 
     const categoryByName = new Map(
       this.db.categories.map((c) => [c.name.toLowerCase(), c]),
@@ -1818,6 +1888,9 @@ class Store {
             ? null
             : Math.max(0, clampQuantity(lowStockRaw)),
         supplier: asString(lower.supplier, 120).trim(),
+        // Read back so a round trip through a spreadsheet does not quietly turn
+        // the shop's own labour into stock it thinks is sitting on a shelf.
+        service: isYes(lower.service),
         notes: asString(lower.notes, 2000),
         custom,
       };

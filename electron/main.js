@@ -805,7 +805,7 @@ function registerIpc() {
     const categoryName = new Map(db.categories.map((c) => [c.id, c.name]));
     const headers = [
       'Name', 'Barcode', 'SKU', 'Category', 'Quantity', 'Price', 'Cost',
-      'Low stock threshold', 'Supplier', 'Notes',
+      'Low stock threshold', 'Supplier', 'Service', 'Notes',
       ...db.customFields.map((f) => f.name),
     ];
 
@@ -820,6 +820,9 @@ function registerIpc() {
         Cost: item.cost,
         'Low stock threshold': item.lowStockThreshold ?? '',
         Supplier: item.supplier,
+        // Exported so a round trip through a spreadsheet does not quietly turn
+        // the shop's labour back into stock it thinks it has on a shelf.
+        Service: item.service ? 'yes' : '',
         Notes: item.notes,
       };
       for (const field of db.customFields) {

@@ -1,7 +1,7 @@
 {
   "name": "myvault",
   "productName": "MyVault",
-  "version": "1.9.0",
+  "version": "1.10.0",
   "description": "Offline stock and inventory manager for small shops. All data stays on your computer.",
   "author": {
     "name": "Aristotelis Katsigiannis"

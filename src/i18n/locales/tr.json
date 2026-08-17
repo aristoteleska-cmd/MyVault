@@ -725,5 +725,13 @@
   "docs.pricesDearer": "{count} tanesi normalden pahalı",
   "docs.pricesWorth": "Normalde ödediğinize göre {money} değerinde.",
   "docs.pricesDismiss": "Şimdi değil",
-  "toast.priceApplied": "{name} — yeni fiyat kaydedildi."
+  "toast.priceApplied": "{name} — yeni fiyat kaydedildi.",
+  "form.service": "Bu bir hizmet, rafta duran bir şey değil",
+  "form.serviceHint": "Montaj, teslimat, bir saatlik işçilik, bir tamir. Fiyatı ve KDV oranı vardır, her şey gibi faturaya girer — sadece hiçbir zaman miktarı olmaz, dolayısıyla stok değerinizin, düşük stok uyarılarınızın, sipariş listenizin ve sayımlarınızın dışında kalır.",
+  "form.costHistory": "Size neye mal olduğu",
+  "form.costRange": "Ödenen aralık",
+  "form.deliveriesSeen": "Son {count} teslimatınıza göre",
+  "docs.discount": "İndirim %",
+  "docs.discountFor": "{name} için indirim",
+  "docs.wasBeforeDiscount": "önce {money}"
 }

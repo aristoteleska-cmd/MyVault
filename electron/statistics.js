@@ -48,7 +48,10 @@ function localMonth(date) {
  * €25,000 for it, and only one of those numbers is the one they owe.
  */
 function stockSnapshot(db) {
-  const items = db.items || [];
+  // Services are not stock. An hour of labour has no shelf, no value sitting on
+  // it and no way of running low, and counting one as a product out of stock
+  // would put the shop's own work on the list of things to reorder.
+  const items = (db.items || []).filter((item) => !item.service);
   const defaultThreshold = Number(db.settings?.defaultLowStockThreshold) || 0;
   const categoryById = new Map((db.categories || []).map((c) => [c.id, c]));
 
@@ -232,6 +235,14 @@ function accumulate(log, { from, to, byMonth, salesInclude = true }) {
       totals.received += delta;
       totals.spend += delta * (Number(entry.cost) || 0);
       period.received += delta;
+    } else if (entry.reason === 'correction' && entry.docId) {
+      // A voided supplier invoice, which only ever puts a document id on a
+      // correction. The goods went back, so this undoes the receipt rather than
+      // being a write-off — counting it as one would show a shop that cancelled
+      // a mistyped delivery as having both received the stock and lost it.
+      totals.received += delta;
+      totals.spend += delta * (Number(entry.cost) || 0);
+      period.received += delta;
     } else {
       // Stock that left without being sold: a breakage written off, a miscount
       // put right, a product deleted. Worth knowing, and not worth counting as
@@ -336,7 +347,8 @@ function report(db, log, { from, to, now = new Date() } = {}) {
      * in a small shop is money on a shelf that nobody is buying.
      */
     notMoving: (db.items || [])
-      .filter((item) => (Number(item.quantity) || 0) > 0 && !soldIds.has(item.id))
+      .filter((item) => !item.service
+        && (Number(item.quantity) || 0) > 0 && !soldIds.has(item.id))
       .map((item) => ({
         id: item.id,
         name: item.name,
@@ -393,6 +405,7 @@ function reorderList(db, log, { days = 30, cover = 30, now = new Date() } = {}) 
   let estimatedCost = 0;
 
   for (const item of db.items || []) {
+    if (item.service) continue; // nothing to order more of
     const quantity = Number(item.quantity) || 0;
     const threshold = item.lowStockThreshold ?? defaultThreshold;
     const isLow = quantity <= 0 || (threshold > 0 && quantity <= threshold);

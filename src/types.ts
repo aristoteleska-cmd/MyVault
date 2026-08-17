@@ -29,6 +29,11 @@ export interface Item {
   lowStockThreshold: number | null;
   /** Null means the shop's default rate applies. */
   vatRate: number | null;
+  /**
+   * Something the shop does rather than something it has: fitting, delivery,
+   * an hour's labour. Carries a price and a VAT rate; never carries a quantity.
+   */
+  service: boolean;
   supplier: string;
   notes: string;
   custom: Record<string, CustomFieldValue>;
@@ -305,6 +310,8 @@ export interface DocumentLine {
   quantity: number;
   /** What the supplier charged, or what the customer was charged. */
   unitPrice: number;
+  /** A percentage off this line, 0–100. Applied to the unit price. */
+  discount: number;
   vatRate: number;
   kind: DocumentKind;
 }
