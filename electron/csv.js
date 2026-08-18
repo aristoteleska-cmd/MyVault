@@ -60,14 +60,49 @@ function parseCsv(text) {
   return nonEmpty.slice(1).map((cells) => {
     const record = {};
     headers.forEach((header, index) => {
-      if (header) record[header] = (cells[index] ?? '').trim();
+      if (header) record[header] = restoreFormula((cells[index] ?? '').trim());
     });
     return record;
   });
 }
 
+/**
+ * Characters a spreadsheet reads as "this cell is a formula".
+ *
+ * Excel, LibreOffice and Google Sheets all treat a cell beginning with one of
+ * these as an expression to evaluate rather than text to show. That matters here
+ * because a product name is not something the shop typed: names arrive from
+ * suppliers' CSV files and from barcode labels, travel through MyVault, and come
+ * back out of the export — so a name like `=cmd|'/c calc'!A0` would sit quietly
+ * in the stock list and then run when somebody opened the export.
+ *
+ * Nothing is removed. A leading apostrophe is what a spreadsheet itself uses to
+ * mean "this is text", so the cell still reads as the shop wrote it and the file
+ * is still a faithful copy of the stock list.
+ */
+const FORMULA_STARTERS = ['=', '+', '-', '@', '\t', '\r'];
+
+function neutraliseFormula(str) {
+  return FORMULA_STARTERS.includes(str[0]) ? `'${str}` : str;
+}
+
+/**
+ * The exact inverse, applied on the way in.
+ *
+ * Without it MyVault's own export and import would not round-trip: a product
+ * called `-500ml` would come back as `'-500ml`, and again the next time, growing
+ * an apostrophe with every trip. Only an apostrophe that is doing the escaping
+ * job is removed — one in front of a character a spreadsheet would have treated
+ * as a formula — so a name that genuinely begins with an apostrophe is untouched.
+ */
+function restoreFormula(str) {
+  return str[0] === "'" && FORMULA_STARTERS.includes(str[1]) ? str.slice(1) : str;
+}
+
 function escapeCell(value) {
-  const str = value === null || value === undefined ? '' : String(value);
+  const str = neutraliseFormula(
+    value === null || value === undefined ? '' : String(value),
+  );
   return /[",\n;]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str;
 }
 
@@ -80,4 +115,6 @@ function toCsv(headers, rows) {
   return `﻿${lines.join('\r\n')}\r\n`;
 }
 
-module.exports = { parseCsv, toCsv };
+module.exports = {
+  neutraliseFormula,
+  restoreFormula, parseCsv, toCsv };

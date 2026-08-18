@@ -13,6 +13,9 @@ const {
 } = require('./pricing');
 const { NETWORK_SWITCHES, DISABLED_FEATURES, UPDATE_HOSTS, enforceOffline } = require('./offline');
 const { parseCsv, toCsv } = require('./csv');
+// Every path that reads a file off the disk goes through here, so a rule cannot
+// be enforced on one and forgotten on another. See the note at the top of it.
+const { readImageFile, readCsvFile, readJsonFile } = require('./files');
 const { Updater } = require('./updater');
 const {
   ROLES, CAPABILITIES, ROLE_CAPABILITIES,
@@ -249,8 +252,25 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: false,
+      /**
+       * The renderer runs inside the operating system's own sandbox.
+       *
+       * It can be on because the preload needs nothing but electron itself —
+       * contextBridge and ipcRenderer — and those are available to a sandboxed
+       * preload. Everything that touches a disk already lives in the main
+       * process behind the bridge, so there is nothing here to give up.
+       *
+       * What it buys: if the window were ever made to run somebody else's code,
+       * that code would be inside a process with no filesystem and no ability to
+       * spawn anything, and could only ask the main process for the fixed list
+       * of operations in preload.js — each of which checks who is signed in.
+       */
+      sandbox: true,
       spellcheck: false,
+      // Nothing in a stock list is a web page: no plugins, no remote fonts,
+      // no navigating away from the file that was loaded.
+      webviewTag: false,
+      navigateOnDragDrop: false,
     },
   });
 
@@ -337,36 +357,6 @@ function buildMenu() {
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 }
 
-/**
- * Photographs, not scans of documents: a 25 MB file is a mistake rather than a
- * barcode, and turning one into a data: URL would cost a third again in memory
- * on both sides of the bridge.
- */
-const MAX_IMAGE_BYTES = 25 * 1024 * 1024;
-
-const IMAGE_MIME = {
-  '.jpg': 'image/jpeg',
-  '.jpeg': 'image/jpeg',
-  '.png': 'image/png',
-  '.webp': 'image/webp',
-  '.bmp': 'image/bmp',
-  '.gif': 'image/gif',
-};
-
-function readImageFile(filePath) {
-  const extension = path.extname(filePath).toLowerCase();
-  const mime = IMAGE_MIME[extension];
-  if (!mime) throw new Error('That file is not a picture MyVault can read.');
-
-  const { size } = fs.statSync(filePath);
-  if (size > MAX_IMAGE_BYTES) {
-    throw new Error('That picture is too large. Anything up to 25 MB is fine.');
-  }
-  if (size === 0) throw new Error('That file is empty.');
-
-  const base64 = fs.readFileSync(filePath).toString('base64');
-  return { dataUrl: `data:${mime};base64,${base64}`, name: path.basename(filePath) };
-}
 
 // --------------------------------------------------------------------- IPC
 
@@ -614,7 +604,7 @@ function registerIpc() {
       filters: [{ name: 'CSV file', extensions: ['csv', 'txt'] }],
     });
     if (canceled || !filePaths?.length) return { canceled: true };
-    const rows = parseCsv(fs.readFileSync(filePaths[0], 'utf8'));
+    const rows = parseCsv(readCsvFile(filePaths[0]));
     if (!rows.length) throw new Error('No rows found. The file needs a header row.');
     return { canceled: false, ...store.importDraftLines(id, rows) };
   });
@@ -843,7 +833,7 @@ function registerIpc() {
     });
     if (canceled || !filePaths?.length) return { canceled: true };
 
-    const rows = parseCsv(fs.readFileSync(filePaths[0], 'utf8'));
+    const rows = parseCsv(readCsvFile(filePaths[0]));
     if (!rows.length) throw new Error('No rows found. The file needs a header row with at least a "Name" column.');
 
     const result = store.importRows(rows);
@@ -869,7 +859,7 @@ function registerIpc() {
     });
     if (canceled || !filePaths?.length) return { canceled: true };
 
-    const parsed = JSON.parse(fs.readFileSync(filePaths[0], 'utf8'));
+    const parsed = readJsonFile(filePaths[0]);
     if (!parsed || !Array.isArray(parsed.items)) {
       throw new Error('That file is not a MyVault backup.');
     }

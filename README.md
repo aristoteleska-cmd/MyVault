@@ -319,6 +319,46 @@ request handler and the policy still refuses it. Only with both removed does
 `fetch` get through — which is how the check is known to be capable of
 failing.
 
+### What the shop's own files can and cannot do
+
+Two kinds of untrusted input reach MyVault: files a shop picks off a disk, and
+text that arrives inside them. Neither is treated as harmless.
+
+**A picture is identified by its bytes, not its name.** When you choose a photo
+to read a barcode from, MyVault reads the file's own header and refuses anything
+that is not really a JPEG, PNG, GIF, WebP or BMP — whatever the file is called.
+This is why SVG is not on that list: it is the one common image format that can
+carry script, and an `<svg onload="…">` renamed to `barcode.png` sails through a
+check that only looks at the extension. The file is also refused if it is a
+folder, a device or a pipe rather than an ordinary file, if it is empty, if it is
+over 25 MB, or if its header claims dimensions no camera produces — a 33-byte PNG
+saying it is 80000 × 80000 is not a photograph, and drawing it would take the
+window down.
+
+Imported CSVs and restored backups get a size limit for the same reason: both
+used to be handed straight to a parser however large they were.
+
+**A product name is not a spreadsheet formula.** Names arrive from suppliers'
+CSV files and from barcode labels, sit in your stock list, and go back out again
+when you export. A name beginning with `=`, `+`, `-` or `@` is treated as a
+formula by Excel, LibreOffice and Google Sheets, so MyVault writes it out as text
+instead. Nothing is lost — importing your own export gives back exactly the names
+you had, however many times you go round.
+
+**Nothing built from a string becomes markup.** The interface is React, which
+escapes every value it renders, and there is not one `dangerouslySetInnerHTML` in
+the codebase. Underneath that sits a Content-Security-Policy that allows no
+inline and no evaluated script at all, which is also what stops an
+`<img onerror=…>`; the printed PDF — the only HTML MyVault assembles from your
+own text — carries its own policy and escapes every value on the way in; and the
+window itself runs inside the operating system's sandbox, with no filesystem and
+nothing it can reach but the fixed list of operations in `electron/preload.js`.
+
+The check that matters runs against the packaged build on every push: it starts
+the real app, injects an inline `<script>` and an `<img onerror>` into the live
+window, and fails if either one runs. Loosening the policy by a single directive
+makes that test fail, which is how it is known to be capable of failing.
+
 ### The one exception, and its exact size
 
 **Settings → Updates** has three positions, and only the first is the default:
@@ -548,7 +588,10 @@ electron/          Main process — the only code that touches the disk
   pricing.js       Margins, what a product usually costs, and what to charge
   documents.js     Invoices and delivery notes, posted a whole page at a time
   pdf.js           The printable documents, built and escaped here
-  offline.js       The rules that keep the app off the network
+  offline.js       The rules that keep the app off the network, and the policy
+                   that keeps injected markup from doing anything
+  files.js         What a file is allowed to be: pictures identified by their
+                   own bytes, size and dimension limits, one place for all of it
   csv.js           Dependency-free CSV reader/writer
 src/               The user interface (React + TypeScript)
   components/      Screens and widgets

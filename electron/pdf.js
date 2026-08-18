@@ -16,6 +16,8 @@
  * clipboard and gets written on.
  */
 
+const { PRINT_CONTENT_SECURITY_POLICY } = require('./offline');
+
 const ESCAPES = {
   '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
 };
@@ -58,7 +60,9 @@ const STYLE = `
 
 function page({ title, shop, when, subtitle, body, footNote }) {
   return `<!doctype html>
-<html><head><meta charset="utf-8"><title>${esc(title)}</title><style>${STYLE}</style></head>
+<html><head><meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="${PRINT_CONTENT_SECURITY_POLICY}">
+<title>${esc(title)}</title><style>${STYLE}</style></head>
 <body>
 <header>
   <h1>${esc(title)}</h1>

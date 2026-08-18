@@ -102,6 +102,52 @@ function extract(appImage) {
   assert.strictEqual(service.quantity, 0, 'a service carries no count, in the bundle too');
   ok('a service line behaves the same in the packaged build');
 
+  // ------------------------------------------------------------ containment
+  //
+  // The policy is only worth having if it actually stops something, and the only
+  // way to know is to try. This injects into the real running window the two
+  // things an XSS would rely on and checks that neither one runs.
+  //
+  // Nothing in MyVault builds HTML from strings — React escapes everything and
+  // there is no dangerouslySetInnerHTML in the codebase — so this is testing the
+  // second lock, the one that matters on the day the first one is broken by a
+  // dependency or a careless line.
+  const blocked = await window.evaluate(() => new Promise((resolve) => {
+    const results = { inlineScript: 'ran', imgOnerror: 'ran', policy: '' };
+    const meta = document.querySelector('meta[http-equiv="Content-Security-Policy"]');
+    results.policy = meta ? meta.getAttribute('content') : '';
+
+    window.__xssCanary = 'untouched';
+
+    // An inline <script> is what an injected payload usually is.
+    const script = document.createElement('script');
+    script.textContent = 'window.__xssCanary = "executed by inline script";';
+    document.body.appendChild(script);
+
+    // And an event handler on a broken image is what it is when tags are
+    // filtered but attributes are not.
+    const img = document.createElement('img');
+    img.setAttribute('src', 'x-does-not-exist');
+    img.setAttribute('onerror', 'window.__xssCanary = "executed by onerror";');
+    document.body.appendChild(img);
+
+    window.setTimeout(() => {
+      results.inlineScript = window.__xssCanary;
+      results.imgOnerror = window.__xssCanary;
+      script.remove();
+      img.remove();
+      resolve(results);
+    }, 300);
+  }));
+
+  assert.strictEqual(
+    blocked.inlineScript, 'untouched',
+    `an inline script ran inside the packaged app: ${blocked.inlineScript}`,
+  );
+  assert.ok(blocked.policy.includes("default-src 'none'"), 'the page carries the policy');
+  assert.ok(blocked.policy.includes("script-src 'self'"), 'and only allows its own bundle');
+  ok('injected script does not run in the packaged window — the policy holds');
+
   await app.close();
 
   // The whole point of the program.
