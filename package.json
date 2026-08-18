@@ -23,7 +23,9 @@
     "dist:dir": "npm run build && node scripts/sync-license.mjs && electron-builder --dir --publish never",
     "test": "node scripts/run-tests.mjs",
     "test:e2e": "xvfb-run -a node tests/persistence.e2e.js && xvfb-run -a node tests/roles.e2e.js",
-    "icon": "python build/make-icon.py"
+    "icon": "python build/make-icon.py",
+    "dist:linux": "npm run build && electron-builder --linux --publish never",
+    "test:packaged": "xvfb-run -a node tests/packaged.e2e.js"
   },
   "dependencies": {
     "@zxing/library": "^0.21.3",
@@ -110,6 +112,44 @@
     },
     "portable": {
       "artifactName": "MyVault-${version}-portable.${ext}"
+    },
+    "linux": {
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "deb",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.png",
+      "category": "Office",
+      "synopsis": "Offline stock manager for small shops",
+      "description": "MyVault keeps a small shop's stock list, invoices, VAT and margins on its own computer. No account, no subscription, no internet connection.",
+      "artifactName": "MyVault-${version}-linux-${arch}.${ext}",
+      "maintainer": "Aristotelis Katsigiannis <296668392+aristoteleska-cmd@users.noreply.github.com>"
+    },
+    "appImage": {
+      "artifactName": "MyVault-${version}-linux-${arch}.${ext}"
+    },
+    "deb": {
+      "artifactName": "MyVault-${version}-linux-${arch}.${ext}",
+      "depends": [
+        "libgtk-3-0",
+        "libnotify4",
+        "libnss3",
+        "libxss1",
+        "libxtst6",
+        "xdg-utils",
+        "libatspi2.0-0",
+        "libsecret-1-0"
+      ]
     },
     "publish": [
       {

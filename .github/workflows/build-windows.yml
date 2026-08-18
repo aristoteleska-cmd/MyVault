@@ -1,4 +1,4 @@
-name: Build Windows app
+name: Build MyVault
 
 # Everything here fits inside GitHub's free allowance for a private repository
 # (2,000 runner minutes and 500 MB of artifact storage per month).
@@ -10,6 +10,11 @@ name: Build Windows app
 #     — the NSIS script, the icon, the licence encoding — is caught here rather
 #     than the first time you try to hand the app to a shop. Runner minutes are
 #     the plentiful allowance.
+#
+#   • The Linux AppImage is built on every push too, and then STARTED: the job
+#     unpacks the file it just made, opens the real window, saves a product and
+#     reopens it. "The build succeeded" and "the program works" are different
+#     claims, and only one of them is worth making to a shop.
 #
 #   • The installers are only KEPT when you ask for them: press "Run workflow"
 #     on this page, or push a version tag. Storage is the scarce allowance —
@@ -24,8 +29,9 @@ name: Build Windows app
 #     two .exe files attached: a permanent, one-click download that does not
 #     expire and does not count against the 500 MB artifact allowance.
 #
-# You can also skip all of this and build on your own Windows PC for nothing:
-#   npm install && npm run dist:win
+# You can also skip all of this and build on your own machine for nothing:
+#   npm install && npm run dist:win     (on Windows)
+#   npm install && npm run dist:linux   (on Linux)
 
 on:
   push:
@@ -111,12 +117,56 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
+  # The Linux build, and then the part that matters: does the file run?
+  #
+  # An AppImage is the one Linux format that needs no installing and no root —
+  # download, make it executable, double-click. The .deb is there for anyone on
+  # Debian or Ubuntu who would rather it appeared in their menu.
+  build-linux:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Build the AppImage and the .deb
+        run: npm run dist:linux
+
+      # The check a "build succeeded" line cannot make. It unpacks the AppImage
+      # that was just produced, starts it, puts a product in through the real
+      # bridge, closes it and opens it again to see whether the stock came back.
+      - name: Does the packaged app actually run?
+        run: npm run test:packaged
+
+      - name: Confirm both Linux files were produced
+        run: |
+          set -euo pipefail
+          ls -lh release/*.AppImage release/*.deb
+          test -f release/latest-linux.yml
+
+      - name: Linux build
+        if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
+        with:
+          name: MyVault-linux
+          path: |
+            release/*.AppImage
+            release/*.deb
+            release/latest-linux.yml
+          if-no-files-found: error
+          retention-days: 7
+
   # Turns a build into something anybody can download in one click, months from
   # now, from the repository's Releases page — no zip to unpack, no expiry date.
   # The repository is public, so this is also what the in-app updater reads:
   # a shop needs no account and no token to reach it.
   release:
-    needs: build
+    needs: [build, build-linux]
     if: startsWith(github.ref, 'refs/tags/v') || inputs.release_tag != ''
     runs-on: ubuntu-latest
     permissions:
@@ -125,7 +175,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Collect the installers
+      - name: Collect the installers and the Linux build
         uses: actions/download-artifact@v4
         with:
           path: release
@@ -143,15 +193,32 @@ jobs:
           cat > notes.md <<'NOTES'
           MyVault — the offline stock book for small shops.
 
-          **MyVault-Setup.exe** — the normal installer. Run it, choose your language,
-          and MyVault appears in the Start menu. Windows SmartScreen will say the
-          publisher is unknown, because the file is not code-signed: choose
+          ### Windows
+
+          **MyVault-…-setup.exe** — the normal installer. Run it, choose your
+          language, and MyVault appears in the Start menu. Windows SmartScreen will
+          say the publisher is unknown, because the file is not code-signed: choose
           **More info → Run anyway**.
 
-          **MyVault-portable.exe** — nothing to install. Runs from the folder it sits
-          in (a USB stick is fine) and keeps its data beside itself.
+          **MyVault-…-portable.exe** — nothing to install. Runs from the folder it
+          sits in (a USB stick is fine) and keeps its data beside itself.
 
-          Everything stays on the PC. The app has no internet access at all.
+          ### Linux
+
+          **MyVault-…-linux-x86_64.AppImage** — nothing to install. Download it, then:
+
+          ```
+          chmod +x MyVault-*.AppImage
+          ./MyVault-*.AppImage
+          ```
+
+          If your system has no FUSE, run `./MyVault-*.AppImage --appimage-extract-and-run`
+          instead. On a headless or minimal system add `--no-sandbox`.
+
+          **MyVault-…-linux-amd64.deb** — for Debian or Ubuntu, if you would rather it
+          appeared in your applications menu: `sudo apt install ./MyVault-*.deb`
+
+          Everything stays on the computer. The app has no internet access at all.
 
           © Aristotelis Katsigiannis. Free to use — see LICENSE.
           NOTES
@@ -162,10 +229,15 @@ jobs:
           test -f release/latest.yml || { echo "::error::latest.yml is missing"; exit 1; }
 
           # Re-running the same tag replaces the files rather than failing.
+          # Windows first, because that is what a shop runs; the Linux files are
+          # there for testing and for anyone who wants them.
+          FILES=(release/*.exe release/latest.yml release/*.AppImage release/*.deb)
+          test -f release/latest-linux.yml && FILES+=(release/latest-linux.yml)
+
           if gh release view "$TAG" >/dev/null 2>&1; then
-            gh release upload "$TAG" release/*.exe release/latest.yml --clobber
+            gh release upload "$TAG" "${FILES[@]}" --clobber
           else
-            gh release create "$TAG" release/*.exe release/latest.yml \
+            gh release create "$TAG" "${FILES[@]}" \
               --target "$GITHUB_SHA" \
               --title "MyVault $TAG" \
               --notes-file notes.md

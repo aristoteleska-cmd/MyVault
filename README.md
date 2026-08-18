@@ -428,6 +428,29 @@ warning. It becomes worth considering only if you ever distribute widely.
 in-app updater reaches it. The source is readable too — the licence still
 reserves all rights, so it may be read but not copied, redistributed or resold.
 
+**Windows** is what MyVault is built for: run the installer, choose your
+language, and it appears in the Start menu. There is also a portable `.exe` that
+runs from the folder it sits in — a USB stick behind the counter is fine — and
+keeps its data beside itself.
+
+**Linux** builds are published alongside them, mainly for testing:
+
+```bash
+chmod +x MyVault-*.AppImage
+./MyVault-*.AppImage
+```
+
+Nothing to install and no root needed. If your system has no FUSE, run
+`./MyVault-*.AppImage --appimage-extract-and-run`; on a minimal or headless
+system add `--no-sandbox`. There is a `.deb` as well if you would rather it
+appeared in your applications menu: `sudo apt install ./MyVault-*.deb`.
+
+The Linux build is the same code and passes the same tests, including one that
+unpacks the AppImage that was just built, starts it, saves a product and reopens
+it to check the stock came back. What it has *not* had is a shop using it: the
+barcode scanner, the receipt printer and the folder-picker dialogs have only ever
+been exercised on Windows.
+
 ### Getting an installer to hand out
 
 **On your own Windows PC — free, no limits:**
@@ -437,10 +460,13 @@ npm install
 npm run dist:win
 ```
 
-Both files appear in `release/`. This costs nothing and is the simplest way.
+Both files appear in `release/`. This costs nothing and is the simplest way. On
+Linux, `npm run dist:linux` produces the AppImage and the `.deb` the same way,
+and `npm run test:packaged` then starts the AppImage it just built and checks it
+really works rather than merely existing.
 
 **Or on GitHub**, if you are not at a Windows machine: go to the **Actions** tab,
-pick *Build Windows app*, press **Run workflow**, and — this is the part worth
+pick *Build MyVault*, press **Run workflow**, and — this is the part worth
 remembering — type a version into **Release tag**, such as `v1.0.1`.
 
 * **With a release tag**, the finished `.exe` files are attached to a
@@ -503,6 +529,8 @@ npm install
 npm run dev        # Vite dev server + Electron with hot reload
 npm start          # production build, then run it
 npm test           # store, CSV, search, sorting and translation tests
+npm run dist:linux # Linux AppImage + .deb (on Linux)
+npm run test:packaged  # start the built AppImage and check it works
 npm run typecheck  # TypeScript, no emit
 npm run icon       # regenerate build/icon.ico (needs Python 3; use python3 on Linux/macOS)
 ```
