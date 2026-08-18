@@ -18,7 +18,7 @@ const { parseCsv, toCsv } = require('./csv');
 const { readImageFile, readCsvFile, readJsonFile } = require('./files');
 const { Updater } = require('./updater');
 const {
-  ROLES, CAPABILITIES, ROLE_CAPABILITIES,
+  ROLES, CAPABILITIES, ROLE_CAPABILITIES, COUNTER_REASONS, requestedReason,
   allows, effectiveRole, isLocked, isAppearanceOnly,
 } = require('./roles');
 
@@ -498,17 +498,15 @@ function registerIpc() {
   // down when something sells, but correcting a count upwards is not theirs.
   handle('items:adjust', null, (id, delta, options = {}) => {
     const selling = Number(delta) < 0;
-    // A return puts stock back like a delivery does, but it hands money over
-    // the counter, so it is its own permission rather than "receiving".
-    if (options.reason === 'return') requireCapability('items.return');
-    else requireCapability(selling ? 'items.sell' : 'items.receive');
+    const { reason } = requestedReason(options.reason, selling);
+    requireCapability(COUNTER_REASONS[reason].capability);
     const knowsClients = allows(store.getState().users, signedInId, 'clients.view');
     return store.adjustStock(id, delta, {
-      reason: options.reason,
+      reason,
       // A sale and a return both belong to a customer — a refund against the
       // right regular is the whole reason their history is worth keeping — and
       // only if whoever is at the screen may know the customer list at all.
-      clientId: (selling || options.reason === 'return') && knowsClients ? options.clientId : '',
+      clientId: (selling || reason === 'return') && knowsClients ? options.clientId : '',
       by: whoAmI(),
     });
   });
@@ -706,6 +704,13 @@ function registerIpc() {
 
   handle('backup:status', 'settings.manage', () => store.mirrorStatus());
 
+  // Anybody at the counter may be told the history is not being written — it is
+  // their sale that is going unrecorded, and a junior who cannot see the notice
+  // would keep selling into it all afternoon. Putting the notice away is the
+  // manager's, because it is a decision that some movements are gone for good.
+  handle('backup:history-status', 'items.view', () => store.historyStatus());
+  handle('backup:history-acknowledge', 'settings.manage', () => store.clearHistoryTrouble());
+
   handle('backup:choose-folder', 'settings.manage', async () => {
     const { canceled, filePaths } = await dialog.showOpenDialog(mainWindow, {
       title: 'Choose a folder for the second copy',
@@ -840,14 +845,23 @@ function registerIpc() {
     return { canceled: false, ...result, state: store.publicState() };
   });
 
-  handle('data:backup', 'data.export', async () => {
+  // A full backup is not an export. It carries the staff list as it is stored —
+  // every PIN's salt and hash, and the recovery code's — and a PIN is four
+  // digits, so a copy of that file on a stick is an offline guess at the
+  // manager's PIN with all the time in the world. Exporting the catalogue to CSV
+  // is the senior's job and stays theirs; writing the whole shop, credentials
+  // included, to a place of one's choosing is the manager's, the same as putting
+  // one back.
+  handle('data:backup', 'settings.manage', async () => {
     const { canceled, filePath } = await dialog.showSaveDialog(mainWindow, {
       title: 'Save a full backup',
       defaultPath: `myvault-backup-${new Date().toISOString().slice(0, 10)}.json`,
       filters: [{ name: 'MyVault backup', extensions: ['json'] }],
     });
     if (canceled || !filePath) return { canceled: true };
-    fs.writeFileSync(filePath, JSON.stringify(store.getState(), null, 2), 'utf8');
+    // The whole shop, history and invoices included — not just myvault.json.
+    // See Store.exportAll for why that distinction cost a shop everything.
+    fs.writeFileSync(filePath, JSON.stringify(store.exportAll(), null, 2), 'utf8');
     return { canceled: false, filePath };
   });
 
@@ -864,11 +878,14 @@ function registerIpc() {
       throw new Error('That file is not a MyVault backup.');
     }
 
+    const years = parsed.logs?.movements ? Object.keys(parsed.logs.movements).length : 0;
     const confirm = await dialog.showMessageBox(mainWindow, {
       type: 'warning',
       title: 'Replace current inventory?',
       message: `Restore ${parsed.items.length} items from this backup?`,
-      detail: 'Everything currently in MyVault will be replaced. A safety copy of your current data is kept in the backups folder.',
+      detail: years > 0
+        ? `Everything currently in MyVault will be replaced, including ${years} year(s) of sales history and invoices. A safety copy of your current data is kept in the backups folder.`
+        : 'Everything currently in MyVault will be replaced. This backup was made by an older version and does NOT contain your sales history or invoices — those will be left exactly as they are now. A safety copy of your current data is kept in the backups folder.',
       buttons: ['Cancel', 'Replace my data'],
       defaultId: 0,
       cancelId: 0,
@@ -876,8 +893,21 @@ function registerIpc() {
     if (confirm.response !== 1) return { canceled: true };
 
     // Keep the inventory being replaced, in case the backup was the wrong file.
-    store.snapshot('before-restore');
-    store.replaceAll(parsed);
+    //
+    // The dialog above promises this copy exists. snapshot() returns null when
+    // it could not be written — a backups folder gone, locked or full — and the
+    // restore used to carry on regardless, destroying the shop's data straight
+    // after telling them it was safe. The one moment that promise matters is the
+    // one moment it was not kept.
+    const safety = store.snapshot('before-restore');
+    if (!safety) {
+      throw new Error(
+        'MyVault could not save a copy of your current data first, so nothing has '
+        + 'been changed. Check that the backups folder exists and is not full, '
+        + 'then try again.',
+      );
+    }
+    store.importAll(parsed);
     // A restored file may bring a different staff list with it, so whoever is
     // signed in now may not exist any more. Start the sitting again.
     signedInId = null;

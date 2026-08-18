@@ -733,5 +733,11 @@
   "form.deliveriesSeen": "Từ {count} lô gần nhất",
   "docs.discount": "Giảm %",
   "docs.discountFor": "Giảm giá cho {name}",
-  "docs.wasBeforeDiscount": "trước là {money}"
+  "docs.wasBeforeDiscount": "trước là {money}",
+  "toast.recoveredBackup": "Không đọc được tệp dữ liệu của bạn, nên MyVault đã khôi phục bản sao lưu ngày {when} — {count} sản phẩm. Mọi thứ nhập sau đó phải nhập lại.",
+  "toast.historyLost": "{count} thay đổi tồn kho không ghi được vào lịch sử bán hàng. Số lượng trên kệ vẫn đúng, nhưng những thay đổi đó thiếu trong doanh thu và trong tờ khai thuế GTGT.",
+  "settings.historyTrouble": "Không ghi được lịch sử bán hàng",
+  "settings.historyTroubleDesc": "{count} thay đổi tồn kho từ {when} chưa được ghi vào lịch sử bán hàng. Số lượng trên kệ vẫn đúng; những thay đổi đó thiếu trong doanh thu và tờ khai thuế GTGT.",
+  "settings.historyTroubleWriting": "Bây giờ đã ghi được trở lại. Những thay đổi trước đó vẫn còn thiếu.",
+  "settings.historyTroubleClear": "Tôi đã xem"
 }

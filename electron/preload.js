@@ -104,6 +104,13 @@ contextBridge.exposeInMainWorld('myvault', {
   /** The second copy, on a stick or another drive. */
   backup: {
     status: () => invoke('backup:status'),
+    /**
+     * Whether any movement failed to reach the history, and putting that notice
+     * away once somebody has read it. A sale that could not be written down is
+     * still a sale that happened.
+     */
+    historyStatus: () => invoke('backup:history-status'),
+    acknowledgeHistory: () => invoke('backup:history-acknowledge'),
     chooseFolder: () => invoke('backup:choose-folder'),
     forgetFolder: () => invoke('backup:forget-folder'),
     now: () => invoke('backup:now'),

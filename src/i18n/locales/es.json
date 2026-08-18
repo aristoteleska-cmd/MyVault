@@ -733,5 +733,11 @@
   "form.deliveriesSeen": "De sus últimas {count} entregas",
   "docs.discount": "Descuento %",
   "docs.discountFor": "Descuento en {name}",
-  "docs.wasBeforeDiscount": "era {money}"
+  "docs.wasBeforeDiscount": "era {money}",
+  "toast.recoveredBackup": "No se pudo leer su archivo de datos, así que MyVault ha restaurado la copia de seguridad del {when} — {count} productos. Todo lo introducido después hay que volver a introducirlo.",
+  "toast.historyLost": "{count} movimientos de existencias no se pudieron escribir en el historial de ventas. Las cantidades en las estanterías son correctas, pero esos movimientos faltan en la recaudación y en la declaración del IVA.",
+  "settings.historyTrouble": "No se pudo escribir el historial de ventas",
+  "settings.historyTroubleDesc": "{count} movimientos de existencias desde {when} no se escribieron en el historial de ventas. Las cantidades en las estanterías son correctas; esos movimientos faltan en la recaudación y en la declaración del IVA.",
+  "settings.historyTroubleWriting": "Ahora vuelve a escribirse. Los movimientos anteriores siguen faltando.",
+  "settings.historyTroubleClear": "Lo he visto"
 }

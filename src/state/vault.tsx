@@ -153,6 +153,8 @@ interface VaultValue {
   chooseBackupFolder: () => Promise<void>;
   forgetBackupFolder: () => Promise<void>;
   backupNow: () => Promise<void>;
+  /** Puts away the notice that movements could not be written down. */
+  clearHistoryTrouble: () => Promise<void>;
 
   addCategory: (name: string, color: string) => Promise<Category | null>;
   updateCategory: (id: string, patch: Partial<Category>) => Promise<void>;
@@ -370,7 +372,24 @@ export function VaultProvider({ children }: { children: ReactNode }) {
           return;
         }
         setDb(state.data);
-        if (state.data.recoveredFrom) notify('toast.recovered', undefined, 'error');
+        // Three different bad mornings, each of which the shop has to be told
+        // about plainly rather than left to work out from a number looking odd.
+        if (state.data.recoveredBackup) {
+          // The data file could not be read and a backup was put back in its
+          // place. Anything entered after that copy was taken is gone, so the
+          // date on it is the important part of the message.
+          notify('toast.recoveredBackup', {
+            when: new Date(state.data.recoveredBackup.at).toLocaleString(),
+            count: state.data.recoveredBackup.items,
+          }, 'error');
+        } else if (state.data.recoveredFrom) {
+          notify('toast.recovered', undefined, 'error');
+        }
+        if (state.data.historyTrouble?.lost) {
+          // Stock moved and the history could not be written. The counts are
+          // right; the takings and the VAT return are missing those movements.
+          notify('toast.historyLost', { count: state.data.historyTrouble.lost }, 'error');
+        }
       }
 
       setReady(true);
@@ -769,6 +788,16 @@ export function VaultProvider({ children }: { children: ReactNode }) {
     else notify('toast.backupMirrored', undefined, 'success');
   }, [run, notify, notifyRaw]);
 
+  const clearHistoryTrouble = useCallback(async () => {
+    const result = await window.myvault.backup.acknowledgeHistory();
+    if (!result.ok) { notifyRaw(result.error || ''); return; }
+    setDb((current) => {
+      const next = { ...current };
+      delete next.historyTrouble;
+      return next;
+    });
+  }, [notifyRaw]);
+
   // ----------------------------------------------------------- custom fields
 
   const addField = useCallback(
@@ -1081,6 +1110,7 @@ export function VaultProvider({ children }: { children: ReactNode }) {
       chooseBackupFolder,
       forgetBackupFolder,
       backupNow,
+      clearHistoryTrouble,
       addCategory,
       updateCategory,
       deleteCategory,
@@ -1126,6 +1156,7 @@ export function VaultProvider({ children }: { children: ReactNode }) {
       discardDoc, postDoc, voidDoc, listDocs, importDocCsv,
       startStockTake, stockTakeProgress, countStockTake, cancelStockTake, applyStockTake,
       printPdf, backupStatus, refreshBackupStatus, chooseBackupFolder, forgetBackupFolder, backupNow,
+      clearHistoryTrouble,
       addCategory, updateCategory, deleteCategory,
       addField, updateField, deleteField, moveField,
       updateSettings, exportCsv, importCsv, backup, restore, openDataFolder,

@@ -733,5 +733,11 @@
   "form.deliveriesSeen": "من آخر {count} دفعات منه",
   "docs.discount": "خصم %",
   "docs.discountFor": "خصم على {name}",
-  "docs.wasBeforeDiscount": "كان {money}"
+  "docs.wasBeforeDiscount": "كان {money}",
+  "toast.recoveredBackup": "تعذّرت قراءة ملف بياناتك، لذلك أعاد MyVault النسخة الاحتياطية المأخوذة في {when} — {count} منتجًا. وكل ما أُدخل بعدها يجب إدخاله من جديد.",
+  "toast.historyLost": "تعذّر تسجيل {count} من حركات المخزون في سجل المبيعات. الكميات على الرفوف صحيحة، لكن هذه الحركات ناقصة من الإيرادات ومن إقرار ضريبة القيمة المضافة.",
+  "settings.historyTrouble": "تعذّرت كتابة سجل المبيعات",
+  "settings.historyTroubleDesc": "لم تُكتب {count} من حركات المخزون منذ {when} في سجل المبيعات. الكميات على الرفوف صحيحة، لكن هذه الحركات ناقصة من الإيرادات ومن إقرار ضريبة القيمة المضافة.",
+  "settings.historyTroubleWriting": "الكتابة تعمل الآن من جديد. أما الحركات السابقة فما زالت ناقصة.",
+  "settings.historyTroubleClear": "اطّلعت على ذلك"
 }

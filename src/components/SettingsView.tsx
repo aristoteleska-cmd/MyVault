@@ -39,6 +39,50 @@ const TEXT_SIZES: { value: number; labelKey: TranslationKey }[] = [
 ];
 
 /**
+ * Sales that happened and could not be written down.
+ *
+ * Only shown when there is something to say, and it does not go away on its own:
+ * writing may have started working again, but the movements that were lost when
+ * it was not are still lost, and the takings and the VAT return for those days
+ * are short by exactly that much. Clearing the notice is a person deciding they
+ * have seen it.
+ */
+function HistoryTroublePanel() {
+  const { db, clearHistoryTrouble, can } = useVault();
+  const { t, locale } = useI18n();
+
+  const trouble = db.historyTrouble;
+  if (!trouble?.lost) return null;
+
+  return (
+    <div className="setting-row">
+      <div className="setting-text">
+        <div className="setting-title">{t('settings.historyTrouble')}</div>
+        <div className="setting-desc">
+          <span className="setting-warn">
+            {t('settings.historyTroubleDesc', {
+              count: trouble.lost,
+              when: new Date(trouble.since).toLocaleString(locale || undefined),
+            })}
+          </span>
+          {trouble.message && <span className="path">{trouble.message}</span>}
+          {trouble.writing && (
+            <span className="path">{t('settings.historyTroubleWriting')}</span>
+          )}
+        </div>
+      </div>
+      {can('settings.manage') && (
+        <div className="setting-control">
+          <button type="button" className="btn" onClick={() => void clearHistoryTrouble()}>
+            {t('settings.historyTroubleClear')}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
  * The copy that lives somewhere else.
  *
  * A backup on the same disk as the data survives a mistake but not the disk, so
@@ -699,6 +743,7 @@ export function SettingsView() {
             </div>
           </div>
 
+          <HistoryTroublePanel />
           <SecondCopyPanel />
 
           <div className="setting-row">

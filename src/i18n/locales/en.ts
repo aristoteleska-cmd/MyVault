@@ -453,6 +453,12 @@ export const en = {
   'toast.backupSaved': 'Backup saved to {path}',
   'toast.restoreDone': 'Backup restored.',
   'toast.recovered': 'Your data file could not be read, so a fresh one was created. The old file is kept in the backups folder.',
+  'settings.historyTrouble': 'Sales history could not be written',
+  'settings.historyTroubleDesc': '{count} stock changes since {when} were not written to the sales history. The shelf counts are right; those movements are missing from the takings and the VAT return.',
+  'settings.historyTroubleWriting': 'It is being written again now. The earlier movements are still missing.',
+  'settings.historyTroubleClear': 'I have seen this',
+  'toast.recoveredBackup': 'Your data file could not be read, so MyVault put back the backup from {when} — {count} products. Anything entered after that has to be entered again.',
+  'toast.historyLost': '{count} stock changes could not be written to the sales history. The counts on the shelves are right, but those movements are missing from the takings and the VAT return.',
   'toast.genericError': 'Something went wrong.',
 
   // ------------------------------------------------------------ statistics

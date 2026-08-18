@@ -733,5 +733,11 @@
   "form.deliveriesSeen": "По последним {count} поставкам",
   "docs.discount": "Скидка %",
   "docs.discountFor": "Скидка на {name}",
-  "docs.wasBeforeDiscount": "было {money}"
+  "docs.wasBeforeDiscount": "было {money}",
+  "toast.recoveredBackup": "Файл данных не удалось прочитать, поэтому MyVault восстановил резервную копию от {when} — {count} товаров. Всё, что введено после неё, придётся ввести заново.",
+  "toast.historyLost": "{count} движений товара не удалось записать в историю продаж. Остатки на полках верны, но этих движений нет ни в выручке, ни в декларации по НДС.",
+  "settings.historyTrouble": "Историю продаж не удалось записать",
+  "settings.historyTroubleDesc": "{count} движений товара с {when} не записаны в историю продаж. Остатки на полках верны; этих движений нет ни в выручке, ни в декларации по НДС.",
+  "settings.historyTroubleWriting": "Сейчас запись снова работает. Более ранние движения по-прежнему отсутствуют.",
+  "settings.historyTroubleClear": "Я это видел"
 }

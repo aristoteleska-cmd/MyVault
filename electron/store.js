@@ -199,11 +199,41 @@ function normalizeSettings(input) {
   return settings;
 }
 
+/**
+ * The time in a backup's filename, down to the millisecond.
+ *
+ * Seconds were not enough. Two copies taken in the same second — a snapshot
+ * before a restore and the routine one the same save triggers — produced the
+ * same name, and the second silently overwrote the first. Rare, and precisely
+ * the kind of rare that happens on the one day the older copy was the one worth
+ * keeping.
+ */
+let lastStamp = '';
+let stampRun = 0;
+
+function backupStamp() {
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 23);
+  // Two copies in the same millisecond are unlikely and not impossible — a save
+  // that snapshots and then backs up does both in one breath. A name that is
+  // already taken is nudged rather than written over.
+  if (stamp === lastStamp) {
+    stampRun += 1;
+    return `${stamp}-${stampRun}`;
+  }
+  lastStamp = stamp;
+  stampRun = 0;
+  return stamp;
+}
+
 function emptyDatabase() {
   return {
     schemaVersion: SCHEMA_VERSION,
     appVersion: '',
     createdAt: nowIso(),
+    // When the last routine backup was taken. Kept in the file so the rolling
+    // window is twelve hours of wall clock rather than twelve hours of the
+    // program happening to be open.
+    lastBackupAt: 0,
     settings: { ...DEFAULT_SETTINGS },
     // Empty means nobody has set up staff roles, and MyVault behaves as it
     // always did: one person, full access. See ./roles.js.
@@ -268,13 +298,63 @@ class Store {
    * The stock count is the thing the shop cannot afford to get wrong; the
    * history is how they look back on it. If the history file cannot be written —
    * a full disk, a folder someone has locked — the stock change still stands.
+   *
+   * But it is written down that it happened. Swallowing it meant a shop could
+   * trade all day onto a full disk and see nothing wrong: stock counts moving
+   * normally, takings at zero, an empty VAT return at the end of the quarter and
+   * no way left to reconstruct the day. The sale still goes through — refusing
+   * it would be worse — and the shop is told, on this launch and on every launch
+   * after it, until the history can be written again.
    */
   logMovement(entry) {
     try {
-      return this.movements.record(entry);
-    } catch {
+      const written = this.movements.record(entry);
+      if (this.historyTrouble) {
+        // It works again. Say so, but keep the count: a shop that lost an hour
+        // of history this morning needs to know that, not to have the notice
+        // disappear the moment the disk was emptied.
+        this.historyTrouble = { ...this.historyTrouble, writing: true, recoveredAt: nowIso() };
+      }
+      return written;
+    } catch (error) {
+      const trouble = this.historyTrouble && !this.historyTrouble.writing
+        ? this.historyTrouble
+        : { lost: 0, since: nowIso(), message: '' };
+      this.historyTrouble = {
+        lost: trouble.lost + 1,
+        since: trouble.since,
+        message: error?.message || String(error),
+        writing: false,
+        recoveredAt: '',
+      };
+      // Remembered across launches as well, because the shop may well close the
+      // program before anybody looks at the screen.
+      this.db.historyTrouble = this.historyTrouble;
+      try { this.persist({ backup: false }); } catch { /* the disk is the problem */ }
+      console.error('MyVault could not write to the sales history:', this.historyTrouble.message);
       return null;
     }
+  }
+
+  /** What the shop is told about the health of its own history. */
+  historyStatus() {
+    const trouble = this.historyTrouble || this.db.historyTrouble || null;
+    if (!trouble || !trouble.lost) return null;
+    return { ...trouble };
+  }
+
+  /**
+   * Marks the trouble as seen, once the shop has been told.
+   *
+   * Clearing it is a decision the person makes, not something the program does
+   * for them the moment writing works again — the movements that were lost are
+   * still lost, and the notice is how anybody finds out.
+   */
+  clearHistoryTrouble() {
+    this.historyTrouble = null;
+    delete this.db.historyTrouble;
+    this.persist({ backup: false });
+    return null;
   }
 
   /**
@@ -317,6 +397,10 @@ class Store {
 
       this.db = this.migrate(parsed);
       this.db.appVersion = this.appVersion;
+      this.lastBackupAt = this.db.lastBackupAt || 0;
+      // A history that could not be written stays reported across launches, so
+      // the count picks up where the last sitting left it rather than at nought.
+      this.historyTrouble = this.db.historyTrouble || null;
 
       if (previousSchema > SCHEMA_VERSION) {
         // Older app, newer file: load it, but make very sure the original survives.
@@ -328,7 +412,15 @@ class Store {
       }
       return this.db;
     } catch (err) {
-      // Never destroy data we failed to understand — park it and start clean.
+      // Never destroy data we failed to understand — park it, then put back the
+      // most recent copy that can be read.
+      //
+      // Starting clean was the old behaviour and it was the wrong one. A shop
+      // whose file is truncated by a power cut at the till opened MyVault to an
+      // empty catalogue, and the backups sitting in the folder next to it — one
+      // of them from that morning — were never looked at. The unreadable file
+      // was kept, so nothing was destroyed, but "your data is in a folder, find
+      // somebody who can read JSON" is not an answer a shop can use.
       const rescue = path.join(
         this.backupDir,
         `unreadable-${new Date().toISOString().replace(/[:.]/g, '-')}.json`,
@@ -336,11 +428,66 @@ class Store {
       try {
         fs.copyFileSync(this.file, rescue);
       } catch { /* best effort */ }
-      this.db = emptyDatabase();
+
+      const recovered = this.newestReadableBackup();
+      this.db = recovered ? this.migrate(recovered.parsed) : emptyDatabase();
+      this.db.appVersion = this.appVersion;
       this.db.recoveredFrom = rescue;
+      if (recovered) {
+        // What the shop is told: which copy they are looking at, when it was
+        // taken, and that anything after it has to be entered again. Silence
+        // here would be worse than the fault — a shop must never be handed
+        // yesterday's stock without being told that is what it is.
+        this.db.recoveredBackup = {
+          path: recovered.path,
+          at: recovered.at,
+          items: Array.isArray(this.db.items) ? this.db.items.length : 0,
+        };
+      }
       this.persist({ backup: false });
     }
     return this.db;
+  }
+
+  /**
+   * The newest backup in the folder that actually parses.
+   *
+   * Newest first, and each one is tried in turn: whatever corrupted the live
+   * file may well have caught the copy taken closest to it, and the second
+   * newest is still far better than nothing. A backup with no items array is
+   * not a MyVault file and is passed over rather than loaded as an empty shop.
+   *
+   * The sales history is not in these files and does not need to be — it lives
+   * in its own append-only folders, which this never touches. A rescue restores
+   * the catalogue; the takings were never lost.
+   */
+  newestReadableBackup() {
+    let candidates;
+    try {
+      // By the time on the file rather than the name. The names carry two
+      // different stamps — the timed copies and the ones labelled before an
+      // update — and sorting those as text puts "before-1.9.0" after
+      // "auto-2026-08-18" for no better reason than the alphabet.
+      candidates = fs.readdirSync(this.backupDir)
+        .filter((name) => name.startsWith('myvault-') && name.endsWith('.json'))
+        .map((name) => {
+          const full = path.join(this.backupDir, name);
+          try { return { full, at: fs.statSync(full).mtimeMs }; } catch { return null; }
+        })
+        .filter(Boolean)
+        .sort((a, b) => b.at - a.at);
+    } catch {
+      return null;
+    }
+
+    for (const candidate of candidates) {
+      try {
+        const parsed = JSON.parse(fs.readFileSync(candidate.full, 'utf8'));
+        if (!parsed || !Array.isArray(parsed.items)) continue;
+        return { path: candidate.full, parsed, at: new Date(candidate.at).toISOString() };
+      } catch { /* try the one before it */ }
+    }
+    return null;
   }
 
   migrate(parsed) {
@@ -462,6 +609,33 @@ class Store {
           .map((i) => this.normalizeItem(i, db))
       : [];
 
+    // When the last routine backup was taken, in wall-clock time.
+    //
+    // This used to live only in memory, which made the twelve-hour window mean
+    // "twelve hours of MyVault being open". A shop that opens the program at
+    // eight and closes it at seven took a backup every single morning and never
+    // knew the window existed; one that reopens it a dozen times a day took a
+    // dozen, and the ten kept copies covered a day and a half instead of the
+    // weeks a rolling window is for.
+    db.lastBackupAt = Number.isFinite(parsed.lastBackupAt) && parsed.lastBackupAt > 0
+      ? parsed.lastBackupAt
+      : 0;
+
+    // A history that could not be written stays reported until somebody clears
+    // it, which means surviving the restart that follows the disk being emptied.
+    if (parsed.historyTrouble && typeof parsed.historyTrouble === 'object') {
+      const lost = Number(parsed.historyTrouble.lost);
+      if (Number.isFinite(lost) && lost > 0) {
+        db.historyTrouble = {
+          lost: Math.min(lost, Number.MAX_SAFE_INTEGER),
+          since: asString(parsed.historyTrouble.since, 40),
+          message: asString(parsed.historyTrouble.message, 300),
+          writing: Boolean(parsed.historyTrouble.writing),
+          recoveredAt: asString(parsed.historyTrouble.recoveredAt, 40),
+        };
+      }
+    }
+
     return db;
   }
 
@@ -557,15 +731,99 @@ class Store {
    */
   persist({ backup = true } = {}) {
     fs.mkdirSync(this.dataDir, { recursive: true });
-    const readable = this.db.items.length <= READABLE_UP_TO;
-    const payload = JSON.stringify(this.db, null, readable ? 2 : 0);
     const tmp = `${this.file}.tmp`;
 
+    // Before the payload is built, not after: taking a backup records when it
+    // was taken, and that has to be in the file this save is about to write or
+    // the window would restart at nought on the next launch.
     if (backup) this.maybeBackup();
+
+    const readable = this.db.items.length <= READABLE_UP_TO;
+    const payload = JSON.stringify(this.db, null, readable ? 2 : 0);
 
     fs.writeFileSync(tmp, payload, 'utf8');
     fs.renameSync(tmp, this.file);
     return this.db;
+  }
+
+  /**
+   * Everything the shop has, in one object.
+   *
+   * The catalogue lives in myvault.json; the sales history and the posted
+   * invoices deliberately do not — they are append-only files per year, which is
+   * what makes a tenth year cost nothing to carry. That split was invisible
+   * until you tried to move a shop to another PC, because "Backup all data"
+   * copied one file and quietly left the other two behind. The catalogue came
+   * back perfectly and every sale, every takings figure and every VAT input was
+   * gone, which is worse than an obvious failure: the restore looked like it
+   * worked.
+   *
+   * So a backup is the whole data directory. The logs travel as their own text
+   * rather than parsed rows, so a torn line survives the round trip exactly as
+   * it is on disk and is skipped on reading the same way it always was.
+   */
+  exportAll() {
+    const logs = { movements: {}, invoices: {} };
+    const collect = (log, into) => {
+      for (const year of log.years()) {
+        try {
+          into[String(year)] = fs.readFileSync(log.fileFor(year), 'utf8');
+        } catch { /* a year that cannot be read is reported by being absent */ }
+      }
+    };
+    collect(this.movements, logs.movements);
+    collect(this.documents, logs.invoices);
+
+    return {
+      ...this.db,
+      /** Present only in a backup file. Never written into myvault.json. */
+      logs,
+      backupOf: this.appVersion || '',
+      backupAt: nowIso(),
+    };
+  }
+
+  /**
+   * Puts a whole shop back, history included.
+   *
+   * The catalogue goes through replaceAll — the same validation any loaded file
+   * gets — and the logs are written as whole years. Whole years is the right
+   * unit: they are append-only, so a year is either the one being written now or
+   * finished and unchanging, and replacing one wholesale cannot interleave a
+   * restored line with a live one.
+   *
+   * A backup written before this existed has no logs at all. That restores the
+   * catalogue and says how many years of history it could not bring, rather than
+   * pretending the shop has none.
+   */
+  importAll(parsed) {
+    const logs = parsed?.logs && typeof parsed.logs === 'object' ? parsed.logs : null;
+    const database = { ...parsed };
+    delete database.logs;
+    delete database.backupOf;
+    delete database.backupAt;
+
+    this.replaceAll(database);
+
+    const restore = (log, years) => {
+      let written = 0;
+      if (!years || typeof years !== 'object') return written;
+      fs.mkdirSync(log.dir, { recursive: true });
+      for (const [year, text] of Object.entries(years)) {
+        // The year is used to build a path, so it may only ever be four digits.
+        if (!/^\d{4}$/.test(year) || typeof text !== 'string') continue;
+        fs.writeFileSync(log.fileFor(Number(year)), text, 'utf8');
+        written += 1;
+      }
+      return written;
+    };
+
+    return {
+      movementYears: restore(this.movements, logs?.movements),
+      invoiceYears: restore(this.documents, logs?.invoices),
+      /** True for a backup taken before backups carried the history. */
+      withoutHistory: logs === null,
+    };
   }
 
   /**
@@ -576,7 +834,7 @@ class Store {
     if (!fs.existsSync(this.file)) return null;
     try {
       fs.mkdirSync(this.backupDir, { recursive: true });
-      const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+      const stamp = backupStamp();
       const safeLabel = String(label).replace(/[^a-zA-Z0-9._-]/g, '');
       const target = path.join(this.backupDir, `myvault-${safeLabel}-${stamp}.json`);
       fs.copyFileSync(this.file, target);
@@ -588,14 +846,20 @@ class Store {
 
   maybeBackup() {
     if (!fs.existsSync(this.file)) return;
-    const elapsed = Date.now() - this.lastBackupAt;
-    if (this.lastBackupAt && elapsed < BACKUP_INTERVAL_MS) return;
+    // Wall-clock, and remembered in the file. A clock that has been put back —
+    // or a file copied from a machine set to next year — would otherwise wedge
+    // the window shut for as long as the difference, so a stamp in the future is
+    // treated as no stamp at all.
+    const now = Date.now();
+    const elapsed = now - this.lastBackupAt;
+    if (this.lastBackupAt && elapsed >= 0 && elapsed < BACKUP_INTERVAL_MS) return;
 
     try {
       fs.mkdirSync(this.backupDir, { recursive: true });
-      const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+      const stamp = backupStamp();
       fs.copyFileSync(this.file, path.join(this.backupDir, `myvault-auto-${stamp}.json`));
-      this.lastBackupAt = Date.now();
+      this.lastBackupAt = now;
+      this.db.lastBackupAt = now;
       this.pruneBackups();
     } catch { /* backups are best effort, never block a save */ }
 
@@ -620,10 +884,11 @@ class Store {
 
     try {
       fs.mkdirSync(folder, { recursive: true });
-      const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+      const stamp = backupStamp();
       const target = path.join(folder, `myvault-backup-${stamp}.json`);
       fs.copyFileSync(this.file, target);
       this.pruneMirror(folder);
+      this.mirrorLogs(folder);
       this.lastMirror = { at: nowIso(), path: target, error: '' };
     } catch (error) {
       this.lastMirror = {
@@ -634,6 +899,50 @@ class Store {
       if (force) throw error;
     }
     return this.lastMirror;
+  }
+
+  /**
+   * Carries the sales history and the invoices to the second drive as well.
+   *
+   * The dated .json beside them holds the catalogue; on its own it would give a
+   * shop back its shelves and none of its takings. The logs live next to it in
+   * folders of the same name they have at home, so a person looking at the stick
+   * sees the same shape as their data folder rather than something only the
+   * program understands.
+   *
+   * These files are append-only and this runs on every routine backup, so a
+   * year that has not grown since the last copy is skipped. That makes the
+   * usual case a stat of each file instead of a copy of every year the shop has
+   * ever traded — the difference between a mirror that costs nothing and one a
+   * busy counter would want switched off.
+   *
+   * The current year is copied whole each time it changes. A partial copy is not
+   * possible: the write goes to a temporary name and is renamed into place, so
+   * the stick holds either the previous complete year or the new one.
+   */
+  mirrorLogs(folder) {
+    let copied = 0;
+    for (const [log, name] of [[this.movements, 'history'], [this.documents, 'invoices']]) {
+      const years = log.years();
+      if (years.length === 0) continue;
+      const into = path.join(folder, name);
+      fs.mkdirSync(into, { recursive: true });
+      for (const year of years) {
+        const from = log.fileFor(year);
+        const to = path.join(into, path.basename(from));
+        try {
+          const source = fs.statSync(from);
+          let existing = null;
+          try { existing = fs.statSync(to); } catch { /* not there yet */ }
+          if (existing && existing.size === source.size) continue;
+          const temporary = `${to}.part`;
+          fs.copyFileSync(from, temporary);
+          fs.renameSync(temporary, to);
+          copied += 1;
+        } catch { /* one unreadable year must not stop the rest */ }
+      }
+    }
+    return copied;
   }
 
   /** The same rolling window as the local backups, so a stick never fills up. */
@@ -1636,9 +1945,25 @@ class Store {
     return { id: user.id, name: user.name, role: user.role, createdAt: user.createdAt };
   }
 
+  /**
+   * Changes one person's name, role or PIN — all of it, or none of it.
+   *
+   * Every check runs before anything is written. It used to apply each field as
+   * it went, so "rename this manager and make them an assistant" on the only
+   * manager left the new name sitting in memory after the refusal: the screen
+   * showed the old name, the next save wrote the new one, and the two disagreed
+   * with no way for anybody to tell which was meant. A PIN that was too short
+   * did the same, because hashPin throws after the name has already been taken.
+   *
+   * Written this way the refusal changes nothing at all, which is the only
+   * behaviour a person can reason about.
+   */
   updateUser(id, patch = {}) {
     const user = this.db.users.find((candidate) => candidate.id === id);
     if (!user) throw new Error('That person is no longer on the list.');
+    if (!patch || typeof patch !== 'object') throw new Error('There is nothing to change.');
+
+    const next = {};
 
     if (patch.name !== undefined) {
       const clean = asString(patch.name, 60).trim();
@@ -1647,7 +1972,7 @@ class Store {
         (u) => u.id !== id && u.name.toLowerCase() === clean.toLowerCase(),
       );
       if (clash) throw new Error(`There is already someone called "${clean}".`);
-      user.name = clean;
+      next.name = clean;
     }
 
     if (patch.role !== undefined) {
@@ -1656,17 +1981,20 @@ class Store {
       if (user.role === 'admin' && patch.role !== 'admin' && this.adminCount() === 1) {
         throw new Error('This is the only manager. Make somebody else a manager first.');
       }
-      user.role = patch.role;
+      next.role = patch.role;
     }
 
     if (patch.pin !== undefined) {
       const taken = this.db.users.find((u) => u.id !== id && verifyPin(patch.pin, u));
       if (taken) throw new Error('Somebody already uses that PIN. Choose another.');
+      // Throws on a PIN that is too short, too long or not digits — before this
+      // function has touched anything.
       const { salt, hash } = hashPin(patch.pin);
-      user.salt = salt;
-      user.hash = hash;
+      next.salt = salt;
+      next.hash = hash;
     }
 
+    Object.assign(user, next);
     this.persist();
     return { id: user.id, name: user.name, role: user.role, createdAt: user.createdAt };
   }

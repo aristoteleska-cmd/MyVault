@@ -107,6 +107,66 @@ function can(role, capability) {
 }
 
 /**
+ * What the counter is allowed to call a change of stock, and who may call it that.
+ *
+ * The reason on a movement is not a label. It decides whether the takings screen
+ * counts money, whether the VAT return counts output tax, and whether the
+ * statistics call the stock sold or written off. It used to arrive from the
+ * window as free text and was passed straight through: someone with nothing but
+ * the till could take three bottles off the shelf and file it as a "correction",
+ * and the shop's takings, VAT and statistics would all agree that nothing had
+ * been sold. The stock is gone, the money is not recorded, and nothing anywhere
+ * says so.
+ *
+ * So each reason names the permission it needs, and each names which way stock
+ * is allowed to move under it. A junior has items.sell and nothing else, which
+ * now means they may record a sale and cannot describe it as anything else.
+ *
+ * The reasons the engine writes for itself — new, import, delete, restore — are
+ * deliberately absent. They belong to operations that have their own channels
+ * and their own permissions, and the window has no business claiming them.
+ */
+const COUNTER_REASONS = {
+  sale: { capability: 'items.sell', direction: 'down' },
+  return: { capability: 'items.return', direction: 'up' },
+  delivery: { capability: 'items.receive', direction: 'up' },
+  correction: { capability: 'items.edit', direction: 'both' },
+  stocktake: { capability: 'stocktake.run', direction: 'both' },
+};
+
+/**
+ * The reason this change of stock may be recorded under.
+ *
+ * With nothing named, the direction decides — stock going down is a sale, stock
+ * coming up is a delivery, exactly as the engine has always defaulted. Anything
+ * named has to be a reason this channel knows and has to match the direction the
+ * stock is actually moving, so a sale cannot be filed as a delivery to make a
+ * shortage disappear.
+ */
+function requestedReason(named, selling) {
+  if (named === undefined || named === null || named === '') {
+    return { reason: selling ? 'sale' : 'delivery' };
+  }
+  // A plain property lookup would answer for "__proto__" and "constructor", and
+  // an object with a toString would answer for whatever it printed as while the
+  // object itself went on to be recorded — where the log does not recognise it
+  // and files it as a correction. Both give exactly the outcome this function
+  // exists to prevent, so the value has to be a string and the table has to own
+  // the key.
+  if (typeof named !== 'string' || !Object.hasOwn(COUNTER_REASONS, named)) {
+    throw new Error(`"${named}" is not a reason MyVault records stock under.`);
+  }
+  const known = COUNTER_REASONS[named];
+  if (known.direction === 'down' && !selling) {
+    throw new Error(`A ${named} takes stock off the shelf, so it cannot add any.`);
+  }
+  if (known.direction === 'up' && selling) {
+    throw new Error(`A ${named} puts stock on the shelf, so it cannot take any off.`);
+  }
+  return { reason: named };
+}
+
+/**
  * Roles only apply once somebody has set them up.
  *
  * An existing shop that updates to this version has no staff list, and must not
@@ -266,6 +326,8 @@ function verifyRecoveryCode(code, stored) {
 
 module.exports = {
   ROLES,
+  COUNTER_REASONS,
+  requestedReason,
   CAPABILITIES,
   APPEARANCE_SETTINGS,
   isAppearanceOnly,

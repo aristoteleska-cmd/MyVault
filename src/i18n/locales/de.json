@@ -733,5 +733,11 @@
   "form.deliveriesSeen": "Aus Ihren letzten {count} Lieferungen davon",
   "docs.discount": "Rabatt %",
   "docs.discountFor": "Rabatt auf {name}",
-  "docs.wasBeforeDiscount": "vorher {money}"
+  "docs.wasBeforeDiscount": "vorher {money}",
+  "toast.recoveredBackup": "Ihre Datendatei konnte nicht gelesen werden, deshalb hat MyVault die Sicherung vom {when} zurückgespielt — {count} Produkte. Alles, was danach erfasst wurde, muss erneut eingegeben werden.",
+  "toast.historyLost": "{count} Bestandsbewegungen konnten nicht in die Verkaufshistorie geschrieben werden. Die Bestände im Regal stimmen, aber diese Bewegungen fehlen in den Einnahmen und in der Umsatzsteuererklärung.",
+  "settings.historyTrouble": "Verkaufshistorie konnte nicht geschrieben werden",
+  "settings.historyTroubleDesc": "{count} Bestandsbewegungen seit {when} wurden nicht in die Verkaufshistorie geschrieben. Die Bestände stimmen; diese Bewegungen fehlen in den Einnahmen und in der Umsatzsteuererklärung.",
+  "settings.historyTroubleWriting": "Es wird jetzt wieder geschrieben. Die früheren Bewegungen fehlen weiterhin.",
+  "settings.historyTroubleClear": "Ich habe es gesehen"
 }

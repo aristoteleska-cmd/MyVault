@@ -733,5 +733,11 @@
   "form.deliveriesSeen": "Sur vos {count} dernières livraisons",
   "docs.discount": "Remise %",
   "docs.discountFor": "Remise sur {name}",
-  "docs.wasBeforeDiscount": "était {money}"
+  "docs.wasBeforeDiscount": "était {money}",
+  "toast.recoveredBackup": "Votre fichier de données n'a pas pu être lu, MyVault a donc restauré la sauvegarde du {when} — {count} produits. Tout ce qui a été saisi ensuite doit être saisi à nouveau.",
+  "toast.historyLost": "{count} mouvements de stock n'ont pas pu être écrits dans l'historique des ventes. Les quantités en rayon sont justes, mais ces mouvements manquent dans la recette et dans la déclaration de TVA.",
+  "settings.historyTrouble": "L'historique des ventes n'a pas pu être écrit",
+  "settings.historyTroubleDesc": "{count} mouvements de stock depuis {when} n'ont pas été écrits dans l'historique des ventes. Les quantités en rayon sont justes ; ces mouvements manquent dans la recette et dans la déclaration de TVA.",
+  "settings.historyTroubleWriting": "L'écriture fonctionne à nouveau. Les mouvements précédents manquent toujours.",
+  "settings.historyTroubleClear": "J'ai vu"
 }

@@ -733,5 +733,11 @@
   "form.deliveriesSeen": "इसकी पिछली {count} खेपों से",
   "docs.discount": "छूट %",
   "docs.discountFor": "{name} पर छूट",
-  "docs.wasBeforeDiscount": "पहले {money}"
+  "docs.wasBeforeDiscount": "पहले {money}",
+  "toast.recoveredBackup": "आपकी डेटा फ़ाइल पढ़ी नहीं जा सकी, इसलिए MyVault ने {when} का बैकअप वापस रख दिया — {count} उत्पाद। उसके बाद जो कुछ भरा गया था, वह दोबारा भरना होगा।",
+  "toast.historyLost": "{count} स्टॉक बदलाव बिक्री इतिहास में नहीं लिखे जा सके। शेल्फ़ पर गिनती सही है, पर ये बदलाव आमदनी और जीएसटी/वैट रिटर्न में नहीं हैं।",
+  "settings.historyTrouble": "बिक्री इतिहास लिखा नहीं जा सका",
+  "settings.historyTroubleDesc": "{when} से {count} स्टॉक बदलाव बिक्री इतिहास में नहीं लिखे गए। शेल्फ़ की गिनती सही है; ये बदलाव आमदनी और वैट रिटर्न में नहीं हैं।",
+  "settings.historyTroubleWriting": "अब फिर से लिखा जा रहा है। पहले के बदलाव अब भी नहीं हैं।",
+  "settings.historyTroubleClear": "मैंने देख लिया"
 }

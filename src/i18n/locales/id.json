@@ -733,5 +733,11 @@
   "form.deliveriesSeen": "Dari {count} kiriman terakhirnya",
   "docs.discount": "Diskon %",
   "docs.discountFor": "Diskon untuk {name}",
-  "docs.wasBeforeDiscount": "tadinya {money}"
+  "docs.wasBeforeDiscount": "tadinya {money}",
+  "toast.recoveredBackup": "Berkas data Anda tidak dapat dibaca, jadi MyVault mengembalikan cadangan dari {when} — {count} produk. Semua yang dimasukkan setelah itu harus dimasukkan lagi.",
+  "toast.historyLost": "{count} pergerakan stok tidak dapat ditulis ke riwayat penjualan. Jumlah di rak sudah benar, tetapi pergerakan itu hilang dari pemasukan dan dari laporan PPN.",
+  "settings.historyTrouble": "Riwayat penjualan tidak dapat ditulis",
+  "settings.historyTroubleDesc": "{count} pergerakan stok sejak {when} tidak ditulis ke riwayat penjualan. Jumlah di rak sudah benar; pergerakan itu hilang dari pemasukan dan laporan PPN.",
+  "settings.historyTroubleWriting": "Sekarang sudah bisa ditulis lagi. Pergerakan sebelumnya tetap hilang.",
+  "settings.historyTroubleClear": "Saya sudah lihat"
 }

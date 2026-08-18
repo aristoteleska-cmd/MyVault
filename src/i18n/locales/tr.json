@@ -733,5 +733,11 @@
   "form.deliveriesSeen": "Son {count} teslimatınıza göre",
   "docs.discount": "İndirim %",
   "docs.discountFor": "{name} için indirim",
-  "docs.wasBeforeDiscount": "önce {money}"
+  "docs.wasBeforeDiscount": "önce {money}",
+  "toast.recoveredBackup": "Veri dosyanız okunamadı, bu yüzden MyVault {when} tarihli yedeği geri yükledi — {count} ürün. Ondan sonra girilen her şeyin yeniden girilmesi gerekir.",
+  "toast.historyLost": "{count} stok hareketi satış geçmişine yazılamadı. Raftaki miktarlar doğru, ancak bu hareketler cirodan ve KDV beyanından eksik.",
+  "settings.historyTrouble": "Satış geçmişi yazılamadı",
+  "settings.historyTroubleDesc": "{when} tarihinden bu yana {count} stok hareketi satış geçmişine yazılmadı. Raftaki miktarlar doğru; bu hareketler cirodan ve KDV beyanından eksik.",
+  "settings.historyTroubleWriting": "Şu anda yeniden yazılıyor. Önceki hareketler hâlâ eksik.",
+  "settings.historyTroubleClear": "Gördüm"
 }

@@ -397,7 +397,32 @@ export interface Database {
   drafts: DraftDocument[];
   items: Item[];
   recoveredFrom?: string;
+  /**
+   * Set when the unreadable file was replaced from a backup rather than by an
+   * empty shop. Everything entered after this copy was taken has to be entered
+   * again, which is why the shop is told which copy it is looking at.
+   */
+  recoveredBackup?: { path: string; at: string; items: number };
   downgradedFrom?: number;
+  /** Movements that could not be written to the history. See HistoryTrouble. */
+  historyTrouble?: HistoryTrouble;
+}
+
+/**
+ * A sale that happened and could not be written down.
+ *
+ * The stock count is always right; the history is what could not be reached — a
+ * full disk, a locked folder, a stick pulled out mid-sale. The count of what was
+ * lost keeps rising until somebody clears the notice, because clearing it is the
+ * moment a person accepts those movements are not coming back.
+ */
+export interface HistoryTrouble {
+  lost: number;
+  since: string;
+  message: string;
+  /** True once writing works again — the earlier losses still stand. */
+  writing: boolean;
+  recoveredAt: string;
 }
 
 /** What is on the shelves right now, and what it is worth. */

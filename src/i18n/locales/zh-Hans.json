@@ -733,5 +733,11 @@
   "form.deliveriesSeen": "根据最近 {count} 次进货",
   "docs.discount": "折扣 %",
   "docs.discountFor": "{name} 的折扣",
-  "docs.wasBeforeDiscount": "原为 {money}"
+  "docs.wasBeforeDiscount": "原为 {money}",
+  "toast.recoveredBackup": "无法读取您的数据文件，MyVault 已恢复 {when} 的备份 — {count} 件商品。此后录入的内容需要重新录入。",
+  "toast.historyLost": "有 {count} 笔库存变动未能写入销售记录。货架上的数量是对的，但这些变动不在营业额和增值税申报里。",
+  "settings.historyTrouble": "销售记录未能写入",
+  "settings.historyTroubleDesc": "自 {when} 起有 {count} 笔库存变动未写入销售记录。货架数量是对的；这些变动不在营业额和增值税申报里。",
+  "settings.historyTroubleWriting": "现在又能写入了。之前的那些变动仍然缺失。",
+  "settings.historyTroubleClear": "我已知悉"
 }

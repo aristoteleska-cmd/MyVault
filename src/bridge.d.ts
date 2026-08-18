@@ -19,6 +19,7 @@ import type {
   CustomField,
   Database,
   FieldType,
+  HistoryTrouble,
   Item,
   Movement,
   MovementReason,
@@ -167,6 +168,8 @@ export interface MyVaultBridge {
     }>>;
     forgetFolder(): Promise<Result<{ status: BackupStatus; settings: Settings }>>;
     now(): Promise<Result<BackupStatus>>;
+    historyStatus(): Promise<Result<HistoryTrouble | null>>;
+    acknowledgeHistory(): Promise<Result<null>>;
   };
 
   categories: {
