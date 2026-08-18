@@ -52,7 +52,11 @@
   --border-strong: #c3ccda;
   --text: #131820;
   --text-muted: #59636f;
-  --text-faint: #7b8593;
+  /* 4.5:1 on every surface it lands on. It was #7b8593 — 3.74:1 on
+     white, which is under AA for the 12px hints and placeholders it is
+     used for, despite the note at the top of this file claiming
+     otherwise. Large text would have been fine; this is not large. */
+  --text-faint: #646d7a;
 
   --accent: #2f5fdb;
   --accent-hover: #2751bd;
@@ -83,7 +87,9 @@
   --border-strong: #3b4553;
   --text: #eaeef5;
   --text-muted: #a3adbc;
-  --text-faint: #8590a0;
+  /* 4.82:1 against --surface-3, the darkest card it lands on. It was
+     #8590a0, which cleared AA on every surface but that one, at 4.47. */
+  --text-faint: #8b96a6;
 
   --accent: #7b9dff;
   --accent-hover: #96b0ff;
@@ -785,17 +791,36 @@ table.items tbody td > .item-meta { overflow: hidden; text-overflow: ellipsis; }
   background: var(--surface-2);
   padding: 2px;
 }
+/**
+ * The sell button, and the hit area behind it.
+ *
+ * These two are pressed more than anything else in MyVault, and at 28px square
+ * with 2px between them they were the smallest targets in the app — fine for a
+ * mouse, wrong for the touchscreen till a counter often has. The visible button
+ * stays small because the table is dense on purpose; the ::after stretches the
+ * area that actually responds out to 44px, which is the size a fingertip needs.
+ */
 .stepper button {
+  position: relative;
   display: grid;
   place-items: center;
-  width: 28px;
-  height: 28px;
+  width: 30px;
+  height: 30px;
   border: 0;
   border-radius: var(--radius-sm);
   background: transparent;
   color: var(--text-muted);
   cursor: pointer;
   transition: background var(--speed) var(--ease), color var(--speed) var(--ease);
+}
+.stepper button::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 44px;
+  height: 44px;
+  transform: translate(-50%, -50%);
 }
 .stepper button:hover:not(:disabled) { background: var(--surface); color: var(--accent); }
 .stepper button:disabled { opacity: 0.35; cursor: not-allowed; }
@@ -1232,6 +1257,10 @@ table.items tbody td > .item-meta { overflow: hidden; text-overflow: ellipsis; }
 }
 [dir="rtl"] .col-actions { box-shadow: 1px 0 0 var(--border); }
 [dir="rtl"] .toast { animation-name: slide-in-rtl; }
+/* An arrow means "back" by pointing against the reading direction, so in Arabic
+   and Urdu it has to point the other way. Marked on the icon rather than at each
+   call site, so a new "previous" button cannot forget. */
+[dir="rtl"] [data-flip-rtl] { transform: scaleX(-1); }
 [dir="rtl"] .mono, [dir="rtl"] .num { direction: ltr; }
 
 /* Barcodes, prices and quantities stay left-to-right even in an RTL layout —

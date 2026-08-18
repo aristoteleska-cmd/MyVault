@@ -193,9 +193,20 @@ interface IconProps {
   className?: string;
 }
 
+/**
+ * Icons that mean a direction rather than a thing.
+ *
+ * A chevron pointing left means "back" only because reading runs left to right.
+ * In Arabic and Urdu it means "forward", so these are flipped by the stylesheet
+ * on a right-to-left page. Listed here rather than at each call site so a new
+ * "previous" button cannot forget to do it.
+ */
+const DIRECTIONAL = new Set<IconName>(['chevronLeft', 'chevronRight']);
+
 export function Icon({ name, size = 18, className }: IconProps) {
   return (
     <svg
+      data-flip-rtl={DIRECTIONAL.has(name) ? '' : undefined}
       className={className ? `icon ${className}` : 'icon'}
       width={size}
       height={size}

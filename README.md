@@ -622,6 +622,10 @@ justify trusting the numbers rather than the code:
   paper, including every combination of the two VAT settings and every rounding
   style — a suggestion that quietly rounds a price back under its cost is worse
   than no suggestion.
+- `tests/design.test.js` measures the stylesheet rather than reading it: every
+  text colour against every surface it can land on, in both themes, at the 4.5:1
+  WCAG AA asks for body text. The file's own header claimed it cleared AA and it
+  did not — a colour is only wrong once somebody measures it.
 - `tests/edges.test.js` is the opposite: a product deleted while it sits on a
   half-typed invoice, an order for ten when there are three on the shelf, a
   category thrown away mid-count, a minus sign typed into a price. Every check
