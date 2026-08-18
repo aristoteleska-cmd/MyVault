@@ -65,6 +65,34 @@ jobs:
       - name: Does it remember the stock across restarts?
         run: npm run test:e2e
 
+  # The same end-to-end tests, on the operating system shops actually run.
+  #
+  # Everything else in this workflow verifies MyVault on Linux, which is not
+  # where it ships. The two suites below have exactly one platform assumption
+  # between them — the xvfb in the npm script, not the tests — so they are
+  # invoked directly here. What this buys is the first execution ever of the
+  # Windows paths through the store: %APPDATA% resolution, backslash separators,
+  # and a rename over a file that already exists, which behaves differently on
+  # Windows and is what the "a crash mid-save cannot corrupt the file" promise
+  # rests on.
+  test-windows:
+    needs: test
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+
+      - name: Does it remember the stock across restarts, on Windows?
+        run: node tests/persistence.e2e.js
+
+      - name: Do the staff rules hold, on Windows?
+        run: node tests/roles.e2e.js
+
   build:
     needs: test
     runs-on: windows-latest
@@ -166,7 +194,7 @@ jobs:
   # The repository is public, so this is also what the in-app updater reads:
   # a shop needs no account and no token to reach it.
   release:
-    needs: [build, build-linux]
+    needs: [build, build-linux, test-windows]
     if: startsWith(github.ref, 'refs/tags/v') || inputs.release_tag != ''
     runs-on: ubuntu-latest
     permissions:
