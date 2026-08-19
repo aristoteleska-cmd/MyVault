@@ -208,9 +208,27 @@ const twoPages = `<!doctype html><meta charset="utf-8">
 </table>
 <p style="text-align:right">Καθαρή αξία 90,00<br>Φ.Π.Α. 11,70<br>Γενικό Σύνολο 101,70</p>`;
 
+/** A credit note: goods going back, printed exactly like an invoice. */
+const creditNote = `<!doctype html><meta charset="utf-8">
+<style>
+ body{font-family:"DejaVu Sans",Arial,sans-serif;font-size:9pt;margin:30px}
+ table{width:100%;border-collapse:collapse;margin-top:8px}
+ th,td{border-bottom:1px solid #bbb;padding:3px}
+ th{text-align:left;font-weight:normal}
+ td.n,th.n{text-align:right}
+</style>
+<h3>ΒΟΡΕΙΑ ΤΡΟΦΟΔΟΣΙΑ Α.Ε.</h3>
+<div style="text-align:center;font-weight:bold">ΠΙΣΤΩΤΙΚΟ ΤΙΜΟΛΟΓΙΟ</div>
+<p>Αριθμός: 118 &nbsp; Ημερομηνία: 09/09/2026</p>
+<table>
+ <tr><th>Κωδικός</th><th>Περιγραφή είδους</th><th class="n">Ποσότητα</th><th class="n">Τιμή μον.</th><th class="n">ΦΠΑ%</th><th class="n">Καθαρή αξία</th></tr>
+ <tr><td>A-9</td><td>Λάδι 5L</td><td class="n">1</td><td class="n">30,00</td><td class="n">13</td><td class="n">30,00</td></tr>
+</table>
+<p style="text-align:right">Καθαρή αξία 30,00<br>Φ.Π.Α. 3,90<br>Γενικό Σύνολο 33,90</p>`;
+
 const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', args: ['--no-sandbox'] });
 const page = await browser.newPage();
-for (const [name, html] of [['supplier-greek', supplierInvoice], ['supplier-english', englishInvoice], ['scanned-no-text', scanned], ['mismatched', mismatched], ['epsilon-style', epsilonStyle], ['two-pages', twoPages]]) {
+for (const [name, html] of [['supplier-greek', supplierInvoice], ['supplier-english', englishInvoice], ['scanned-no-text', scanned], ['mismatched', mismatched], ['epsilon-style', epsilonStyle], ['two-pages', twoPages], ['credit-note', creditNote]]) {
   await page.setContent(html, { waitUntil: 'load' });
   const pdf = await page.pdf({ format: 'A4', printBackground: true });
   writeFileSync(`tests/fixtures/${name}.pdf`, pdf);

@@ -657,6 +657,20 @@ function registerIpc() {
     // because it is what the supplier's own product codes are remembered
     // against. Only empty boxes are filled: what somebody typed is theirs.
     const before = store.getDraft(id);
+
+    // A credit note posted as a delivery would put the returned goods on the
+    // shelf a second time and reclaim their VAT with them. MyVault will not
+    // quietly turn one document into the other, so it says what it is holding
+    // and leaves the person to start the right kind.
+    if (invoice.creditNote && before.kind !== 'out') {
+      throw new Error(
+        'That PDF is a credit note — goods going back to the supplier, not a '
+        + 'delivery arriving. Start an outgoing document and read it into that, '
+        + 'so the stock moves the right way and the VAT is given back rather '
+        + 'than claimed again.',
+      );
+    }
+
     const fill = {};
     if (invoice.supplier && !before.supplier) fill.supplier = invoice.supplier;
     if (invoice.number && !before.number) fill.number = invoice.number;

@@ -95,6 +95,23 @@ const INTERRUPTS_TABLE = [
 /** A quantity above this is not a quantity — it is a barcode, or a stamp. */
 const MAX_QUANTITY = 100000;
 
+/**
+ * What a document calls itself when it is goods coming back rather than going out.
+ *
+ * A credit note is printed exactly like an invoice — same supplier, same
+ * columns, often the same quantities — and means the opposite. Read as an
+ * invoice it adds the returned stock to the shelf a second time and claims its
+ * VAT again, which is wrong twice over and in the shop's favour, which is the
+ * kind of wrong that gets noticed by somebody official.
+ *
+ * So it is recognised and reported, and MyVault makes the document that means
+ * goods leaving rather than arriving.
+ */
+const CREDIT_NOTE = [
+  'πιστωτικό', 'πιστωτικο', 'πιστωτικό τιμολόγιο', 'επιστροφή', 'επιστροφη',
+  'credit note', 'credit memo', 'gutschrift', 'nota de crédito', 'nota di credito',
+];
+
 /** How many headings a line needs before it is believed to be the table header. */
 const HEADER_MATCHES = 3;
 
@@ -505,7 +522,13 @@ function readHeading(pages, headerLine) {
 
   const currency = /€|eur/i.test(text) ? 'EUR' : (/£|gbp/i.test(text) ? 'GBP' : '');
 
-  return { supplier, number, date, vatNumber, currency };
+  // Judged on the document's own title block rather than anywhere it might
+  // merely mention the word — a footnote about the returns policy is not a
+  // credit note.
+  const title = strip(above.slice(0, 12).map((line) => line.text).join(' '));
+  const creditNote = CREDIT_NOTE.some((word) => title.includes(word));
+
+  return { supplier, number, date, vatNumber, currency, creditNote };
 }
 
 /** The totals the invoice prints for itself, so they can be checked against. */
@@ -611,6 +634,11 @@ function readInvoice(extracted) {
     ok: rows.length > 0,
     reason: rows.length > 0 ? '' : 'noLines',
     ...heading,
+    /**
+     * Which way the stock moves. A credit note is goods going back to the
+     * supplier, so it fills an outgoing document; everything else is a delivery.
+     */
+    kind: heading.creditNote ? 'out' : 'in',
     lines: rows,
     totals,
     netCheck,
