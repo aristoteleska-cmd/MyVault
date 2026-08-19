@@ -69,10 +69,27 @@ const IGNORED_COLUMNS = new Set(['unit']);
  */
 const END_OF_TABLE = [
   'υπόλοιπο', 'υπολοιπο', 'ανάλυση', 'αναλυση', 'σύνολο', 'συνολο', 'πληρωτέο', 'πληρωτεο',
-  'κρατήσεις', 'κρατησεις', 'επιβαρύνσεις', 'επιβαρυνσεις', 'φόροι', 'φοροι', 'μεταφορά',
+  'κρατήσεις', 'κρατησεις', 'επιβαρύνσεις', 'επιβαρυνσεις', 'φόροι', 'φοροι',
   'αξία προ έκπτωσης', 'γενικό σύνολο', 'φ.π.α', 'φπα', 'παρατηρήσεις',
-  'subtotal', 'sub total', 'total', 'balance', 'carried forward', 'vat', 'amount due',
+  'subtotal', 'sub total', 'total', 'balance', 'vat', 'amount due',
   'grand total', 'notes', 'terms',
+];
+
+/**
+ * Lines that interrupt the table without ending it.
+ *
+ * An invoice that runs to a second page carries the running total across the
+ * break — "Μεταφορά", "carried forward", "σε μεταφορά" — and then goes straight
+ * on listing products. Treating that as the end of the table, which is what the
+ * first version of this did, silently drops every line on every page after the
+ * first: the delivery posts short and nothing says so.
+ *
+ * Skipped rather than stopped at, along with the page footer that follows it.
+ */
+const INTERRUPTS_TABLE = [
+  'μεταφορά', 'μεταφορα', 'εκ μεταφοράς', 'σε μεταφορά', 'από μεταφορά',
+  'carried forward', 'carry forward', 'brought forward', 'continued', 'σελίδα', 'σελιδα',
+  'page',
 ];
 
 /** A quantity above this is not a quantity — it is a barcode, or a stamp. */
@@ -302,7 +319,29 @@ function lineFrom(cells) {
 function endsTable(line) {
   const label = strip(line.text).slice(0, 48);
   if (!label) return false;
+  // A carry-over or a page number is not the end of anything.
+  if (INTERRUPTS_TABLE.some((word) => label.startsWith(word) || label.includes(` ${word}`))) {
+    return false;
+  }
   return END_OF_TABLE.some((word) => label.startsWith(word) || label.includes(` ${word}`));
+}
+
+/** True for a line that is skipped and then forgotten about. */
+function interruptsTable(line) {
+  const label = strip(line.text).slice(0, 48);
+  if (!label) return false;
+  return INTERRUPTS_TABLE.some((word) => label.startsWith(word) || label.includes(` ${word}`));
+}
+
+/**
+ * A repeat of the column headings, printed again at the top of a later page.
+ *
+ * Read as a product it becomes a line called "Περιγραφή είδους" with no
+ * quantity; skipped, the table simply continues.
+ */
+function repeatsHeader(line, headerLine) {
+  if (!headerLine) return false;
+  return strip(line.text) === strip(headerLine.text);
 }
 
 /** The last number on a line — how an invoice writes a total. */
@@ -543,6 +582,7 @@ function readInvoice(extracted) {
     // and the legal footnote's stamp becomes a quantity of four hundred
     // trillion. The words are what tell a person the list has ended.
     if (endsTable(line)) break;
+    if (interruptsTable(line) || repeatsHeader(line, header.line)) continue;
     const row = lineFrom(cellsFor(line, bounds));
     if (row) rows.push(row);
   }

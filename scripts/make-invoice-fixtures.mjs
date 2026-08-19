@@ -180,9 +180,37 @@ const epsilonStyle = `<!doctype html><meta charset="utf-8">
   Epsilon Net AE Σελίδα 1 από 1
 </div>`;
 
+/** An invoice that runs to a second page, carry-over line and all. */
+const twoPages = `<!doctype html><meta charset="utf-8">
+<style>
+ body{font-family:"DejaVu Sans",Arial,sans-serif;font-size:9pt;margin:30px}
+ table{width:100%;border-collapse:collapse;margin-top:8px}
+ th,td{border-bottom:1px solid #bbb;padding:3px}
+ th{text-align:left;font-weight:normal}
+ td.n,th.n{text-align:right}
+ .break{page-break-after:always}
+</style>
+<h3>ΒΟΡΕΙΑ ΤΡΟΦΟΔΟΣΙΑ Α.Ε.</h3>
+<p>Αριθμός: 5567 &nbsp; Ημερομηνία: 02/09/2026</p>
+<table>
+ <tr><th>Κωδικός</th><th>Περιγραφή είδους</th><th class="n">Ποσότητα</th><th class="n">Τιμή μον.</th><th class="n">Έκπτω</th><th class="n">ΦΠΑ%</th><th class="n">Καθαρή αξία</th></tr>
+ <tr><td>A-1</td><td>Αλεύρι 1kg</td><td class="n">10</td><td class="n">1,20</td><td class="n">0</td><td class="n">13</td><td class="n">12,00</td></tr>
+ <tr><td>A-2</td><td>Ζάχαρη 1kg</td><td class="n">8</td><td class="n">1,50</td><td class="n">0</td><td class="n">13</td><td class="n">12,00</td></tr>
+ <tr><td></td><td>Μεταφορά</td><td class="n"></td><td class="n"></td><td class="n"></td><td class="n"></td><td class="n">24,00</td></tr>
+</table>
+<div class="break"></div>
+<p>Σελίδα 2 από 2</p>
+<table>
+ <tr><th>Κωδικός</th><th>Περιγραφή είδους</th><th class="n">Ποσότητα</th><th class="n">Τιμή μον.</th><th class="n">Έκπτω</th><th class="n">ΦΠΑ%</th><th class="n">Καθαρή αξία</th></tr>
+ <tr><td></td><td>Εκ μεταφοράς</td><td class="n"></td><td class="n"></td><td class="n"></td><td class="n"></td><td class="n">24,00</td></tr>
+ <tr><td>A-7</td><td>Ρύζι 1kg</td><td class="n">6</td><td class="n">2,00</td><td class="n">0</td><td class="n">13</td><td class="n">12,00</td></tr>
+ <tr><td>A-9</td><td>Λάδι 5L</td><td class="n">2</td><td class="n">30,00</td><td class="n">10</td><td class="n">13</td><td class="n">54,00</td></tr>
+</table>
+<p style="text-align:right">Καθαρή αξία 90,00<br>Φ.Π.Α. 11,70<br>Γενικό Σύνολο 101,70</p>`;
+
 const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', args: ['--no-sandbox'] });
 const page = await browser.newPage();
-for (const [name, html] of [['supplier-greek', supplierInvoice], ['supplier-english', englishInvoice], ['scanned-no-text', scanned], ['mismatched', mismatched], ['epsilon-style', epsilonStyle]]) {
+for (const [name, html] of [['supplier-greek', supplierInvoice], ['supplier-english', englishInvoice], ['scanned-no-text', scanned], ['mismatched', mismatched], ['epsilon-style', epsilonStyle], ['two-pages', twoPages]]) {
   await page.setContent(html, { waitUntil: 'load' });
   const pdf = await page.pdf({ format: 'A4', printBackground: true });
   writeFileSync(`tests/fixtures/${name}.pdf`, pdf);
