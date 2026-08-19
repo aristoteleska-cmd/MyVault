@@ -1,13 +1,16 @@
-import { useMemo, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { useVault } from '../state/vault';
-import type { CustomField, CustomFieldValue, FieldType, Item } from '../types';
+import type { CustomField, CustomFieldValue, FieldType, Item, PriceAdvice } from '../types';
 import { nextCategoryColor, normalizeNumberInput } from '../lib/input';
-import { useT, type TranslationKey } from '../i18n';
+import { useI18n, useT, type TranslationKey } from '../i18n';
+import { formatMoney, formatNumber } from '../lib/format';
 import { Icon } from './Icon';
 import { Modal } from './Modal';
 
 interface ItemDialogProps {
   item: Item | null;
+  /** A barcode already read from a photo or a scanner, for a brand-new item. */
+  prefillBarcode?: string;
   onClose: () => void;
 }
 
@@ -20,36 +23,59 @@ interface Draft {
   price: string;
   cost: string;
   lowStockThreshold: string;
+  vatRate: string;
+  service: boolean;
   supplier: string;
   notes: string;
   custom: Record<string, CustomFieldValue>;
 }
 
-function draftFromItem(item: Item | null): Draft {
+function draftFromItem(item: Item | null, prefillBarcode = ''): Draft {
   return {
     name: item?.name ?? '',
-    barcode: item?.barcode ?? '',
+    barcode: item?.barcode ?? prefillBarcode,
     sku: item?.sku ?? '',
     categoryId: item?.categoryId ?? '',
     quantity: item ? String(item.quantity) : '0',
     price: item ? String(item.price) : '',
     cost: item ? String(item.cost) : '',
     lowStockThreshold: item?.lowStockThreshold != null ? String(item.lowStockThreshold) : '',
+    vatRate: item?.vatRate != null ? String(item.vatRate) : '',
+    service: Boolean(item?.service),
     supplier: item?.supplier ?? '',
     notes: item?.notes ?? '',
     custom: { ...(item?.custom ?? {}) },
   };
 }
 
-export function ItemDialog({ item, onClose }: ItemDialogProps) {
-  const { db, info, addItem, updateItem, addCategory, addField } = useVault();
+export function ItemDialog({ item, prefillBarcode = '', onClose }: ItemDialogProps) {
+  const { db, info, addItem, updateItem, addCategory, addField, scanBarcodePhoto } = useVault();
   const t = useT();
-  const [draft, setDraft] = useState<Draft>(() => draftFromItem(item));
+  const [draft, setDraft] = useState<Draft>(() => draftFromItem(item, prefillBarcode));
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [newCategory, setNewCategory] = useState('');
   const [showFieldForm, setShowFieldForm] = useState(false);
   const barcodeRef = useRef<HTMLInputElement>(null);
+  const [scanning, setScanning] = useState(false);
+
+  /**
+   * Reading the code out of a picture takes a moment, so the button says so
+   * and stays disabled — pressing it twice would open two file dialogs.
+   */
+  const scanFromPhoto = async () => {
+    if (scanning) return;
+    setScanning(true);
+    try {
+      const code = await scanBarcodePhoto();
+      if (code) {
+        set('barcode', code);
+        barcodeRef.current?.focus();
+      }
+    } finally {
+      setScanning(false);
+    }
+  };
 
   const isEdit = Boolean(item);
   const fields = useMemo(
@@ -114,6 +140,9 @@ export function ItemDialog({ item, onClose }: ItemDialogProps) {
       cost: normalizeNumberInput(draft.cost) ?? 0,
       lowStockThreshold:
         draft.lowStockThreshold.trim() === '' ? null : Number(draft.lowStockThreshold),
+      // Blank means "use the shop's rate", the same shape as the limit above.
+      vatRate: draft.vatRate.trim() === '' ? null : Number(draft.vatRate),
+      service: draft.service,
       supplier: draft.supplier.trim(),
       notes: draft.notes,
       custom: draft.custom,
@@ -181,34 +210,66 @@ export function ItemDialog({ item, onClose }: ItemDialogProps) {
 
           <div className="field">
             <label htmlFor="field-barcode">{t('form.barcode')}</label>
-            <input
-              id="field-barcode"
-              ref={barcodeRef}
-              className="input mono"
-              value={draft.barcode}
-              onChange={(e) => set('barcode', e.target.value)}
-              placeholder={t('form.barcodePlaceholder')}
-              autoComplete="off"
-              aria-invalid={Boolean(errors.barcode)}
-            />
+            <div className="input-row">
+              <input
+                id="field-barcode"
+                ref={barcodeRef}
+                className="input mono"
+                value={draft.barcode}
+                onChange={(e) => set('barcode', e.target.value)}
+                placeholder={t('form.barcodePlaceholder')}
+                autoComplete="off"
+                aria-invalid={Boolean(errors.barcode)}
+              />
+              {/* For a shop with no scanner: photograph the barcode and let the
+                  app read it, rather than typing thirteen digits correctly. */}
+              <button
+                type="button"
+                className="btn"
+                disabled={scanning}
+                onClick={() => void scanFromPhoto()}
+                title={t('form.barcodePhotoHint')}
+              >
+                <Icon name="image" size={16} />
+                {scanning ? t('form.barcodeReading') : t('form.barcodePhoto')}
+              </button>
+            </div>
             {errors.barcode
               ? <span className="field-error">{errors.barcode}</span>
               : <span className="field-hint">{t('form.barcodeHint')}</span>}
           </div>
 
-          <div className="field">
-            <label htmlFor="field-quantity">{t('form.quantity')}</label>
-            <input
-              id="field-quantity"
-              className="input"
-              type="number"
-              min={0}
-              step={1}
-              value={draft.quantity}
-              onChange={(e) => set('quantity', e.target.value)}
-              aria-invalid={Boolean(errors.quantity)}
-            />
-            {errors.quantity && <span className="field-error">{errors.quantity}</span>}
+          {/* A service has no count, so the box is not shown rather than shown
+              and ignored — a disabled field a shop can type nothing into is a
+              question with no answer. */}
+          {!draft.service && (
+            <div className="field">
+              <label htmlFor="field-quantity">{t('form.quantity')}</label>
+              <input
+                id="field-quantity"
+                className="input"
+                type="number"
+                min={0}
+                step={1}
+                value={draft.quantity}
+                onChange={(e) => set('quantity', e.target.value)}
+                aria-invalid={Boolean(errors.quantity)}
+              />
+              {errors.quantity && <span className="field-error">{errors.quantity}</span>}
+            </div>
+          )}
+
+          <div className="field field-check">
+            <label htmlFor="field-service">
+              <input
+                id="field-service"
+                type="checkbox"
+                checked={draft.service}
+                onChange={(e) => set('service', e.target.checked)}
+              />
+              {t('form.service')}
+            </label>
+            <span className="field-hint">{t('form.serviceHint')}</span>
           </div>
 
           <div className="field">
@@ -316,6 +377,25 @@ export function ItemDialog({ item, onClose }: ItemDialogProps) {
             />
           </div>
 
+          {/* Only where a shop actually charges VAT. Everyone else gets one
+              fewer box to wonder about. */}
+          {db.settings.vatEnabled && (
+            <div className="field">
+              <label htmlFor="field-vatRate">{t('form.vatRate')}</label>
+              <input
+                id="field-vatRate"
+                className="input"
+                type="number"
+                min={0}
+                max={100}
+                step={1}
+                value={draft.vatRate}
+                onChange={(e) => set('vatRate', e.target.value)}
+                placeholder={t('form.vatRateDefault', { rate: db.settings.vatRate })}
+              />
+            </div>
+          )}
+
           <div className="field">
             <label htmlFor="field-supplier">{t('form.supplier')}</label>
             <input
@@ -385,8 +465,82 @@ export function ItemDialog({ item, onClose }: ItemDialogProps) {
             </button>
           )}
         </div>
+
+        <CostHistory item={item} />
       </form>
     </Modal>
+  );
+}
+
+/**
+ * What this product has cost, on the page where the shop is already standing.
+ *
+ * The engine works all of this out for the Prices screen anyway; the only new
+ * thing here is showing it where somebody is looking at the product itself,
+ * which is where the question "am I being crept up on by this supplier" is
+ * actually asked. Read-only, and only for people allowed to see costs.
+ */
+function CostHistory({ item }: { item: Item | null }) {
+  const { db, priceAdvice, can } = useVault();
+  const { locale } = useI18n();
+  const t = useT();
+  const [advice, setAdvice] = useState<PriceAdvice | null>(null);
+
+  const allowed = Boolean(item) && can('pricing.view');
+  useEffect(() => {
+    if (!allowed || !item) return;
+    void priceAdvice(item.id).then(setAdvice);
+  }, [allowed, item, priceAdvice]);
+
+  if (!allowed || !advice) return null;
+
+  const currency = db.settings.currency;
+  const money = (value: number) => formatMoney(value, currency, locale);
+  const history = advice.history;
+
+  return (
+    <div className="form-section">
+      <h4 className="form-section-title">{t('form.costHistory')}</h4>
+
+      <div className="cost-figures">
+        <div>
+          <span className="stat-label">{t('prices.margin')}</span>
+          <strong>{advice.margin === null ? '—' : `${formatNumber(advice.margin, locale)}%`}</strong>
+          <span className="field-hint">{t('prices.perUnit', { money: money(advice.profit) })}</span>
+        </div>
+        {history.usual !== null && (
+          <div>
+            <span className="stat-label">{t('prices.usualCost')}</span>
+            <strong>{money(history.usual)}</strong>
+          </div>
+        )}
+        {history.lowest !== null && history.lowest !== history.highest && (
+          <div>
+            <span className="stat-label">{t('form.costRange')}</span>
+            <strong>{money(history.lowest)} — {money(history.highest ?? 0)}</strong>
+          </div>
+        )}
+      </div>
+
+      {advice.change && (
+        <p className={advice.change.kind === 'cheaper' ? 'setting-warn is-good' : 'setting-warn'}>
+          {t(
+            advice.change.kind === 'cheaper' ? 'prices.changeCheaper' : 'prices.changeDearer',
+            {
+              percent: formatNumber(advice.change.percent, locale),
+              was: money(advice.change.from),
+              now: money(advice.change.to),
+            },
+          )}
+        </p>
+      )}
+
+      <p className="field-hint">
+        {history.deliveries === 0
+          ? t('prices.neverDelivered')
+          : t('form.deliveriesSeen', { count: history.deliveries })}
+      </p>
+    </div>
   );
 }
 

@@ -1,5 +1,12 @@
+import { createRequire } from 'node:module';
 import { defineConfig, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
+
+// The one place the policy is written down is electron/offline.js, where it sits
+// beside the request blocker it works with. Importing it here rather than
+// repeating it means the tag in the page and the header on the response cannot
+// drift apart — and a test can check that they have not.
+const { CONTENT_SECURITY_POLICY } = createRequire(import.meta.url)('./electron/offline.js');
 
 /**
  * The packaged app is locked down to its own bundled assets — no remote scripts,
@@ -7,16 +14,7 @@ import react from '@vitejs/plugin-react';
  * because the dev server needs inline scripts and a websocket for hot reload.
  */
 function contentSecurityPolicy(): Plugin {
-  const policy = [
-    "default-src 'none'",
-    "script-src 'self'",
-    "style-src 'self' 'unsafe-inline'",
-    "img-src 'self' data:",
-    "font-src 'self'",
-    "connect-src 'self'",
-    "form-action 'none'",
-    "base-uri 'none'",
-  ].join('; ');
+  const policy = CONTENT_SECURITY_POLICY as string;
 
   return {
     name: 'myvault-csp',

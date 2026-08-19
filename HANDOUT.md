@@ -36,6 +36,15 @@ on your own computer.
 3. Διαλέξτε τη γλώσσα σας στην πρώτη οθόνη. / Pick your language on the first screen.
 4. Πατήστε **Επόμενο** μέχρι το τέλος. / Click **Next** through to the end.
 
+Στην οθόνη με τον φάκελο μπορείτε να αφήσετε ό,τι προτείνεται, ή να γράψετε
+οποιονδήποτε δίσκο θέλετε — π.χ. `D:\` — και θα δημιουργηθεί φάκελος `MyVault`
+εκεί. Αν ο δίσκος δεν δέχεται εγγραφή, το πρόγραμμα θα σας το πει και θα
+εγκατασταθεί στην προεπιλεγμένη θέση.
+
+*On the folder screen you can keep what is suggested, or type any drive you
+like — `D:\` for example — and a `MyVault` folder is made there. If that drive
+cannot be written to, the installer says so and uses the default place instead.*
+
 Χρειάζεστε Windows 10 ή νεότερα. / You need Windows 10 or newer.
 
 ---
@@ -48,6 +57,9 @@ on your own computer.
    πεδίο barcode και σαρώστε.
 3. Χρησιμοποιήστε το **+** και το **−** σε κάθε γραμμή κάθε φορά που πουλάτε ή
    παραλαμβάνετε ένα κομμάτι.
+   Δεν έχετε σαρωτή; Βγάλτε φωτογραφία το barcode και πατήστε **Φωτογραφία
+   barcode** — το πρόγραμμα διαβάζει μόνο του τον αριθμό. Η φωτογραφία μένει
+   στον υπολογιστή σας.
 4. Αν έχετε ήδη λίστα σε Excel, αποθηκεύστε την ως CSV και πατήστε
    **Εισαγωγή CSV**.
 
@@ -59,6 +71,9 @@ on your own computer.
 2. Add a price, a quantity and a barcode. If you have a barcode scanner, click
    the barcode box and scan.
 3. Use **+** and **−** on each row every time you sell or receive one.
+   No scanner? Take a photo of the barcode and press **Barcode photo** — the
+   program reads the number out of it for you. The picture stays on your
+   computer.
 4. If you already have a list in Excel, save it as CSV and press **Import CSV**.
 
 **Συμβουλή:** σαρώστε ένα barcode οποιαδήποτε στιγμή και το προϊόν εμφανίζεται
@@ -78,6 +93,63 @@ There is no account, no cloud, and nothing is sent anywhere. It all lives in one
 file on your computer.
 
 Go to **Settings → Backup** to save a copy onto a USB stick. Do this regularly.
+
+---
+
+## Ενημερώσεις / Updates
+
+Το MyVault δεν χρησιμοποιεί internet. Στις **Ρυθμίσεις → Ενημερώσεις** υπάρχουν
+τρεις επιλογές:
+
+| | Τι κάνει |
+| --- | --- |
+| **Ανενεργό** | Δεν βγαίνει ποτέ στο internet. Προεπιλογή. |
+| **Ενημέρωσέ με** | Κοιτάζει μία φορά την ημέρα και σας λέει αν υπάρχει νεότερη έκδοση. |
+| **Αυτόματα** | Κατεβάζει μόνο του και εγκαθιστά όταν κλείσετε το πρόγραμμα. |
+
+Τίποτα από τα δικά σας δεδομένα δεν στέλνεται ποτέ, σε καμία επιλογή.
+
+*MyVault does not use the internet. **Settings → Updates** offers three
+choices: **Off** (the default — never goes online), **Tell me** (looks once a
+day and says if there is a newer version) and **Automatic** (downloads by
+itself and installs when you close the program). None of your own data is ever
+sent, whichever you pick.*
+
+---
+
+## Προσωπικό / Staff
+
+Αν δουλεύουν κι άλλοι στο μαγαζί, πηγαίνετε **Προσωπικό** και δώστε στον καθένα
+δικό του PIN:
+
+| Ρόλος | Τι μπορεί να κάνει |
+| --- | --- |
+| **Υπεύθυνος** | Τα πάντα. |
+| **Έμπειρος** | Προσθέτει προϊόντα και παραλαβές, κάνει πωλήσεις. Όχι κατηγορίες ή ρυθμίσεις. |
+| **Βοηθός** | Ψάχνει προϊόντα και αφαιρεί ένα όταν πουληθεί. |
+
+Αν δεν προσθέσετε κανέναν, το πρόγραμμα ανοίγει κατευθείαν, όπως πάντα.
+Σημειώστε το PIN του υπευθύνου κάπου ασφαλή.
+
+*If other people work in the shop, go to **Staff** and give each one their own
+PIN: **Manager** does everything, **Senior** adds products and deliveries but
+not categories or settings, **Assistant** looks products up and takes one off
+when it sells. Add nobody and MyVault opens straight away, as it always did.
+Write the manager's PIN down somewhere safe.*
+
+Κατά την εγκατάσταση σας ζητείται το όνομα και το PIN του υπευθύνου. Την πρώτη
+φορά που θα ανοίξει το πρόγραμμα, σας δείχνει έναν **κωδικό επαναφοράς** —
+γράψτε τον σε χαρτί και φυλάξτε τον. Αν ξεχάσετε το PIN, πατήστε **Ξεχάσατε το
+PIN;** στην οθόνη σύνδεσης και βάλτε αυτόν τον κωδικό.
+
+*The installer asks for the manager's name and PIN. The first time MyVault
+opens it shows you a **recovery code** — write it on paper and keep it safe. If
+the PIN is ever forgotten, press **Forgotten the PIN?** on the sign-in screen
+and type that code in.*
+
+**Προσοχή / Note:** αυτό ορίζει ποιος τι κάνει *μέσα* στο πρόγραμμα. Δεν
+κλειδώνει τον υπολογιστή. / *This decides what each person can do **inside** the
+program. It does not lock the computer itself.*
 
 ---
 

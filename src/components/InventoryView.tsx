@@ -13,6 +13,7 @@ interface InventoryViewProps {
   sort: SortState;
   setSort: (sort: SortState) => void;
   onNewItem: () => void;
+  onScanPhoto: () => void;
   onEditItem: (item: Item) => void;
   searchRef: React.RefObject<HTMLInputElement | null>;
   onGoToFields: () => void;
@@ -33,11 +34,12 @@ export function InventoryView({
   sort,
   setSort,
   onNewItem,
+  onScanPhoto,
   onEditItem,
   searchRef,
   onGoToFields,
 }: InventoryViewProps) {
-  const { db, deleteItems, adjustStock, importCsv, exportCsv } = useVault();
+  const { db, deleteItems, adjustStock, importCsv, exportCsv, can, serving, setServing, returnItem } = useVault();
   const { t, locale } = useI18n();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [page, setPage] = useState(0);
@@ -190,13 +192,55 @@ export function InventoryView({
           </select>
         </div>
 
-        <button type="button" className="btn btn-primary btn-lg" onClick={onNewItem}>
-          <Icon name="plus" />
-          {t('action.addItem')}
+        {/* For a shop with no scanner: a photo of the barcode is enough to
+            pull up the item, or to start registering it if it is new. */}
+        <button type="button" className="btn btn-lg" onClick={onScanPhoto}>
+          <Icon name="image" />
+          {t('action.scanPhoto')}
         </button>
+
+        {can('items.create') && (
+          <button type="button" className="btn btn-primary btn-lg" onClick={onNewItem}>
+            <Icon name="plus" />
+            {t('action.addItem')}
+          </button>
+        )}
       </div>
 
       <div className="view">
+        {/* Who is at the counter.
+            The alternative — asking "who is this for?" on every press of the
+            minus button — would be answered "nobody" ninety-nine times out of a
+            hundred and abandoned by the end of the first morning. Picked once,
+            it quietly attaches every sale until it is cleared. */}
+        {can('clients.view') && db.clients.length > 0 && (
+          <div className={serving ? 'serving-bar is-active' : 'serving-bar'}>
+            <Icon name="people" size={16} />
+            <label className="toolbar-label" htmlFor="serving-client">{t('serving.label')}</label>
+            <select
+              id="serving-client"
+              className="select"
+              value={serving}
+              onChange={(e) => setServing(e.target.value)}
+            >
+              <option value="">{t('serving.nobody')}</option>
+              {[...db.clients]
+                .sort((a, b) => a.name.localeCompare(b.name, locale))
+                .map((client) => (
+                  <option key={client.id} value={client.id}>{client.name}</option>
+                ))}
+            </select>
+            {serving && (
+              <>
+                <span className="serving-note">{t('serving.note')}</span>
+                <button type="button" className="btn btn-sm" onClick={() => setServing('')}>
+                  {t('serving.clear')}
+                </button>
+              </>
+            )}
+          </div>
+        )}
+
         <section className="stats" aria-label={t('stats.aria')}>
           <div className="stat">
             <span className="stat-label"><Icon name="box" size={14} />{t('stats.differentItems')}</span>
@@ -434,6 +478,7 @@ export function InventoryView({
                 onEdit={onEditItem}
                 onDelete={(ids) => void deleteItems(ids)}
                 onAdjust={(id, delta) => void adjustStock(id, delta)}
+                onReturn={(id) => void returnItem(id, 1)}
               />
 
               <div className="table-foot">
@@ -494,18 +539,24 @@ export function InventoryView({
 
         <div className="toolbar" style={{ justifyContent: 'space-between' }}>
           <div className="toolbar-group">
-            <button type="button" className="btn btn-sm" onClick={() => void importCsv()}>
-              <Icon name="upload" size={15} />
-              {t('tools.import')}
-            </button>
-            <button type="button" className="btn btn-sm" onClick={() => void exportCsv()}>
-              <Icon name="download" size={15} />
-              {t('tools.export')}
-            </button>
-            <button type="button" className="btn btn-sm" onClick={onGoToFields}>
-              <Icon name="fields" size={15} />
-              {t('tools.manageDetails')}
-            </button>
+            {can('data.import') && (
+              <button type="button" className="btn btn-sm" onClick={() => void importCsv()}>
+                <Icon name="upload" size={15} />
+                {t('tools.import')}
+              </button>
+            )}
+            {can('data.export') && (
+              <button type="button" className="btn btn-sm" onClick={() => void exportCsv()}>
+                <Icon name="download" size={15} />
+                {t('tools.export')}
+              </button>
+            )}
+            {can('fields.manage') && (
+              <button type="button" className="btn btn-sm" onClick={onGoToFields}>
+                <Icon name="fields" size={15} />
+                {t('tools.manageDetails')}
+              </button>
+            )}
           </div>
           <span className="field-hint">
             {t('tools.tip', { new: 'Ctrl + N', find: 'Ctrl + F' })}

@@ -52,7 +52,11 @@
   --border-strong: #c3ccda;
   --text: #131820;
   --text-muted: #59636f;
-  --text-faint: #7b8593;
+  /* 4.5:1 on every surface it lands on. It was #7b8593 — 3.74:1 on
+     white, which is under AA for the 12px hints and placeholders it is
+     used for, despite the note at the top of this file claiming
+     otherwise. Large text would have been fine; this is not large. */
+  --text-faint: #646d7a;
 
   --accent: #2f5fdb;
   --accent-hover: #2751bd;
@@ -83,7 +87,9 @@
   --border-strong: #3b4553;
   --text: #eaeef5;
   --text-muted: #a3adbc;
-  --text-faint: #8590a0;
+  /* 4.82:1 against --surface-3, the darkest card it lands on. It was
+     #8590a0, which cleared AA on every surface but that one, at 4.47. */
+  --text-faint: #8b96a6;
 
   --accent: #7b9dff;
   --accent-hover: #96b0ff;
@@ -270,6 +276,13 @@ button { font: inherit; color: inherit; }
 /* ---------------------------------------------------------------- inputs */
 
 .field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+
+/* A field with a button beside it — the barcode box and its "read from photo".
+   The button keeps its natural width so the input still takes the slack, and
+   the pair wraps rather than squashing on a narrow window. */
+.input-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.input-row > .input { flex: 1 1 12ch; min-width: 0; }
+.input-row > .btn { flex: none; }
 .field > label,
 .field-label {
   font-size: 13px;
@@ -778,17 +791,36 @@ table.items tbody td > .item-meta { overflow: hidden; text-overflow: ellipsis; }
   background: var(--surface-2);
   padding: 2px;
 }
+/**
+ * The sell button, and the hit area behind it.
+ *
+ * These two are pressed more than anything else in MyVault, and at 28px square
+ * with 2px between them they were the smallest targets in the app — fine for a
+ * mouse, wrong for the touchscreen till a counter often has. The visible button
+ * stays small because the table is dense on purpose; the ::after stretches the
+ * area that actually responds out to 44px, which is the size a fingertip needs.
+ */
 .stepper button {
+  position: relative;
   display: grid;
   place-items: center;
-  width: 28px;
-  height: 28px;
+  width: 30px;
+  height: 30px;
   border: 0;
   border-radius: var(--radius-sm);
   background: transparent;
   color: var(--text-muted);
   cursor: pointer;
   transition: background var(--speed) var(--ease), color var(--speed) var(--ease);
+}
+.stepper button::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 44px;
+  height: 44px;
+  transform: translate(-50%, -50%);
 }
 .stepper button:hover:not(:disabled) { background: var(--surface); color: var(--accent); }
 .stepper button:disabled { opacity: 0.35; cursor: not-allowed; }
@@ -1225,6 +1257,10 @@ table.items tbody td > .item-meta { overflow: hidden; text-overflow: ellipsis; }
 }
 [dir="rtl"] .col-actions { box-shadow: 1px 0 0 var(--border); }
 [dir="rtl"] .toast { animation-name: slide-in-rtl; }
+/* An arrow means "back" by pointing against the reading direction, so in Arabic
+   and Urdu it has to point the other way. Marked on the icon rather than at each
+   call site, so a new "previous" button cannot forget. */
+[dir="rtl"] [data-flip-rtl] { transform: scaleX(-1); }
 [dir="rtl"] .mono, [dir="rtl"] .num { direction: ltr; }
 
 /* Barcodes, prices and quantities stay left-to-right even in an RTL layout —
@@ -1235,3 +1271,453 @@ table.items tbody td > .item-meta { overflow: hidden; text-overflow: ellipsis; }
   from { opacity: 0; transform: translateX(-16px); }
   to { opacity: 1; transform: none; }
 }
+
+
+/* ------------------------------------------------------------ signing in
+   A till screen: big targets, nothing else on the page, and the PIN shown as
+   dots because whoever is being served can see the monitor too. */
+.signin {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: var(--space-4);
+  background: var(--bg);
+}
+
+.signin-card {
+  width: min(100%, 380px);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-5);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  text-align: center;
+}
+
+.signin-card.wide { width: min(100%, 460px); text-align: start; }
+.signin-brand { display: grid; place-items: center; color: var(--accent); }
+.signin-title { margin: 0; font-size: 1.25rem; }
+.signin-sub { margin: 0; color: var(--text-muted); font-size: 0.92rem; }
+.signin-error { color: var(--danger); font-size: 0.9rem; }
+.signin-foot { margin: 0; color: var(--text-muted); font-size: 0.8rem; }
+.signin-go { width: 100%; justify-content: center; }
+
+.pin-dots { display: flex; gap: 10px; justify-content: center; min-height: 16px; }
+.pin-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid var(--border-strong);
+}
+.pin-dot.filled { background: var(--accent); border-color: var(--accent); }
+
+.pin-pad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.pin-key {
+  padding: 14px 0;
+  font-size: 1.15rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+}
+.pin-key:hover { background: var(--surface-3); }
+.pin-key:active { transform: translateY(1px); }
+.pin-key.subtle { font-size: 0.82rem; color: var(--text-muted); }
+
+.chip-inline { color: var(--text-muted); font-weight: 400; }
+
+/* The recovery code, shown once. Big, spaced and monospaced, because it is
+   going to be copied onto paper by hand and read back months later. */
+.recovery-code {
+  font-family: var(--mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 1.35rem;
+  letter-spacing: 0.09em;
+  text-align: center;
+  padding: var(--space-3);
+  border: 2px dashed var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  user-select: all;
+  word-break: break-all;
+}
+
+/* ===================================================================
+   Statistics and the client list
+   =================================================================== */
+
+.stat-section { display: flex; flex-direction: column; gap: var(--space-3); }
+.stat-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+.stat-heading {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-muted);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  margin: 0;
+}
+
+/* Auto-fit rather than a fixed count: the same four cards sit in a row on a
+   wide monitor and stack on the small screen a shop counter usually has. */
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--space-3);
+}
+.stat-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  min-width: 0;
+}
+.stat-card .stat-value {
+  font-size: 1.55rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.15;
+}
+.stat-note { font-size: 12px; color: var(--text-faint); min-height: 1.2em; }
+
+.trend {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-weight: 650;
+  font-size: 12px;
+}
+.trend.up { color: var(--success); }
+.trend.down { color: var(--danger); }
+
+/* A bar chart made of elements, so it inherits the theme, prints, and needs no
+   library — MyVault ships with no external assets at all. */
+.chart-panel { padding: var(--space-4); }
+.chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 160px;
+  padding-bottom: 2px;
+  border-bottom: 1px solid var(--border);
+}
+.chart-col { flex: 1 1 0; display: flex; align-items: flex-end; height: 100%; min-width: 3px; }
+.chart-bar {
+  width: 100%;
+  background: var(--accent);
+  border-radius: 3px 3px 0 0;
+  opacity: 0.85;
+  transition: opacity var(--speed) var(--ease);
+}
+.chart-col:hover .chart-bar { opacity: 1; }
+.chart-foot {
+  padding-top: var(--space-2);
+  font-size: 12px;
+  color: var(--text-faint);
+  text-align: center;
+}
+
+.stat-columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: var(--space-3);
+}
+.stat-columns .panel { padding: var(--space-4); }
+.panel-title { margin: 0 0 var(--space-1); font-size: 14px; font-weight: 700; }
+.panel-sub { margin: 0 0 var(--space-2); font-size: 12px; color: var(--text-faint); }
+.panel-empty { margin: 0; padding: var(--space-3) 0; font-size: 13px; color: var(--text-faint); }
+
+.rank-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.rank-list li {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: 7px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+.rank-list li:last-child { border-bottom: 0; }
+.rank-name {
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  color: var(--accent);
+  cursor: pointer;
+  text-align: start;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rank-name:hover { text-decoration: underline; }
+.rank-name.plain {
+  color: var(--text);
+  cursor: default;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.rank-name.plain:hover { text-decoration: none; }
+.rank-value {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  color: var(--text-faint);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.rank-value em { font-style: normal; font-weight: 650; color: var(--text); }
+.dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+
+/* ------------------------------------------------------------- clients */
+
+.serving-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+}
+.serving-bar.is-active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-soft-text);
+}
+.serving-note { font-size: 12px; font-weight: 600; }
+
+.client-record { flex-direction: column; align-items: stretch; gap: var(--space-3); }
+.record-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+.record-notes {
+  font-size: 13px;
+  color: var(--text-muted);
+  white-space: pre-wrap;
+  padding-inline-start: var(--space-1);
+  border-inline-start: 2px solid var(--border);
+}
+.badge.accent {
+  background: var(--accent-soft);
+  color: var(--accent-soft-text);
+  margin-inline-start: var(--space-2);
+}
+
+.form-panel { padding: var(--space-4); display: flex; flex-direction: column; gap: var(--space-3); }
+.field-row { display: flex; gap: var(--space-3); flex-wrap: wrap; }
+.field-row > .field { flex: 1 1 180px; }
+.form-actions { display: flex; justify-content: flex-end; gap: var(--space-2); }
+
+.search-field { flex-direction: row; align-items: center; gap: var(--space-2); }
+.search-field .input { flex: 1; }
+
+.client-history {
+  border-top: 1px solid var(--border);
+  padding-top: var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.client-totals { display: flex; gap: var(--space-5); flex-wrap: wrap; }
+.client-totals > div { display: flex; flex-direction: column; gap: 2px; }
+.client-totals strong { font-size: 1.05rem; font-variant-numeric: tabular-nums; }
+
+.history-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.history-list li {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+.history-list li:last-child { border-bottom: 0; }
+.history-when {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--text-faint);
+  white-space: nowrap;
+}
+.history-what { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.history-count, .history-money { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.history-money { font-weight: 650; }
+
+/* On a narrow counter screen the date drops above the line rather than
+   squeezing the product name down to three letters. */
+@media (max-width: 720px) {
+  .history-list li { grid-template-columns: 1fr auto auto; }
+  .history-when { grid-column: 1 / -1; }
+}
+
+/* ===================================================================
+   Stock take, reorder, and the second copy
+   =================================================================== */
+
+.progress-track {
+  height: 5px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-3);
+  overflow: hidden;
+  margin-top: var(--space-2);
+}
+.progress-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: var(--radius-pill);
+  transition: width var(--speed) var(--ease);
+}
+
+/* The counted column is where the work happens, so it is wide enough to read
+   at arm's length and right-aligned to sit under the number above it. */
+.count-input {
+  width: 82px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  margin-inline-start: auto;
+}
+.count-table td { vertical-align: middle; }
+.count-table tr.is-counted td { color: var(--text-muted); }
+.count-table tr.is-counted td:first-child { color: var(--text); }
+
+/* Short is the one that costs money, so it is the one that is coloured. */
+.short { color: var(--danger); font-weight: 650; }
+.over { color: var(--success); font-weight: 650; }
+
+.supplier-panel { margin-bottom: var(--space-3); }
+.supplier-panel .panel-head { justify-content: space-between; }
+.panel-head-right { text-transform: none; letter-spacing: 0; font-weight: 600; color: var(--text); }
+.supplier-panel .badge { margin-inline-start: var(--space-2); }
+
+.btn.danger { color: var(--danger); }
+.btn.danger:hover { background: var(--danger-soft); }
+
+.setting-warn {
+  display: block;
+  margin-top: var(--space-1);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--warning);
+}
+
+/* A plain table shared by the stock-take and reorder screens. The stock list
+   has its own richer one; these are simpler and do not need it. */
+.table { width: 100%; border-collapse: collapse; }
+.table th {
+  text-align: start;
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--text-muted);
+  padding: var(--cell-pad-y) var(--cell-pad-x);
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+.table td {
+  padding: var(--cell-pad-y) var(--cell-pad-x);
+  border-bottom: 1px solid var(--border);
+}
+.table tr:last-child td { border-bottom: 0; }
+.table .num { text-align: end; font-variant-numeric: tabular-nums; }
+.table .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
+
+/* The VAT bill, and whether it is a bill at all. */
+.stat-card.is-owed { border-color: var(--warning); }
+.stat-card.is-refund { border-color: var(--success); }
+.callout.warn { border-color: var(--warning); background: var(--warning-soft); }
+
+/* Invoices */
+.doc-totals {
+  display: flex;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+  align-items: baseline;
+  padding: var(--space-3) 0;
+  border-top: 1px solid var(--border);
+  font-size: 13px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.doc-totals strong { margin-inline-start: auto; font-size: 1.05rem; color: var(--text); }
+.match-row { cursor: pointer; text-align: start; width: 100%; flex-direction: column; align-items: flex-start; gap: 2px; }
+.match-row:hover { background: var(--surface-2); }
+.record.is-voided { opacity: 0.62; }
+.record.is-voided .record-title { text-decoration: line-through; }
+
+/* ------------------------------------------------------------------ prices
+   The price review. Each row carries a product, its margin and a short list of
+   things the shop could do about it, so the suggestion column is a list rather
+   than a cell — a table of one-line rows could not hold the reason as well as
+   the figure, and the reason is the half that gets a shopkeeper to press the
+   button. */
+
+.panel-count {
+  margin-inline-start: var(--space-2);
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--surface-3);
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 600;
+  vertical-align: middle;
+}
+
+.cell-strong { font-weight: 600; color: var(--text); }
+.cell-note { font-size: 12px; color: var(--text-muted); margin-top: 2px; line-height: 1.35; }
+
+/* A tint on the whole row, so the four lists stay distinguishable when they are
+   printed or read at a glance from behind the counter. */
+.table tr.is-bad td { background: var(--danger-soft); }
+.table tr.is-good td { background: var(--success-soft); }
+.table tr.is-warn td { background: var(--warning-soft); }
+
+.suggestion-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-3); }
+.suggestion-list > li {
+  display: grid;
+  gap: 2px;
+  padding-inline-start: var(--space-3);
+  border-inline-start: 3px solid var(--border-strong);
+}
+.suggestion-head { font-weight: 600; font-size: 13px; color: var(--text); }
+.suggestion-figures { font-size: 13px; color: var(--text); font-variant-numeric: tabular-nums; }
+.suggestion-note { font-size: 12px; color: var(--text-muted); line-height: 1.35; max-width: 42ch; }
+.suggestion-list .btn { justify-self: start; margin-top: 2px; }
+
+/* The panel that appears once, straight after a delivery came in at a price the
+   shop does not usually pay. Accented rather than alarming: it is news, not a
+   fault. */
+.panel-notice { border-color: var(--accent); box-shadow: var(--shadow-sm); }
+.notice-list { list-style: none; margin: 0 0 var(--space-3); padding: 0; display: grid; gap: var(--space-2); }
+.notice-list > li { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: baseline; }
+
+/* A service has no count, so the checkbox stands where the quantity box was. */
+.field-check label { display: flex; align-items: center; gap: var(--space-2); cursor: pointer; }
+.field-check input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--accent); }
+
+/* What a product has cost, on the product's own page. */
+.cost-figures { display: flex; flex-wrap: wrap; gap: var(--space-5); margin-bottom: var(--space-3); }
+.cost-figures > div { display: grid; gap: 2px; }
+.cost-figures strong { font-size: 15px; font-variant-numeric: tabular-nums; }
+.setting-warn.is-good { color: var(--success); }

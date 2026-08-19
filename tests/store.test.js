@@ -329,6 +329,161 @@ const backups = fs.readdirSync(path.join(dir, 'backups')).filter((f) => f.starts
 assert.ok(backups.length >= 1, 'writes a dated backup');
 ok('automatic backups are written');
 
+// ------------------------------------------------------------------ clients
+{
+  const dir4 = fs.mkdtempSync(path.join(os.tmpdir(), 'myvault-clients-'));
+  const shop = new Store(dir4, '1.5.0');
+  shop.init();
+
+  assert.deepStrictEqual(shop.getState().clients, [], 'a new shop knows nobody yet');
+
+  const maria = shop.addClient({ name: '  Maria Papadopoulou  ', phone: '210 555 0100' });
+  assert.strictEqual(maria.name, 'Maria Papadopoulou', 'the name is tidied');
+  assert.ok(maria.id && maria.createdAt);
+  assert.strictEqual(maria.email, '', 'nothing but a name is required');
+
+  assert.throws(() => shop.addClient({ name: '   ' }), /name/i, 'a customer with no name is refused');
+
+  const edited = shop.updateClient(maria.id, { email: 'maria@example.com' });
+  assert.strictEqual(edited.email, 'maria@example.com');
+  assert.strictEqual(edited.phone, '210 555 0100', 'the rest of the contact is untouched');
+  assert.strictEqual(edited.createdAt, maria.createdAt, 'they have been a customer since they became one');
+  assert.throws(() => shop.updateClient('nobody', { name: 'X' }), /no longer/);
+
+  // The whole point of the list: it is still there tomorrow.
+  const reopened = new Store(dir4, '1.5.0');
+  reopened.init();
+  assert.strictEqual(reopened.getState().clients.length, 1);
+  assert.strictEqual(reopened.getState().clients[0].email, 'maria@example.com');
+
+  reopened.deleteClient(maria.id);
+  assert.deepStrictEqual(reopened.getState().clients, []);
+  ok('customers are saved, corrected and remembered across a restart');
+
+  fs.rmSync(dir4, { recursive: true, force: true });
+}
+
+// ---------------------------------------------------- the history it writes
+{
+  const dir5 = fs.mkdtempSync(path.join(os.tmpdir(), 'myvault-history-'));
+  const shop = new Store(dir5, '1.5.0');
+  shop.init();
+
+  const client = shop.addClient({ name: 'Yiannis' });
+  const coffee = shop.addItem({ name: 'Coffee', quantity: 10, price: 3, cost: 1 });
+
+  // Adding stock is stock arriving — the takings would not add up otherwise.
+  let history = shop.movements.list();
+  assert.strictEqual(history.length, 1, 'the opening count was recorded');
+  assert.strictEqual(history[0].reason, 'new');
+  assert.strictEqual(history[0].delta, 10);
+
+  shop.adjustStock(coffee.id, -2, { reason: 'sale', clientId: client.id, by: 'Maria' });
+  history = shop.movements.list();
+  assert.strictEqual(history[0].reason, 'sale');
+  assert.strictEqual(history[0].delta, -2);
+  assert.strictEqual(history[0].after, 8, 'and what was left after it');
+  assert.strictEqual(history[0].clientId, client.id);
+  assert.strictEqual(history[0].by, 'Maria', 'who served them');
+  assert.strictEqual(history[0].price, 3, 'at the price it was that day');
+
+  // Selling five when three are left leaves zero, and the history says three —
+  // the shop cannot sell stock it never had.
+  shop.adjustStock(coffee.id, -20);
+  const floored = shop.movements.list()[0];
+  assert.strictEqual(shop.getState().items[0].quantity, 0);
+  assert.strictEqual(floored.delta, -8, 'the movement is what actually left the shelf');
+  assert.strictEqual(floored.reason, 'sale', 'a fall with no reason given is a sale');
+
+  shop.adjustStock(coffee.id, 12);
+  assert.strictEqual(shop.movements.list()[0].reason, 'delivery', 'a rise is a delivery');
+
+  // Typing a new count into the edit box moves stock just as surely as the
+  // minus button does, and the history has to say so.
+  shop.updateItem(coffee.id, { quantity: 30 });
+  const corrected = shop.movements.list()[0];
+  assert.strictEqual(corrected.reason, 'correction');
+  assert.strictEqual(corrected.delta, 18);
+  assert.strictEqual(corrected.after, 30);
+  // Editing the name alone is not a stock movement.
+  const beforeRename = shop.movements.list().length;
+  shop.updateItem(coffee.id, { name: 'Coffee beans' });
+  assert.strictEqual(shop.movements.list().length, beforeRename, 'a rename moves no stock');
+  shop.updateItem(coffee.id, { name: 'Coffee', quantity: 12 });
+
+  // Adjusting by nothing is not an event.
+  const countBefore = shop.movements.list().length;
+  shop.adjustStock(coffee.id, 0);
+  assert.strictEqual(shop.movements.list().length, countBefore, 'no movement, no entry');
+
+  // Deleting a product takes its stock off the shelf too.
+  shop.deleteItems([coffee.id]);
+  const deleted = shop.movements.list()[0];
+  assert.strictEqual(deleted.reason, 'delete');
+  assert.strictEqual(deleted.delta, -12);
+  assert.strictEqual(deleted.itemName, 'Coffee', 'a deleted product is still named in the history');
+
+  // And the history lives beside the data, not inside it — this is the whole
+  // reason a shop's tenth year is as quick as its first.
+  const saved = JSON.parse(fs.readFileSync(path.join(dir5, 'myvault.json'), 'utf8'));
+  assert.ok(!('movements' in saved), 'the inventory file carries no history');
+  assert.ok(
+    fs.existsSync(path.join(dir5, 'history', `movements-${new Date().getUTCFullYear()}.ndjson`)),
+    'the history is its own file, appended to',
+  );
+  ok('every stock movement is recorded, in its own file rather than the inventory');
+
+  fs.rmSync(dir5, { recursive: true, force: true });
+}
+
+// ------------------------------------------------------- a shop that grows
+//
+// Every sale rewrites this file, so its size is the price of a sale. A small
+// shop gets a file it could open and read; a big one gets speed instead. Both
+// have to come back exactly as they went in.
+{
+  const readable = fs.mkdtempSync(path.join(os.tmpdir(), 'myvault-small-'));
+  const small = new Store(readable, '1.5.0');
+  small.init();
+  small.addItem({ name: 'Coffee', quantity: 5, price: 3 });
+  assert.match(
+    fs.readFileSync(path.join(readable, 'myvault.json'), 'utf8'),
+    /\n {2}"items": \[/,
+    'a small shop can open its data file and read it',
+  );
+
+  const big = fs.mkdtempSync(path.join(os.tmpdir(), 'myvault-big-'));
+  const shop = new Store(big, '1.5.0');
+  shop.init();
+  for (let i = 0; i < 2100; i += 1) {
+    shop.db.items.push(shop.normalizeItem({
+      name: `Item ${i}`, quantity: 10, price: 3, cost: 1, barcode: String(1000000000000 + i),
+    }));
+  }
+  shop.persist({ backup: false });
+  const file = path.join(big, 'myvault.json');
+  assert.ok(
+    !fs.readFileSync(file, 'utf8').includes('\n  "items"'),
+    'past a few thousand products the indenting goes, and with it half the bytes',
+  );
+
+  // Speed is worth nothing if the shop cannot get its stock back.
+  const sold = shop.db.items[2099].id;
+  shop.adjustStock(sold, -4, { reason: 'sale' });
+  const reopened = new Store(big, '1.5.0');
+  reopened.init();
+  assert.strictEqual(reopened.getState().items.length, 2100);
+  assert.strictEqual(
+    reopened.getState().items.find((i) => i.id === sold).quantity,
+    6,
+    'the sale is still there after a restart',
+  );
+  ok('a big shop trades a readable file for a faster one, and loses nothing');
+
+  fs.rmSync(readable, { recursive: true, force: true });
+  fs.rmSync(big, { recursive: true, force: true });
+}
+
 // -------------------------------------------------------------- atomic save
 const raw = fs.readFileSync(path.join(dir, 'myvault.json'), 'utf8');
 JSON.parse(raw);

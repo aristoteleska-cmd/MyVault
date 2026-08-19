@@ -1,22 +1,52 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useVault } from './state/vault';
-import { useI18n } from './i18n';
+import { useI18n, type TranslationKey } from './i18n';
 import { useBarcodeScanner } from './hooks/useBarcodeScanner';
-import type { Filters, Item, SortState } from './types';
+import type { Capability, Filters, Item, SortState } from './types';
 import { Icon, type IconName } from './components/Icon';
 import { InventoryView } from './components/InventoryView';
+import { StatisticsView } from './components/StatisticsView';
+import { StockTakeView } from './components/StockTakeView';
+import { ReorderView } from './components/ReorderView';
+import { VatView } from './components/VatView';
+import { PricesView } from './components/PricesView';
+import { InvoicesView } from './components/InvoicesView';
+import { ClientsView } from './components/ClientsView';
 import { CategoriesView } from './components/CategoriesView';
 import { FieldsView } from './components/FieldsView';
 import { SettingsView } from './components/SettingsView';
 import { ItemDialog } from './components/ItemDialog';
+import { StaffView } from './components/StaffView';
+import { SignInView } from './components/SignInView';
+import { RecoveryCode } from './components/RecoveryCode';
 import { Toasts } from './components/Toasts';
 
-type ViewName = 'inventory' | 'categories' | 'fields' | 'settings';
+type ViewName = 'inventory' | 'statistics' | 'reorder' | 'stocktake' | 'prices' | 'vat' | 'invoices' | 'clients' | 'categories' | 'fields' | 'settings' | 'staff';
 
-const NAV: { id: ViewName; labelKey: 'nav.stock' | 'nav.categories' | 'nav.details' | 'nav.settings'; icon: IconName }[] = [
+/**
+ * The sidebar, and what each entry needs before it is offered.
+ *
+ * A junior on the till sees Stock and nothing else, so the screen is not a wall
+ * of buttons that refuse them. Stock and Settings are always shown: settings
+ * still holds the appearance controls, which are anyone's to change.
+ */
+const NAV: {
+  id: ViewName;
+  labelKey: TranslationKey;
+  icon: IconName;
+  needs?: Capability;
+}[] = [
   { id: 'inventory', labelKey: 'nav.stock', icon: 'box' },
-  { id: 'categories', labelKey: 'nav.categories', icon: 'tag' },
-  { id: 'fields', labelKey: 'nav.details', icon: 'fields' },
+  { id: 'statistics', labelKey: 'nav.statistics', icon: 'chart', needs: 'stats.view' },
+  { id: 'reorder', labelKey: 'nav.reorder', icon: 'upload', needs: 'stats.view' },
+  { id: 'stocktake', labelKey: 'nav.stocktake', icon: 'check', needs: 'stocktake.run' },
+  { id: 'invoices', labelKey: 'nav.invoices', icon: 'invoice', needs: 'documents.manage' },
+  { id: 'prices', labelKey: 'nav.prices', icon: 'tag', needs: 'pricing.view' },
+  { id: 'vat', labelKey: 'nav.vat', icon: 'receipt', needs: 'vat.view' },
+  { id: 'clients', labelKey: 'nav.clients', icon: 'people', needs: 'clients.view' },
+  { id: 'categories', labelKey: 'nav.categories', icon: 'tag', needs: 'categories.manage' },
+  { id: 'fields', labelKey: 'nav.details', icon: 'fields', needs: 'fields.manage' },
+  { id: 'staff', labelKey: 'nav.staff', icon: 'staff', needs: 'staff.manage' },
   { id: 'settings', labelKey: 'nav.settings', icon: 'settings' },
 ];
 
@@ -29,13 +59,14 @@ const initialFilters: Filters = {
 };
 
 export function App() {
-  const { ready, loadError, db, info, notify } = useVault();
+  const { ready, loadError, db, info, notify, scanBarcodePhoto, auth, can, recoveryCode } = useVault();
   const { t, rtl } = useI18n();
   const [view, setView] = useState<ViewName>('inventory');
   const [filters, setFilters] = useState<Filters>(initialFilters);
   const [sort, setSort] = useState<SortState>({ key: 'name', direction: 'asc' });
   const [dialogItem, setDialogItem] = useState<Item | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [prefillBarcode, setPrefillBarcode] = useState('');
   const searchRef = useRef<HTMLInputElement | null>(null);
 
   // Follow the theme the shop picked, or Windows' own setting.
@@ -80,8 +111,33 @@ export function App() {
 
   const openNewItem = useCallback(() => {
     setDialogItem(null);
+    setPrefillBarcode('');
     setDialogOpen(true);
   }, []);
+
+  /**
+   * A photo of a barcode, from the stock list.
+   *
+   * If the shop already sells the thing, open it for editing — that is almost
+   * always why someone photographs a barcode at the counter. If they do not,
+   * start a new item with the number already filled in, which is the whole
+   * point of the feature: registering stock without typing thirteen digits.
+   */
+  const scanPhotoAndRegister = useCallback(async () => {
+    const code = await scanBarcodePhoto();
+    if (!code) return;
+
+    setView('inventory');
+    const match = db.items.find((item) => item.barcode === code);
+    if (match) {
+      setDialogItem(match);
+      setPrefillBarcode('');
+    } else {
+      setDialogItem(null);
+      setPrefillBarcode(code);
+    }
+    setDialogOpen(true);
+  }, [scanBarcodePhoto, db.items]);
 
   const focusSearch = useCallback(() => {
     setView('inventory');
@@ -166,6 +222,28 @@ export function App() {
     );
   }
 
+  // A code that has just been minted is shown before anything else and cannot
+  // be clicked past — it is the last time it exists in a readable form.
+  if (recoveryCode) {
+    return (
+      <>
+        <RecoveryCode />
+        <Toasts />
+      </>
+    );
+  }
+
+  // With staff roles set up, nothing is shown until somebody signs in — not the
+  // sidebar, not the totals, not a single product name.
+  if (auth.locked && !auth.signedIn) {
+    return (
+      <>
+        <SignInView />
+        <Toasts />
+      </>
+    );
+  }
+
   return (
     <div className="app">
       <aside className="sidebar">
@@ -179,7 +257,7 @@ export function App() {
 
         <nav className="nav" aria-label="Main">
           <div className="nav-heading">{t('nav.section')}</div>
-          {NAV.map((entry) => (
+          {NAV.filter((entry) => !entry.needs || can(entry.needs)).map((entry) => (
             <button
               key={entry.id}
               type="button"
@@ -191,6 +269,7 @@ export function App() {
               <Icon name={entry.icon} />
               <span className="nav-label">{t(entry.labelKey)}</span>
               {entry.id === 'inventory' && <span className="nav-count">{db.items.length}</span>}
+              {entry.id === 'clients' && <span className="nav-count">{db.clients.length}</span>}
               {entry.id === 'categories' && <span className="nav-count">{db.categories.length}</span>}
               {entry.id === 'fields' && <span className="nav-count">{db.customFields.length}</span>}
             </button>
@@ -216,11 +295,33 @@ export function App() {
             sort={sort}
             setSort={setSort}
             onNewItem={openNewItem}
+            onScanPhoto={() => void scanPhotoAndRegister()}
             onEditItem={(item) => { setDialogItem(item); setDialogOpen(true); }}
             searchRef={searchRef}
             onGoToFields={() => setView('fields')}
           />
         )}
+        {view === 'statistics' && (
+          <StatisticsView
+            onBrowseItem={(name) => {
+              setFilters((current) => ({ ...current, query: name, scope: 'all' }));
+              setView('inventory');
+            }}
+          />
+        )}
+        {view === 'reorder' && (
+          <ReorderView
+            onBrowseItem={(name) => {
+              setFilters((current) => ({ ...current, query: name, scope: 'all' }));
+              setView('inventory');
+            }}
+          />
+        )}
+        {view === 'stocktake' && <StockTakeView />}
+        {view === 'prices' && <PricesView />}
+        {view === 'vat' && <VatView />}
+        {view === 'invoices' && <InvoicesView />}
+        {view === 'clients' && <ClientsView />}
         {view === 'categories' && (
           <CategoriesView
             onBrowse={(categoryId) => {
@@ -230,11 +331,16 @@ export function App() {
           />
         )}
         {view === 'fields' && <FieldsView />}
+        {view === 'staff' && <StaffView />}
         {view === 'settings' && <SettingsView />}
       </main>
 
       {dialogOpen && (
-        <ItemDialog item={dialogItem} onClose={() => { setDialogOpen(false); setDialogItem(null); }} />
+        <ItemDialog
+          item={dialogItem}
+          prefillBarcode={prefillBarcode}
+          onClose={() => { setDialogOpen(false); setDialogItem(null); setPrefillBarcode(''); }}
+        />
       )}
 
       <Toasts />

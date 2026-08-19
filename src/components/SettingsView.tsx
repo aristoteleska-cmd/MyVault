@@ -1,6 +1,8 @@
 import { useEffect } from 'react';
 import { useVault } from '../state/vault';
-import type { AccentChoice, DensityChoice, ThemeChoice } from '../types';
+import type {
+  AccentChoice, DensityChoice, RoundingStyle, ThemeChoice, UpdateMode,
+} from '../types';
 import { LANGUAGES, resolveLanguage, useI18n, type TranslationKey } from '../i18n';
 import { TRANSLATED_LANGUAGES } from '../i18n/catalogues';
 import { Icon, type IconName } from './Icon';
@@ -35,6 +37,447 @@ const TEXT_SIZES: { value: number; labelKey: TranslationKey }[] = [
   { value: 1.15, labelKey: 'size.large' },
   { value: 1.3, labelKey: 'size.xlarge' },
 ];
+
+/**
+ * Sales that happened and could not be written down.
+ *
+ * Only shown when there is something to say, and it does not go away on its own:
+ * writing may have started working again, but the movements that were lost when
+ * it was not are still lost, and the takings and the VAT return for those days
+ * are short by exactly that much. Clearing the notice is a person deciding they
+ * have seen it.
+ */
+function HistoryTroublePanel() {
+  const { db, clearHistoryTrouble, can } = useVault();
+  const { t, locale } = useI18n();
+
+  const trouble = db.historyTrouble;
+  if (!trouble?.lost) return null;
+
+  return (
+    <div className="setting-row">
+      <div className="setting-text">
+        <div className="setting-title">{t('settings.historyTrouble')}</div>
+        <div className="setting-desc">
+          <span className="setting-warn">
+            {t('settings.historyTroubleDesc', {
+              count: trouble.lost,
+              when: new Date(trouble.since).toLocaleString(locale || undefined),
+            })}
+          </span>
+          {trouble.message && <span className="path">{trouble.message}</span>}
+          {trouble.writing && (
+            <span className="path">{t('settings.historyTroubleWriting')}</span>
+          )}
+        </div>
+      </div>
+      {can('settings.manage') && (
+        <div className="setting-control">
+          <button type="button" className="btn" onClick={() => void clearHistoryTrouble()}>
+            {t('settings.historyTroubleClear')}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * The copy that lives somewhere else.
+ *
+ * A backup on the same disk as the data survives a mistake but not the disk, so
+ * this asks for a folder — a USB stick, a second drive — and says plainly when
+ * the one chosen is on the same drive after all. Failures are shown rather than
+ * swallowed: the stick spends most of its life unplugged, and a shop should
+ * find that out here rather than on the day they need it.
+ */
+function SecondCopyPanel() {
+  const {
+    db, backupStatus, refreshBackupStatus, chooseBackupFolder, forgetBackupFolder, backupNow, can,
+  } = useVault();
+  const { t, locale } = useI18n();
+
+  useEffect(() => { void refreshBackupStatus(); }, [refreshBackupStatus]);
+
+  if (!can('settings.manage')) return null;
+  const folder = db.settings.backupFolder;
+
+  return (
+    <div className="setting-row">
+      <div className="setting-text">
+        <div className="setting-title">{t('settings.secondCopy')}</div>
+        <div className="setting-desc">
+          {t('settings.secondCopyDesc')}
+          {folder && <span className="path">{folder}</span>}
+          {backupStatus?.sameDrive && (
+            <span className="setting-warn">{t('settings.sameDriveWarning')}</span>
+          )}
+          {backupStatus?.error && (
+            <span className="setting-warn">{t('settings.secondCopyFailed', { reason: backupStatus.error })}</span>
+          )}
+          {!backupStatus?.error && backupStatus?.lastAt && (
+            <span className="path">
+              {t('settings.secondCopyLast', {
+                when: new Date(backupStatus.lastAt).toLocaleString(locale || undefined),
+              })}
+            </span>
+          )}
+        </div>
+      </div>
+      <div className="setting-control">
+        <button type="button" className="btn" onClick={() => void chooseBackupFolder()}>
+          <Icon name="folder" size={16} />
+          {folder ? t('settings.changeFolder') : t('settings.chooseFolder')}
+        </button>
+        {folder && (
+          <>
+            <button type="button" className="btn" onClick={() => void backupNow()}>
+              <Icon name="save" size={16} />
+              {t('settings.copyNow')}
+            </button>
+            <button type="button" className="btn" onClick={() => void forgetBackupFolder()}>
+              {t('settings.stopCopying')}
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * VAT, and the two questions that decide whether every figure is right.
+ *
+ * Whether a price already contains VAT, and whether a cost does, are not
+ * cosmetic: getting either backwards moves the whole return by about a fifth.
+ * They are asked plainly, with the answer that is true in a shop as the default.
+ */
+function VatPanel() {
+  const { db, updateSettings, can } = useVault();
+  const { t } = useI18n();
+  if (!can('settings.manage')) return null;
+  const settings = db.settings;
+
+  return (
+    <div className="panel">
+      <div className="panel-head">{t('settings.vatPanel')}</div>
+
+      <div className="setting-row">
+        <div className="setting-text">
+          <div className="setting-title">{t('settings.vatOn')}</div>
+          <div className="setting-desc">{t('settings.vatOnDesc')}</div>
+        </div>
+        <div className="setting-control">
+          <button
+            type="button"
+            className={settings.vatEnabled ? 'btn btn-primary' : 'btn'}
+            aria-pressed={settings.vatEnabled}
+            onClick={() => void updateSettings({ vatEnabled: !settings.vatEnabled })}
+          >
+            {settings.vatEnabled ? t('common.yes') : t('common.no')}
+          </button>
+        </div>
+      </div>
+
+      {settings.vatEnabled && (
+        <>
+          <div className="setting-row">
+            <div className="setting-text">
+              <div className="setting-title">{t('settings.vatRate')}</div>
+              <div className="setting-desc">{t('settings.vatRateDesc')}</div>
+            </div>
+            <div className="setting-control">
+              <div className="segmented">
+                {[24, 13, 6, 0].map((rate) => (
+                  <button
+                    key={rate}
+                    type="button"
+                    className="segment"
+                    aria-pressed={settings.vatRate === rate}
+                    onClick={() => void updateSettings({ vatRate: rate })}
+                  >
+                    {rate}%
+                  </button>
+                ))}
+              </div>
+              <input
+                className="input"
+                style={{ width: 90 }}
+                type="number"
+                min={0}
+                max={100}
+                step={1}
+                value={settings.vatRate}
+                onChange={(e) => void updateSettings({ vatRate: Number(e.target.value) })}
+                aria-label={t('settings.vatRate')}
+              />
+            </div>
+          </div>
+
+          <div className="setting-row">
+            <div className="setting-text">
+              <div className="setting-title">{t('settings.pricesIncludeVat')}</div>
+              <div className="setting-desc">{t('settings.pricesIncludeVatDesc')}</div>
+            </div>
+            <div className="setting-control">
+              <button
+                type="button"
+                className={settings.pricesIncludeVat ? 'btn btn-primary' : 'btn'}
+                aria-pressed={settings.pricesIncludeVat}
+                onClick={() => void updateSettings({ pricesIncludeVat: !settings.pricesIncludeVat })}
+              >
+                {settings.pricesIncludeVat ? t('common.yes') : t('common.no')}
+              </button>
+            </div>
+          </div>
+
+          <div className="setting-row">
+            <div className="setting-text">
+              <div className="setting-title">{t('settings.costsIncludeVat')}</div>
+              <div className="setting-desc">
+                {t('settings.costsIncludeVatDesc')}
+                <span className="setting-warn">{t('settings.vatWarning')}</span>
+              </div>
+            </div>
+            <div className="setting-control">
+              <button
+                type="button"
+                className={settings.costsIncludeVat ? 'btn btn-primary' : 'btn'}
+                aria-pressed={settings.costsIncludeVat}
+                onClick={() => void updateSettings({ costsIncludeVat: !settings.costsIncludeVat })}
+              >
+                {settings.costsIncludeVat ? t('common.yes') : t('common.no')}
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+const ROUNDING_CHOICES: { value: RoundingStyle; labelKey: TranslationKey }[] = [
+  { value: 'none', labelKey: 'settings.roundingNone' },
+  { value: 'nearest05', labelKey: 'settings.roundingNearest05' },
+  { value: 'nearest10', labelKey: 'settings.roundingNearest10' },
+  { value: 'ends9', labelKey: 'settings.roundingEnds9' },
+  { value: 'ends99', labelKey: 'settings.roundingEnds99' },
+];
+
+/**
+ * What the shop is aiming for, and how it likes a price to look.
+ *
+ * The target margin starts at zero, meaning "not set", and that is deliberate:
+ * a number invented here would flag half a shop's catalogue as underpriced on
+ * the first morning, which is how a shop learns to ignore a screen. Until they
+ * say what they are aiming for, MyVault only reports what actually changed.
+ */
+function PricingPanel() {
+  const { db, updateSettings, can } = useVault();
+  const { t } = useI18n();
+  if (!can('settings.manage')) return null;
+  const settings = db.settings;
+
+  return (
+    <div className="panel">
+      <div className="panel-head">{t('settings.pricingPanel')}</div>
+
+      <div className="setting-row">
+        <div className="setting-text">
+          <div className="setting-title">{t('settings.targetMargin')}</div>
+          <div className="setting-desc">{t('settings.targetMarginDesc')}</div>
+        </div>
+        <div className="setting-control">
+          <div className="segmented">
+            {[0, 20, 30, 40, 50].map((margin) => (
+              <button
+                key={margin}
+                type="button"
+                className="segment"
+                aria-pressed={settings.targetMargin === margin}
+                onClick={() => void updateSettings({ targetMargin: margin })}
+              >
+                {margin === 0 ? t('common.no') : `${margin}%`}
+              </button>
+            ))}
+          </div>
+          <input
+            className="input"
+            style={{ width: 90 }}
+            type="number"
+            min={0}
+            max={95}
+            step={1}
+            value={settings.targetMargin}
+            onChange={(e) => void updateSettings({ targetMargin: Number(e.target.value) })}
+            aria-label={t('settings.targetMargin')}
+          />
+        </div>
+      </div>
+
+      <div className="setting-row">
+        <div className="setting-text">
+          <div className="setting-title">{t('settings.priceRounding')}</div>
+          <div className="setting-desc">{t('settings.priceRoundingDesc')}</div>
+        </div>
+        <div className="setting-control">
+          <select
+            className="input"
+            value={settings.priceRounding}
+            onChange={(e) => void updateSettings({
+              priceRounding: e.target.value as RoundingStyle,
+            })}
+            aria-label={t('settings.priceRounding')}
+          >
+            {ROUNDING_CHOICES.map((choice) => (
+              <option key={choice.value} value={choice.value}>{t(choice.labelKey)}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const UPDATE_MODES: {
+  value: UpdateMode;
+  labelKey: TranslationKey;
+  hintKey: TranslationKey;
+}[] = [
+  { value: 'off', labelKey: 'updates.off', hintKey: 'updates.offHint' },
+  { value: 'check', labelKey: 'updates.check', hintKey: 'updates.checkHint' },
+  { value: 'auto', labelKey: 'updates.auto', hintKey: 'updates.autoHint' },
+];
+
+/**
+ * Updates are the one place MyVault is allowed to reach the internet, so the
+ * panel is written to be read rather than skipped: which hosts it contacts,
+ * that it is off until switched on, and what each of the three settings will
+ * and will not do without being asked again.
+ */
+function UpdatesPanel() {
+  const { db, info, update, updateSettings, checkForUpdate, downloadUpdate, installUpdate } = useVault();
+  const { t, locale } = useI18n();
+  const mode = db.settings.updates;
+  const enabled = mode !== 'off';
+
+  // The portable build has no installer to replace, and says so instead of
+  // offering a button that could not work.
+  if (update && !update.supported) {
+    return (
+      <div className="panel">
+        <div className="panel-head">{t('updates.panel')}</div>
+        <div className="setting-row">
+          <div className="setting-text">
+            <div className="setting-desc">
+              {t(update.reason === 'portable' ? 'updates.portable' : 'updates.unsupported')}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const busy = update?.state === 'checking' || update?.state === 'downloading';
+
+  const lastChecked = update?.checkedAt
+    ? t('updates.lastChecked', {
+      when: new Date(update.checkedAt).toLocaleString(locale || undefined),
+    })
+    : t('updates.never');
+
+  return (
+    <div className="panel">
+      <div className="panel-head">{t('updates.panel')}</div>
+
+      <div className="setting-row">
+        <div className="setting-text">
+          <div className="setting-title">{t('updates.title')}</div>
+          <div className="setting-desc">
+            {t('updates.desc')}
+            {info?.updateHosts?.length ? (
+              <span className="path">{t('updates.hosts', { hosts: info.updateHosts.join(', ') })}</span>
+            ) : null}
+          </div>
+        </div>
+        <div className="setting-control">
+          <div className="segmented">
+            {UPDATE_MODES.map((choice) => (
+              <button
+                key={choice.value}
+                type="button"
+                aria-pressed={mode === choice.value}
+                title={t(choice.hintKey)}
+                onClick={() => void updateSettings({ updates: choice.value })}
+              >
+                {t(choice.labelKey)}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {enabled && (
+        <div className="setting-row">
+          <div className="setting-text">
+            <div className="setting-desc">
+              {t(UPDATE_MODES.find((m) => m.value === mode)?.hintKey ?? 'updates.checkHint')}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {enabled && (
+        <div className="setting-row">
+          <div className="setting-text">
+            <div className="setting-title">
+              {update?.state === 'checking' && t('updates.checking')}
+              {update?.state === 'current' && t('updates.current')}
+              {update?.state === 'available'
+                && t('updates.available', {
+                  version: update.newVersion,
+                  current: update.currentVersion,
+                })}
+              {update?.state === 'downloading'
+                && t('updates.downloading', { percent: update.percent })}
+              {update?.state === 'ready' && t('updates.ready', { version: update.newVersion })}
+              {update?.state === 'error' && t('updates.failed', { reason: update.error })}
+              {(!update || update.state === 'idle') && lastChecked}
+            </div>
+            <div className="setting-desc">
+              {update?.state === 'ready'
+                ? t(update.automatic ? 'updates.installOnClose' : 'updates.installWarn')
+                : lastChecked}
+            </div>
+          </div>
+          <div className="setting-control">
+            {update?.state === 'available' && (
+              <button type="button" className="btn primary" onClick={() => void downloadUpdate()}>
+                <Icon name="download" size={16} />
+                {t('updates.downloadBtn')}
+              </button>
+            )}
+            {update?.state === 'ready' && (
+              <button type="button" className="btn primary" onClick={() => void installUpdate()}>
+                <Icon name="check" size={16} />
+                {t('updates.installBtn')}
+              </button>
+            )}
+            <button
+              type="button"
+              className="btn"
+              disabled={busy}
+              onClick={() => void checkForUpdate()}
+            >
+              <Icon name="info" size={16} />
+              {t('updates.checkBtn')}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export function SettingsView() {
   const {
@@ -300,6 +743,9 @@ export function SettingsView() {
             </div>
           </div>
 
+          <HistoryTroublePanel />
+          <SecondCopyPanel />
+
           <div className="setting-row">
             <div className="setting-text">
               <div className="setting-title">{t('settings.location')}</div>
@@ -316,6 +762,11 @@ export function SettingsView() {
             </div>
           </div>
         </div>
+
+        <VatPanel />
+        <PricingPanel />
+
+        <UpdatesPanel />
 
         <div className="panel">
           <div className="panel-head">{t('settings.legalPanel')}</div>

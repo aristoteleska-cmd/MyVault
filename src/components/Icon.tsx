@@ -9,7 +9,8 @@ export type IconName =
   | 'fields' | 'settings' | 'arrowUp' | 'arrowDown' | 'chevronDown'
   | 'chevronLeft' | 'chevronRight' | 'close' | 'check' | 'download'
   | 'upload' | 'folder' | 'alert' | 'box' | 'barcode' | 'filter'
-  | 'sun' | 'moon' | 'monitor' | 'info' | 'sort' | 'save';
+  | 'sun' | 'moon' | 'monitor' | 'info' | 'sort' | 'save' | 'image' | 'staff'
+  | 'chart' | 'people' | 'clock' | 'undo' | 'receipt' | 'invoice' | 'file';
 
 const paths: Record<IconName, React.ReactNode> = {
   vault: (
@@ -27,6 +28,46 @@ const paths: Record<IconName, React.ReactNode> = {
   ),
   plus: <path d="M12 5v14M5 12h14" />,
   minus: <path d="M5 12h14" />,
+  chart: (
+    <>
+      <path d="M4 20V4" />
+      <path d="M4 20h16" />
+      <path d="M8 20v-6M12.5 20V8M17 20v-9" />
+    </>
+  ),
+  people: (
+    <>
+      <circle cx="9" cy="8" r="3.2" />
+      <path d="M3.5 19.5a5.5 5.5 0 0 1 11 0" />
+      <path d="M16 5.4a3.2 3.2 0 0 1 0 5.2" />
+      <path d="M17.5 14.4a5.5 5.5 0 0 1 3 5.1" />
+    </>
+  ),
+  invoice: (
+    <>
+      <path d="M5 3.5h9.5L19 8v12.5H5z" />
+      <path d="M14 3.5V8h5" />
+      <path d="M8 12.5h8M8 16h5" />
+    </>
+  ),
+  receipt: (
+    <>
+      <path d="M5.5 3.5h13v17l-2.2-1.5-2.2 1.5-2.1-1.5-2.2 1.5-2.1-1.5-2.2 1.5z" />
+      <path d="M9 8h6M9 11.5h6" />
+    </>
+  ),
+  undo: (
+    <>
+      <path d="M4 9h10a5 5 0 0 1 0 10h-5" />
+      <path d="M7.5 5.5 4 9l3.5 3.5" />
+    </>
+  ),
+  clock: (
+    <>
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="M12 7.5V12l3 1.8" />
+    </>
+  ),
   pencil: (
     <>
       <path d="M4 20l.9-3.9L16.3 4.8a2 2 0 0 1 2.9 2.9L7.9 19.1 4 20z" />
@@ -124,10 +165,32 @@ const paths: Record<IconName, React.ReactNode> = {
     </>
   ),
   sort: <path d="M7 4.5v15M4 16.5 7 19.5l3-3M17 19.5v-15M14 7.5 17 4.5l3 3" />,
+  staff: (
+    <>
+      <circle cx="9" cy="8" r="3.2" />
+      <path d="M3.5 19.5a5.5 5.5 0 0 1 11 0" />
+      <path d="M16.5 5.6a3.2 3.2 0 0 1 0 6.2M17.5 14.3a5.5 5.5 0 0 1 3 5.2" />
+    </>
+  ),
+  image: (
+    <>
+      <rect x="3" y="4.5" width="18" height="15" rx="2.5" />
+      <circle cx="8.5" cy="10" r="1.75" />
+      <path d="M3.5 17l4.8-4.6a2 2 0 0 1 2.7 0L16 17M14.6 14.4l1.7-1.6a2 2 0 0 1 2.7 0l1.5 1.4" />
+    </>
+  ),
   save: (
     <>
       <path d="M4.5 5.5a1 1 0 0 1 1-1h10.2L19.5 8.3v10.2a1 1 0 0 1-1 1h-13a1 1 0 0 1-1-1z" />
       <path d="M8 4.5v5h7v-5M8 19.5V14h8v5.5" />
+    </>
+  ),
+  /** A sheet with a folded corner and lines of text: the supplier's PDF. */
+  file: (
+    <>
+      <path d="M6 3.5h7.5L19 9v11.5H6z" />
+      <path d="M13.5 3.5V9H19" />
+      <path d="M9 13h7M9 16.5h5" />
     </>
   ),
 };
@@ -138,9 +201,20 @@ interface IconProps {
   className?: string;
 }
 
+/**
+ * Icons that mean a direction rather than a thing.
+ *
+ * A chevron pointing left means "back" only because reading runs left to right.
+ * In Arabic and Urdu it means "forward", so these are flipped by the stylesheet
+ * on a right-to-left page. Listed here rather than at each call site so a new
+ * "previous" button cannot forget to do it.
+ */
+const DIRECTIONAL = new Set<IconName>(['chevronLeft', 'chevronRight']);
+
 export function Icon({ name, size = 18, className }: IconProps) {
   return (
     <svg
+      data-flip-rtl={DIRECTIONAL.has(name) ? '' : undefined}
       className={className ? `icon ${className}` : 'icon'}
       width={size}
       height={size}
