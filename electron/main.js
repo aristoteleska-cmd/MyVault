@@ -78,6 +78,38 @@ let signedInId = null;
 let pendingRecoveryCode = '';
 
 /**
+ * Wrong PINs since the last one that worked, and when the last was tried.
+ *
+ * Never written to the file. A shop that closes MyVault and opens it again has
+ * waited longer than any of these delays anyway, and a counter that survived a
+ * restart would be one more thing to explain to somebody locked out at eight in
+ * the morning.
+ */
+let wrongPins = 0;
+let lastWrongPinAt = 0;
+
+/**
+ * How long this attempt has to wait, in milliseconds.
+ *
+ * Nothing for the first few — people mistype their own PIN — then a second,
+ * two, four, up to half a minute.
+ *
+ * Every four-digit PIN then takes about three and a half days of somebody
+ * standing at the till typing without a break, and half that on average. That
+ * is not proof against a determined thief with the shop to themselves for a
+ * week; it is the difference between minutes and days, and it is what can be
+ * done without making a shopkeeper who fumbles their own PIN wait around. The
+ * real answer to somebody having the machine to themselves for days is the
+ * lock on the door.
+ */
+function signInDelay() {
+  const free = 4;
+  if (wrongPins < free) return 0;
+  const step = Math.min(2 ** (wrongPins - free), 30);
+  return Math.max(0, (step * 1000) - (Date.now() - lastWrongPinAt));
+}
+
+/**
  * The manager the installer was told about.
  *
  * The installer writes the name and PIN into the registry and MyVault picks
@@ -409,10 +441,30 @@ function registerIpc() {
   handle('auth:state', null, () => authState());
 
   handle('auth:sign-in', null, (pin) => {
+    // A four-digit PIN is ten thousand guesses, and a keyboard macro at the
+    // counter makes them in minutes. Held here, in the main process: the window
+    // could be reloaded, replaced or driven from the console, and none of that
+    // resets what this side is counting.
+    const waitFor = signInDelay();
+    if (waitFor > 0) {
+      throw new Error(
+        `Too many wrong PINs. Wait ${Math.ceil(waitFor / 1000)} seconds and try again.`,
+      );
+    }
+
     const found = store.findByPin(pin);
     // One message for a wrong PIN and for a PIN belonging to nobody, so trying
     // numbers tells you nothing about who works here.
-    if (!found) throw new Error('That PIN was not recognised.');
+    if (!found) {
+      wrongPins += 1;
+      lastWrongPinAt = Date.now();
+      // The wait is deliberately slow to start — a shopkeeper's third attempt
+      // at their own PIN should not feel like a punishment — and unbearable by
+      // the hundredth, which is where a machine would be.
+      throw new Error('That PIN was not recognised.');
+    }
+
+    wrongPins = 0;
     signedInId = found.id;
     return authState();
   });
