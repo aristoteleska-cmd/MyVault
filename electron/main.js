@@ -650,6 +650,21 @@ function registerIpc() {
       );
     }
 
+    // What the paper says about itself goes onto the draft before its lines do.
+    // Before, a person watched MyVault read the supplier, the number and the
+    // date off the invoice, print them on screen, and then leave all three boxes
+    // empty for them to type in — and the supplier has to be set first anyway,
+    // because it is what the supplier's own product codes are remembered
+    // against. Only empty boxes are filled: what somebody typed is theirs.
+    const before = store.getDraft(id);
+    const fill = {};
+    if (invoice.supplier && !before.supplier) fill.supplier = invoice.supplier;
+    if (invoice.number && !before.number) fill.number = invoice.number;
+    if (invoice.date && before.date === new Date().toISOString().slice(0, 10)) {
+      fill.date = invoice.date;
+    }
+    if (Object.keys(fill).length) store.updateDraft(id, fill);
+
     const { rows, warnings } = toImportRows(invoice);
     const imported = store.importDraftLines(id, rows);
     return {
