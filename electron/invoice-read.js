@@ -43,9 +43,40 @@ const COLUMNS = {
     'preis', 'precio'],
   discount: ['έκπτ', 'εκπτ', 'έκπτωση', 'εκπτωση', 'disc', 'discount', 'rabatt'],
   vatRate: ['φπα', 'φ.π.α', 'φ.π.α.', 'vat', 'tax', 'mwst', 'iva'],
-  total: ['αξία', 'αξια', 'σύνολο', 'συνολο', 'amount', 'total', 'value', 'net', 'line total',
-    'betrag', 'importe'],
+  total: ['καθαρή αξία', 'καθαρη αξια', 'net amount', 'line total', 'αξία', 'αξια', 'σύνολο',
+    'συνολο', 'amount', 'total', 'value', 'net', 'betrag', 'importe'],
+  /**
+   * The unit a quantity is counted in — pieces, boxes, kilos.
+   *
+   * MyVault has no use for it, but the column has to be known about all the
+   * same: a heading nobody recognises is a heading that does not divide its
+   * neighbours, and "Τεμάχια" then lands in the quantity beside the number.
+   */
+  unit: ['μ.μ', 'μμ', 'μον.μετρ', 'μονάδα', 'uom', 'u/m', 'unit of measure'],
 };
+
+/** Read for the layout, never imported. */
+const IGNORED_COLUMNS = new Set(['unit']);
+
+/**
+ * Where the list of products stops and the summary begins.
+ *
+ * Everything below this is the shop's own arithmetic — balances, VAT analysis,
+ * the amount payable — laid out in the same columns as the table above it,
+ * which is exactly why it gets read as three more products with quantities of
+ * 2,03 and 400014893621007. A person knows the list has ended because the words
+ * change; so does this.
+ */
+const END_OF_TABLE = [
+  'υπόλοιπο', 'υπολοιπο', 'ανάλυση', 'αναλυση', 'σύνολο', 'συνολο', 'πληρωτέο', 'πληρωτεο',
+  'κρατήσεις', 'κρατησεις', 'επιβαρύνσεις', 'επιβαρυνσεις', 'φόροι', 'φοροι', 'μεταφορά',
+  'αξία προ έκπτωσης', 'γενικό σύνολο', 'φ.π.α', 'φπα', 'παρατηρήσεις',
+  'subtotal', 'sub total', 'total', 'balance', 'carried forward', 'vat', 'amount due',
+  'grand total', 'notes', 'terms',
+];
+
+/** A quantity above this is not a quantity — it is a barcode, or a stamp. */
+const MAX_QUANTITY = 100000;
 
 /** How many headings a line needs before it is believed to be the table header. */
 const HEADER_MATCHES = 3;
@@ -129,16 +160,28 @@ function findHeader(lines) {
 
   for (const line of lines) {
     const found = new Map();
+    const strength = new Map();
     for (const piece of line.pieces) {
       const text = strip(piece.text);
       if (!text) continue;
+
+      // The longest heading that fits wins, for the piece and for the column.
+      // A real invoice prints "Αξία Προ Εκπτώσεως" and "Καθαρή αξία" side by
+      // side and both contain "αξία"; first-match takes the amount before the
+      // discount and calls it the line total, which is wrong by the discount on
+      // every discounted line.
+      let best = null;
       for (const [column, words] of Object.entries(COLUMNS)) {
-        if (found.has(column)) continue;
-        if (words.some((word) => text === word || text.startsWith(`${word} `) || text.includes(word))) {
-          found.set(column, piece);
-          break;
+        for (const word of words) {
+          const hit = text === word || text.startsWith(`${word} `) || text.includes(word);
+          if (!hit) continue;
+          if (!best || word.length > best.word.length) best = { column, word };
         }
       }
+      if (!best) continue;
+      if (found.has(best.column) && strength.get(best.column) >= best.word.length) continue;
+      found.set(best.column, piece);
+      strength.set(best.column, best.word.length);
     }
     // A table needs something to count and something to charge for; a line that
     // merely says "Invoice" and "Date" is not a header however many words match.
@@ -154,14 +197,28 @@ function findHeader(lines) {
 /**
  * Where one column stops and the next begins.
  *
+ * Built from every heading on the line, including the ones MyVault has no name
+ * for. That is the whole point: an unrecognised heading still separates its
+ * neighbours, and leaving it out merges its column into the next one. On a real
+ * Greek invoice that merger put the line's net amount and its VAT rate in the
+ * same cell — "8,46" and "24,00" read as 84624 per cent — which is the kind of
+ * number that is either caught here or believed by a tax return.
+ *
  * The boundary sits halfway between the end of one heading and the start of the
- * next, which handles the usual invoice layout: text columns pushed left,
- * number columns pushed right, and a heading sitting over its own column
- * whichever way its contents are aligned.
+ * next, which handles the usual invoice layout: text columns pushed left, number
+ * columns pushed right, and a heading sitting over its own column whichever way
+ * its contents are aligned.
  */
-function columnBounds(found) {
-  const columns = [...found.entries()]
-    .map(([name, piece]) => ({ name, start: piece.x, end: piece.x + (piece.width || 0) }))
+function columnBounds(found, headerLine) {
+  const named = new Map();
+  for (const [name, piece] of found.entries()) named.set(piece, name);
+
+  const columns = (headerLine ? headerLine.pieces : [...found.values()])
+    .map((piece) => ({
+      name: named.get(piece) || null,
+      start: piece.x,
+      end: piece.x + (piece.width || 0),
+    }))
     .sort((a, b) => a.start - b.start);
 
   return columns.map((column, index) => ({
@@ -179,7 +236,7 @@ function cellsFor(line, bounds) {
   for (const piece of line.pieces) {
     const centre = piece.x + (piece.width || 0) / 2;
     const column = bounds.find((c) => centre >= c.from && centre < c.to);
-    if (!column) continue;
+    if (!column || !column.name || IGNORED_COLUMNS.has(column.name)) continue;
     cells[column.name] = cells[column.name] ? `${cells[column.name]} ${piece.text}` : piece.text;
   }
   for (const key of Object.keys(cells)) cells[key] = cells[key].replace(/\s+/g, ' ').trim();
@@ -201,6 +258,9 @@ function lineFrom(cells) {
 
   if (!description) return null;
   if (quantity === null && unitPrice === null && total === null) return null;
+  // A quantity with fifteen digits in it is a document stamp or a barcode that
+  // has landed in the wrong column, not a delivery of four hundred trillion.
+  if (quantity !== null && Math.abs(quantity) > MAX_QUANTITY) return null;
   // The totals block sits under the table and often lines up with its columns.
   if (quantity === null && unitPrice === null) return null;
 
@@ -232,6 +292,19 @@ function lineFrom(cells) {
   return row;
 }
 
+/**
+ * True when this line is the start of the summary rather than another product.
+ *
+ * Judged on the words at the left of the line, where the label sits — a product
+ * called "Σύνολο" is not a thing, and a summary row that does not say what it is
+ * has not been printed by any accounting package a shop will meet.
+ */
+function endsTable(line) {
+  const label = strip(line.text).slice(0, 48);
+  if (!label) return false;
+  return END_OF_TABLE.some((word) => label.startsWith(word) || label.includes(` ${word}`));
+}
+
 /** The last number on a line — how an invoice writes a total. */
 function trailingNumber(line) {
   for (let index = line.pieces.length - 1; index >= 0; index -= 1) {
@@ -260,6 +333,79 @@ function findDate(text) {
   return iso ? `${iso[1]}-${iso[2]}-${iso[3]}` : '';
 }
 
+/** Makes a piece of text safe to put inside a regular expression. */
+const escapeForSearch = (text) => String(text).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+/**
+ * What is left of a piece of text once its label has been taken off the front.
+ *
+ * Matched against the text as printed rather than the tidied-up copy the label
+ * was recognised in: "Invoice No: INV-2026-3391" carries a colon that tidying
+ * removes, so a search for the tidied label finds nothing in the original and
+ * the whole piece survives as the "value" — which is how the invoice number
+ * came back as the word "Invoice".
+ */
+function stripLabel(original, word) {
+  const pattern = word.split(/\s+/).map(escapeForSearch).join('\\W+');
+  return String(original).replace(new RegExp(`^\\s*${pattern}\\W*`, 'i'), '').trim();
+}
+
+/** Labels an invoice puts over, or in front of, the values this needs. */
+const FIELD_LABELS = {
+  number: ['αριθμός', 'αριθμος', 'αριθ', 'αρ παραστατικού', 'number', 'invoice no', 'no', 'nr',
+    'rechnungsnummer', 'número'],
+  date: ['ημερομηνία', 'ημερομηνια', 'date', 'datum', 'fecha'],
+};
+
+/**
+ * The value that belongs to a label, whether it is beside it or under it.
+ *
+ * Both layouts are ordinary. A small shop's invoice writes "Αριθμός: 4821" on
+ * one line; an accounting package prints a grid — the labels on one row, the
+ * values on the next, each under its own heading. Reading only the first shape
+ * is how MyVault came back with no number and no date from a real Greek invoice
+ * that prints both in letters an inch high.
+ */
+function labelledValue(lines, kinds) {
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index];
+    for (const piece of line.pieces) {
+      const text = strip(piece.text);
+      const matched = kinds.find((word) => text === word || text.startsWith(`${word} `));
+      if (!matched) continue;
+
+      // Inside the same piece: "Invoice No: INV-2026-3391" arrives whole, and
+      // the value is the tail of the label's own text. Looked at first, because
+      // a label that already carries its value is not pointing at the line below
+      // — where the next label is, and where MyVault duly read the word "Date"
+      // as an invoice number.
+      const inline = stripLabel(piece.text, matched);
+
+      // Beside it: the rest of this line, after the label.
+      const after = line.pieces
+        .filter((other) => other.x > piece.x + (piece.width || 0) - 1)
+        .map((other) => other.text)
+        .join(' ')
+        .trim();
+      // Under it: on the next line, whatever sits within the label's own width.
+      const below = lines[index + 1];
+      const under = below
+        ? below.pieces
+            .filter((other) => {
+              const centre = other.x + (other.width || 0) / 2;
+              return centre >= piece.x - 6 && centre <= piece.x + (piece.width || 0) + 6;
+            })
+            .map((other) => other.text)
+            .join(' ')
+            .trim()
+        : '';
+
+      if (inline || after || under) return { inline, after, under, label: piece, line };
+    }
+  }
+  return null;
+}
+
 /**
  * Everything above the table: who sent it, what they called it, and when.
  */
@@ -268,29 +414,54 @@ function readHeading(pages, headerLine) {
   const above = first.lines.filter((line) => !headerLine || line.y < headerLine.y);
   const text = above.map((line) => line.text).join('\n');
 
-  const number = (text.match(
+  // The number, from a label beside the value or above it.
+  const numberField = labelledValue(above, FIELD_LABELS.number);
+  const pickNumber = (value) => (String(value || '').match(/[A-Za-z0-9][A-Za-z0-9\-/]{2,}/) || [])[0] || '';
+  const fromLabel = numberField
+    ? pickNumber(numberField.inline) || pickNumber(numberField.after) || pickNumber(numberField.under)
+    : '';
+  const number = fromLabel || (text.match(
     /(?:αριθμ[όο]ς|αριθ|τιμολ[όο]γιο(?:\s+πώλησης)?|invoice\s*(?:no|number|nr|#)?|inv|rechnung)\s*[.:#]?\s*([A-Za-z0-9][A-Za-z0-9\-/]{2,})/i,
   ) || [])[1] || '';
 
-  const dateLine = above.find((line) => /(ημερομην|date|datum|fecha)/i.test(line.text));
-  const date = findDate(dateLine ? dateLine.text : text);
+  const dateField = labelledValue(above, FIELD_LABELS.date);
+  const date = (dateField && (
+    findDate(dateField.inline) || findDate(dateField.after) || findDate(dateField.under)
+  )) || findDate(text);
 
   const vatNumber = (text.match(
     /(?:α\.?φ\.?μ\.?|vat\s*(?:reg(?:istration)?|no|number)?|ust-?idnr|nif|p\.?iva)\s*[.:]?\s*([A-Z]{0,2}[\s\d]{6,})/i,
   ) || [])[1]?.replace(/\s+/g, ' ').trim() || '';
 
-  // The supplier's name is the biggest thing at the top left. Taking the left
-  // half of the topmost line keeps the sender and drops the "INVOICE No 4821"
-  // block that sits opposite it — they are one line to a PDF and two to a human.
+  // The supplier's name is the first real thing at the top of the page.
+  //
+  // Not "the left half of the top line": a printed invoice centres the shop's
+  // name and puts the document type opposite it, and on a real one the name
+  // started right of centre while the strapline underneath started left of it —
+  // so the half-page rule confidently returned "PAPER * PLASTIC * DETERGENTS".
+  // What actually distinguishes them is that a name is the first block of words
+  // that is not an address, a phone number or the word "invoice".
+  const NOT_A_NAME = /(τιμολ|invoice|rechnung|factura|δελτίο|@|τηλ|fax|κιν\.|χλμ|α\.?φ\.?μ|vat|www\.|https?:)/i;
   let supplier = '';
-  const middle = first.width / 2;
-  for (const line of above.slice(0, 3)) {
-    const left = line.pieces.filter((piece) => piece.x < middle).map((piece) => piece.text).join(' ');
-    const candidate = left.replace(/\s+/g, ' ').trim();
-    if (candidate.length >= 3 && /\p{L}/u.test(candidate) && !/^(τιμολ|invoice|rechnung)/i.test(candidate)) {
-      supplier = candidate;
-      break;
+  for (const line of above.slice(0, 4)) {
+    // Split the line where a wide gap says two blocks, and take the first block
+    // that reads like a name.
+    const blocks = [];
+    let current = null;
+    for (const piece of line.pieces) {
+      if (current && piece.x - current.right > 40) { blocks.push(current); current = null; }
+      if (!current) current = { text: piece.text, right: piece.x + (piece.width || 0) };
+      else {
+        current.text += ` ${piece.text}`;
+        current.right = piece.x + (piece.width || 0);
+      }
     }
+    if (current) blocks.push(current);
+
+    const candidate = blocks
+      .map((block) => block.text.replace(/\s+/g, ' ').trim())
+      .find((value) => value.length >= 3 && /\p{L}/u.test(value) && !NOT_A_NAME.test(value));
+    if (candidate) { supplier = candidate; break; }
   }
 
   const currency = /€|eur/i.test(text) ? 'EUR' : (/£|gbp/i.test(text) ? 'GBP' : '');
@@ -360,13 +531,18 @@ function readInvoice(extracted) {
     };
   }
 
-  const bounds = columnBounds(header.found);
+  const bounds = columnBounds(header.found, header.line);
   const rows = [];
   let started = false;
 
   for (const line of allLines) {
     if (line === header.line) { started = true; continue; }
     if (!started) continue;
+    // The summary under the table is laid out in the table's own columns, so it
+    // parses as products: a balance carried forward becomes a quantity of 2,03,
+    // and the legal footnote's stamp becomes a quantity of four hundred
+    // trillion. The words are what tell a person the list has ended.
+    if (endsTable(line)) break;
     const row = lineFrom(cellsFor(line, bounds));
     if (row) rows.push(row);
   }

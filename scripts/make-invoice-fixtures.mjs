@@ -91,9 +91,98 @@ td.n,th.n{text-align:right}</style>
 </table>
 <p style="text-align:right">Net 72.50<br>VAT 17.40<br>Total due 89.90</p>`;
 
+/**
+ * The layout a real Greek accounting package prints.
+ *
+ * Modelled line for line on an actual Epsilon Net invoice — the same label grid
+ * for the number and the date, the same unit-of-measure column, the same pair of
+ * "amount before discount" and "net amount" headings, the same summary block of
+ * balances underneath — with every name, number and bank account invented. The
+ * layout is what broke the reader; the shop's details were nobody's business and
+ * are not in here.
+ */
+const epsilonStyle = `<!doctype html><meta charset="utf-8">
+<style>
+  body{font-family:"DejaVu Sans",Arial,sans-serif;font-size:7.5pt;margin:24px;color:#000}
+  .head{text-align:center;line-height:1.35}
+  .head .name{font-size:11pt;font-weight:bold}
+  .title{text-align:center;font-weight:bold;margin:10px 0 6px}
+  table{width:100%;border-collapse:collapse}
+  .grid td{border:1px solid #999;padding:2px 4px}
+  .items{margin-top:8px}
+  .items th{border:1px solid #999;padding:2px 3px;font-weight:normal;text-align:left}
+  .items td{border:1px solid #999;padding:2px 3px}
+  .items .n{text-align:right}
+  .summary{margin-top:150px}
+  .summary td{padding:2px 6px}
+  .summary .n{text-align:right}
+  .legal{margin-top:26px;font-size:6pt;line-height:1.5}
+</style>
+<div class="head">
+  <div class="name">ΚΑΡΑΓΙΑΝΝΗΣ Α. ΝΙΚΟΛΑΟΣ</div>
+  <div>ΧΑΡΤΙΚΑ * ΠΛΑΣΤΙΚΑ * ΑΠΟΡΡΥΠΑΝΤΙΚΑ * ΕΙΔΗ ΣΥΣΚΕΥΑΣΙΑΣ</div>
+  <div>2ο χλμ Επαρχιακής Οδού * 46100 ΠΑΡΑΔΕΙΓΜΑΤΟΥΠΟΛΗ</div>
+  <div>ΤΗΛ: 26650 00000 * FAX 26650 00001</div>
+  <div>ΑΦΜ:999000111 * ΔΟΥ: ΠΑΡΑΔΕΙΓΜΑΤΟΣ</div>
+</div>
+<div class="title">ΤΙΜΟΛΟΓΙΟ ΠΩΛΗΣΗΣ -ΔΕΛΤΙΟ ΑΠΟΣΤΟΛΗΣ</div>
+<table class="grid">
+  <tr><td>Σχετικά</td><td>Σειρά</td><td>Αριθμός</td><td>Ημερομηνία</td><td>Ωρα</td></tr>
+  <tr><td>Παραστατικά</td><td>1</td><td>007412</td><td>18/08/2026</td><td>8:46</td></tr>
+</table>
+<table class="items">
+  <tr>
+    <th>Κωδικός</th><th>Περιγραφή είδους</th><th>Μ.Μ</th><th class="n">Ποσότητ</th>
+    <th class="n">Τιμή μον.</th><th class="n">Αξία Προ Εκ</th><th class="n">Έκπτω</th>
+    <th class="n">Καθαρή αξία</th><th class="n">ΦΠΑ%</th>
+  </tr>
+  <tr>
+    <td>558</td><td>ΤΣΑΝΤΑ ΧΑΡΤΙΝΗ (37*26*12)</td><td>Τεμάχια</td><td class="n">1,00</td>
+    <td class="n">8,4600</td><td class="n">8,46</td><td class="n">0,00</td>
+    <td class="n">8,46</td><td class="n">24,00</td>
+  </tr>
+  <tr>
+    <td>612</td><td>ΣΑΚΟΥΛΕΣ ΑΠΟΡΡΙΜΜΑΤΩΝ 52*75</td><td>Κιβώτια</td><td class="n">4,00</td>
+    <td class="n">12,5000</td><td class="n">50,00</td><td class="n">5,00</td>
+    <td class="n">47,50</td><td class="n">24,00</td>
+  </tr>
+</table>
+<table class="items summary">
+  <tr>
+    <td>Προηγ. Υπόλοιπο</td><td>Ανάλυση ανά κατηγορία ΦΠΑ</td><td></td><td class="n"></td>
+    <td class="n"></td><td class="n"></td><td class="n">Αξία προ έκπτωσης</td>
+    <td class="n">58,46</td><td class="n"></td>
+  </tr>
+  <tr>
+    <td>-4,48</td><td>Καθ. αξία Φ.Π.Α. % Αξία Φ.Π.Α. Συν. Αξία</td><td></td><td class="n"></td>
+    <td class="n"></td><td class="n"></td><td class="n">Έκπτωση</td>
+    <td class="n">2,50</td><td class="n"></td>
+  </tr>
+  <tr>
+    <td>Νέο Υπόλοιπο</td><td></td><td></td><td class="n">55,96</td>
+    <td class="n">24,00</td><td class="n">13,43</td><td class="n">69,39</td>
+    <td class="n">Φ.Π.Α.</td><td class="n">13,43</td>
+  </tr>
+  <tr>
+    <td>51,48</td><td>Σύνολο Ποσότητας</td><td></td><td class="n">5,00</td>
+    <td class="n"></td><td class="n"></td><td class="n">Γενικό Σύνολο</td>
+    <td class="n">69,39</td><td class="n"></td>
+  </tr>
+  <tr>
+    <td></td><td>Παρατηρήσεις</td><td></td><td class="n"></td>
+    <td class="n"></td><td class="n"></td><td class="n">Πληρωτέο</td>
+    <td class="n">69,39</td><td class="n"></td>
+  </tr>
+</table>
+<div class="legal">
+  ΤΑ ΕΜΠΟΡΕΥΜΑΤΑ ΤΑΞΙΔΕΥΟΥΝ ΓΙΑ ΛΟΓΑΡΙΑΣΜΟ ΚΑΙ ΜΕ ΚΙΝΔΥΝΟ ΤΟΥ ΠΕΛΑΤΗ. 1,00 Mark: 400014893621007<br>
+  UID: 1682B14C1D5FBFF7E8AD4203B96183E67820D6C7<br>
+  Epsilon Net AE Σελίδα 1 από 1
+</div>`;
+
 const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', args: ['--no-sandbox'] });
 const page = await browser.newPage();
-for (const [name, html] of [['supplier-greek', supplierInvoice], ['supplier-english', englishInvoice], ['scanned-no-text', scanned], ['mismatched', mismatched]]) {
+for (const [name, html] of [['supplier-greek', supplierInvoice], ['supplier-english', englishInvoice], ['scanned-no-text', scanned], ['mismatched', mismatched], ['epsilon-style', epsilonStyle]]) {
   await page.setContent(html, { waitUntil: 'load' });
   const pdf = await page.pdf({ format: 'A4', printBackground: true });
   writeFileSync(`tests/fixtures/${name}.pdf`, pdf);

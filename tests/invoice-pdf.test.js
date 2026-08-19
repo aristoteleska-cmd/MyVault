@@ -210,6 +210,132 @@ const read = async (name) => readInvoice(await extractPdfText(readPdfFile(fixtur
     ok('a line that is not a total contributes no total');
   }
 
+  // ============================ the layout a real accounting package prints
+  //
+  // Every assertion here comes from a genuine Epsilon Net invoice a shop was
+  // handed — the fixture reproduces its layout line for line with invented
+  // names, numbers and bank details, because the original carries a customer's
+  // name, address and VAT number and this repository is public.
+  //
+  // That one file broke the reader in five separate ways, and each of them is
+  // pinned below. It is the difference between a parser that works on invoices
+  // somebody wrote to be parsed and one that works on the post.
+  {
+    const invoice = await read('epsilon-style');
+
+    // 1. The supplier's name is centred at the top, so "the left half of the
+    //    first line" found the strapline underneath it instead.
+    assert.strictEqual(invoice.supplier, 'ΚΑΡΑΓΙΑΝΝΗΣ Α. ΝΙΚΟΛΑΟΣ');
+    ok('the shop at the top of the page is read as the supplier, not its strapline');
+
+    // 2. The number and the date are in a grid: labels on one row, values on the
+    //    next. Reading only "label: value" returned neither.
+    assert.strictEqual(invoice.number, '007412');
+    assert.strictEqual(invoice.date, '2026-08-18');
+    assert.strictEqual(invoice.vatNumber, '999000111');
+    ok('a number and a date printed under their headings are found, not only beside them');
+
+    // 3. The summary block below the table is laid out in the table's own
+    //    columns, so it parsed as three more products — one with a quantity of
+    //    2,03 and one with a quantity of four hundred trillion.
+    assert.strictEqual(invoice.lines.length, 2, 'two products, and nothing from the summary');
+    assert.ok(
+      invoice.lines.every((line) => !/υπόλοιπο|σύνολο|ΕΜΠΟΡΕΥΜΑΤΑ/i.test(line.description)),
+      'no balance, total or legal footnote came through as a product',
+    );
+    ok('the balances and the legal footnote under the table are not imported as stock');
+
+    // 4. An unrecognised heading — Μ.Μ, the unit column — did not divide its
+    //    neighbours, so the net amount and the VAT rate landed in one cell and
+    //    "8,46" and "24,00" were read as a VAT rate of 84624 per cent.
+    assert.deepStrictEqual(
+      invoice.lines.map((line) => [
+        line.code, line.description, line.quantity, line.unitPrice, line.discount,
+        line.vatRate, line.total,
+      ]),
+      [
+        ['558', 'ΤΣΑΝΤΑ ΧΑΡΤΙΝΗ (37*26*12)', 1, 8.46, 0, 24, 8.46],
+        ['612', 'ΣΑΚΟΥΛΕΣ ΑΠΟΡΡΙΜΜΑΤΩΝ 52*75', 4, 12.50, 5, 24, 47.50],
+      ],
+    );
+    assert.ok(invoice.lines.every((line) => line.vatRate <= 100), 'and no rate above a hundred per cent');
+    ok('every column lands in its own cell, including the one MyVault has no name for');
+
+    // 5. "Αξία Προ Εκ" and "Καθαρή αξία" both contain the word for value. Taking
+    //    the first meant the line total was the amount before the discount —
+    //    wrong by the discount on every discounted line.
+    const bags = invoice.lines[1];
+    assert.strictEqual(bags.discount, 5);
+    assert.strictEqual(bags.total, 47.50, 'the net amount, not the 50,00 before the discount');
+    assert.strictEqual(bags.checked, true, '4 × 12,50 less 5% is what the paper prints');
+    ok('the line total is the net amount, not the one printed before the discount');
+
+    // The unit of measure is read to keep the columns straight and then dropped:
+    // MyVault counts in units and has nowhere to put "Κιβώτια".
+    assert.ok(!('unit' in bags), 'the unit column is used for layout and not imported');
+    ok('and the unit column is used to divide the row, not to fill a field');
+  }
+
+  // ================== that invoice, all the way onto the shelf and into the VAT
+  {
+    const store = shop();
+    const bag = store.addItem({
+      name: 'ΤΣΑΝΤΑ ΧΑΡΤΙΝΗ (37*26*12)', quantity: 0, price: 1.50, cost: 8.00,
+    });
+
+    const invoice = await read('epsilon-style');
+    const draft = store.startDraft({ kind: 'in' });
+    const { rows, warnings } = toImportRows(invoice);
+    const imported = store.importDraftLines(draft.id, rows);
+
+    assert.strictEqual(imported.added, 1, 'the one product this shop stocks');
+    assert.strictEqual(imported.unmatched.length, 1, 'and the one it does not, named');
+    assert.strictEqual(imported.unmatched[0].name, 'ΣΑΚΟΥΛΕΣ ΑΠΟΡΡΙΜΜΑΤΩΝ 52*75');
+    assert.deepStrictEqual(warnings, [], 'nothing on this invoice is beyond per-unit pricing');
+    ok('the real layout imports onto a draft with nothing left over to explain');
+
+    const posted = store.postDraft(draft.id, {});
+    assert.strictEqual(posted.document.totals.net, 8.46);
+    assert.strictEqual(posted.document.totals.vat, 2.03);
+    assert.strictEqual(posted.document.totals.gross, 10.49);
+    ok('and posts at 8,46 net, 2,03 VAT, 10,49 gross — the figures on the paper');
+
+    const after = store.getState().items.find((item) => item.id === bag.id);
+    assert.strictEqual(after.quantity, 1, 'the bag is on the shelf');
+    assert.strictEqual(after.cost, 8.46, 'and cost what the supplier charged, not what it used to');
+    ok('the stock and the cost price both come from the invoice');
+  }
+
+  // ======================== a number that cannot be a quantity is not one
+  {
+    // The stamp a Greek invoice carries at the bottom — Mark: 400014893621007 —
+    // sits under the numeric columns and parses as a quantity of four hundred
+    // trillion. This is the second lock on that: even on a document with no
+    // summary block to stop at, a delivery of that size is not a delivery.
+    const { readInvoice: read2 } = require('../electron/invoice-read');
+    const row = (cells, y) => ({
+      y,
+      text: cells.map(([t]) => t).join(' '),
+      pieces: cells.map(([text, x]) => ({ text, x, width: 30, height: 9 })),
+    });
+
+    const page = {
+      number: 1,
+      width: 595,
+      height: 842,
+      lines: [
+        row([['Κωδικός', 40], ['Περιγραφή', 120], ['Ποσότητα', 300], ['Τιμή', 380], ['Αξία', 460]], 100),
+        row([['558', 40], ['ΤΣΑΝΤΑ ΧΑΡΤΙΝΗ', 120], ['2', 300], ['3,00', 380], ['6,00', 460]], 120),
+        row([['', 40], ['Mark', 120], ['400014893621007', 300], ['', 380], ['', 460]], 140),
+      ],
+    };
+
+    const invoice = read2({ pages: [page] });
+    assert.strictEqual(invoice.lines.length, 1, 'the stamp did not become a second line');
+    assert.strictEqual(invoice.lines[0].quantity, 2);
+    ok('a fifteen-digit stamp under the quantity column is not read as a quantity');
+  }
+
   // ============================== an invoice that disagrees with itself
   {
     const invoice = await read('mismatched');

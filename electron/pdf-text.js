@@ -46,6 +46,12 @@ const MAX_PAGES = 40;
 
 let pdfjs = null;
 
+/** Where the bundled font metrics live, in development and inside the asar alike. */
+function standardFonts() {
+  const path = require('path');
+  return `${path.join(path.dirname(require.resolve('pdfjs-dist/package.json')), 'standard_fonts')}${path.sep}`;
+}
+
 /**
  * Loads pdfjs once, on the first PDF a shop opens.
  *
@@ -147,6 +153,12 @@ async function extractPdfText(bytes) {
     isEvalSupported: false,
     disableFontFace: true,
     useSystemFonts: false,
+    // The metrics for the fourteen standard PDF fonts, which a document is
+    // allowed to reference without embedding. They ship inside pdfjs and are
+    // read off this disk; without the path pdfjs warns and falls back to
+    // guessed widths, which moves every piece of text sideways — and where a
+    // piece of text sits is the whole of how the columns are worked out.
+    standardFontDataUrl: standardFonts(),
   });
 
   let document;
