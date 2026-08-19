@@ -23,6 +23,7 @@ import type {
   Item,
   Movement,
   PdfInvoiceResult,
+  UnmatchedLine,
   MovementReason,
   Role,
   Settings,
@@ -123,6 +124,12 @@ export interface MyVaultBridge {
       draft?: DraftDocument;
     }>>;
     importPdf(id: string): Promise<Result<PdfInvoiceResult>>;
+    addMissing(id: string, line: UnmatchedLine): Promise<Result<{
+      item?: Item;
+      added?: number;
+      draft?: DraftDocument;
+      state?: Database;
+    }>>;
   };
 
   vat: {

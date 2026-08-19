@@ -19,7 +19,7 @@ import { Icon } from './Icon';
 export function InvoicesView() {
   const {
     db, drafts, refreshDrafts, startDoc, updateDoc, setDocLine, removeDocLine,
-    discardDoc, postDoc, voidDoc, listDocs, importDocCsv, importDocPdf,
+    discardDoc, postDoc, voidDoc, listDocs, importDocCsv, importDocPdf, addMissingProduct,
   } = useVault();
   const { locale } = useI18n();
   const t = useT();
@@ -184,14 +184,43 @@ export function InvoicesView() {
               <p className="panel-sub">{t('docs.pdfUnmatchedTitle')}</p>
               <ul className="notice-list">
                 {pdfRead.unmatched?.map((line) => (
-                  <li key={`${line.barcode}-${line.name}`}>
+                  <li key={`${line.barcode}-${line.code}-${line.name}`}>
                     <span className="cell-strong">{line.name}</span>
                     <span className="cell-note">
-                      {line.barcode || '—'} · {t('docs.pdfUnmatchedLine', {
+                      {line.barcode || line.code || '—'} · {t('docs.pdfUnmatchedLine', {
                         count: line.quantity,
                         money: money(line.price),
                       })}
                     </span>
+                    {/*
+                      Without this the feature ends in the loop it was meant to
+                      remove: read the PDF, write down what is missing, go to
+                      Products, type it, come back, read the PDF again. The line
+                      already carries the name, what was paid and the rate.
+                    */}
+                    <button
+                      type="button"
+                      className="btn btn-small"
+                      disabled={busy}
+                      onClick={async () => {
+                        setBusy(true);
+                        try {
+                          const done = await addMissingProduct(draft?.id ?? '', line);
+                          if (done) {
+                            setPdfRead((current) => (current ? {
+                              ...current,
+                              added: (current.added ?? 0) + 1,
+                              unmatched: current.unmatched?.filter((other) => other !== line),
+                            } : current));
+                          }
+                        } finally {
+                          setBusy(false);
+                        }
+                      }}
+                    >
+                      <Icon name="plus" size={14} />
+                      {t('docs.pdfAddMissing')}
+                    </button>
                   </li>
                 ))}
               </ul>

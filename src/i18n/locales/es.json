@@ -751,5 +751,6 @@
   "settings.adoptFolder": "¿Ya usa MyVault en este ordenador?",
   "settings.adoptFolderDesc": "Si sus existencias aparecen vacías tras instalar o mover MyVault, su tienda seguramente sigue en la carpeta que usaba la copia anterior — MyVault-Data junto al programa portátil, o la carpeta data de la copia que tenía antes. Indíquesela a MyVault y volverá todo, incluido el historial de ventas.",
   "settings.adoptFolderBtn": "Buscar mi carpeta de datos anterior",
-  "toast.adoptedFolder": "Su tienda ha vuelto: {count} productos, con su historial."
+  "toast.adoptedFolder": "Su tienda ha vuelto: {count} productos, con su historial.",
+  "docs.pdfAddMissing": "Añadir a mis productos"
 }

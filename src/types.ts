@@ -643,10 +643,22 @@ export interface PdfInvoiceSummary {
   pages: number;
 }
 
+/** A line the paper names that this shop does not stock — yet. */
+export interface UnmatchedLine {
+  barcode: string;
+  name: string;
+  /** The supplier's own code for it, remembered when the product is created. */
+  code?: string;
+  quantity: number;
+  price: number;
+  discount?: number;
+  rate?: number | string;
+}
+
 export interface PdfInvoiceResult {
   canceled: boolean;
   added?: number;
-  unmatched?: { barcode: string; name: string; quantity: number; price: number }[];
+  unmatched?: UnmatchedLine[];
   draft?: DraftDocument;
   invoice?: PdfInvoiceSummary;
 }

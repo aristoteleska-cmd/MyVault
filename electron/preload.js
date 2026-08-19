@@ -65,6 +65,8 @@ contextBridge.exposeInMainWorld('myvault', {
     importCsv: (id) => invoke('docs:import-csv', id),
     /** Reads a supplier's PDF invoice onto the draft, and says what it read. */
     importPdf: (id) => invoke('docs:import-pdf', id),
+    /** Create a product for a line the shop does not stock, and add it. */
+    addMissing: (id, line) => invoke('docs:add-missing', id, line),
   },
 
   /** What the shop owes the tax office, and for which calendar period. */

@@ -687,6 +687,47 @@ function registerIpc() {
     };
   });
 
+  /**
+   * Turns a line the shop does not stock yet into a product, and onto the draft.
+   *
+   * The alternative is the loop this feature was supposed to remove: read the
+   * PDF, note what is missing, go to Products, type each one in, come back,
+   * start again. Everything needed is already on the line — the name, what the
+   * supplier charged, the rate they charged it at, and their own code for it,
+   * which is remembered here so the next invoice matches without being asked.
+   */
+  handle('docs:add-missing', 'items.create', (id, line = {}) => {
+    requireCapability('documents.manage');
+    const draft = store.getDraft(id);
+    const name = String(line.name || '').trim();
+    if (!name) throw new Error('That line has no product name to add.');
+
+    const item = store.addItem({
+      name,
+      barcode: String(line.barcode || '').trim(),
+      cost: Number(line.price) || 0,
+      // No selling price is invented: what a shop charges is a decision, and a
+      // guess here would quietly become the price on the shelf.
+      price: 0,
+      quantity: 0,
+      supplier: draft.supplier,
+      vatRate: line.rate === undefined || line.rate === '' ? null : Number(line.rate),
+      supplierCodes: line.code ? [{ supplier: draft.supplier, code: String(line.code) }] : [],
+    }, { by: whoAmI() });
+
+    const imported = store.importDraftLines(id, [{
+      barcode: item.barcode,
+      code: line.code || '',
+      name: item.name,
+      quantity: line.quantity,
+      price: line.price,
+      discount: line.discount || 0,
+      'vat rate': line.rate ?? '',
+    }]);
+
+    return { item, ...imported, state: store.publicState(forThisPerson()) };
+  });
+
   // --------------------------------------------------------------------- VAT
 
   /**

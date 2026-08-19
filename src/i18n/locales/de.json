@@ -751,5 +751,6 @@
   "settings.adoptFolder": "Nutzen Sie MyVault auf diesem Rechner bereits?",
   "settings.adoptFolderDesc": "Wenn Ihr Bestand nach dem Installieren oder Verschieben leer aussieht, liegt Ihr Laden vermutlich noch im Ordner der alten Kopie — MyVault-Data neben dem portablen Programm oder der data-Ordner der vorherigen Installation. Zeigen Sie ihn MyVault, und alles kommt zurück, samt Verkaufshistorie.",
   "settings.adoptFolderBtn": "Alten Datenordner suchen",
-  "toast.adoptedFolder": "Ihr Laden ist zurück — {count} Produkte, mit Historie."
+  "toast.adoptedFolder": "Ihr Laden ist zurück — {count} Produkte, mit Historie.",
+  "docs.pdfAddMissing": "Zu meinen Produkten"
 }

@@ -809,6 +809,7 @@ export const en = {
   'docs.removeLine': 'Remove {name} from this invoice',
   'docs.importCsv': 'Read a supplier file',
   'docs.importPdf': 'Read a PDF invoice',
+  'docs.pdfAddMissing': 'Add to my products',
   'docs.pdfReadTitle': 'Read from the PDF',
   'docs.pdfReadFrom': '{supplier} · invoice {number} · {date}',
   'docs.pdfReadCounts': '{read} lines on the invoice, {added} added to this draft, {missed} not recognised',

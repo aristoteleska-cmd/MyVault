@@ -751,5 +751,6 @@
   "settings.adoptFolder": "Sudah memakai MyVault di komputer ini?",
   "settings.adoptFolderDesc": "Kalau stok tampak kosong setelah memasang atau memindahkan MyVault, toko Anda kemungkinan masih ada di folder salinan lama — MyVault-Data di sebelah program portabel, atau folder data dari salinan sebelumnya. Tunjukkan foldernya ke MyVault dan semuanya kembali, termasuk riwayat penjualan.",
   "settings.adoptFolderBtn": "Cari folder data lama saya",
-  "toast.adoptedFolder": "Toko Anda kembali — {count} produk, beserta riwayatnya."
+  "toast.adoptedFolder": "Toko Anda kembali — {count} produk, beserta riwayatnya.",
+  "docs.pdfAddMissing": "Tambahkan ke produk saya"
 }

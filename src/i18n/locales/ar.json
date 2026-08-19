@@ -751,5 +751,6 @@
   "settings.adoptFolder": "هل تستخدم MyVault على هذا الحاسوب من قبل؟",
   "settings.adoptFolderDesc": "إذا بدا مخزونك فارغًا بعد التثبيت أو نقل البرنامج، فمتجرك على الأرجح ما زال في مجلد النسخة القديمة — مجلد MyVault-Data بجوار البرنامج المحمول، أو مجلد data الخاص بالنسخة السابقة. دُلّ MyVault عليه ليعود كل شيء، وسجل المبيعات معه.",
   "settings.adoptFolderBtn": "ابحث عن مجلد بياناتي القديم",
-  "toast.adoptedFolder": "عاد متجرك — {count} منتجًا، مع سجله."
+  "toast.adoptedFolder": "عاد متجرك — {count} منتجًا، مع سجله.",
+  "docs.pdfAddMissing": "أضِف إلى منتجاتي"
 }

@@ -751,5 +751,6 @@
   "settings.adoptFolder": "MyVault’u bu bilgisayarda zaten kullanıyor musunuz?",
   "settings.adoptFolderDesc": "Kurulumdan veya taşımadan sonra stokunuz boş görünüyorsa, dükkânınız büyük olasılıkla eski kopyanın kullandığı klasörde duruyor — taşınabilir programın yanındaki MyVault-Data ya da önceki kopyanın data klasörü. MyVault’a o klasörü gösterin; satış geçmişiyle birlikte her şey geri gelir.",
   "settings.adoptFolderBtn": "Eski veri klasörümü bul",
-  "toast.adoptedFolder": "Dükkânınız geri geldi — {count} ürün, geçmişiyle birlikte."
+  "toast.adoptedFolder": "Dükkânınız geri geldi — {count} ürün, geçmişiyle birlikte.",
+  "docs.pdfAddMissing": "Ürünlerime ekle"
 }
