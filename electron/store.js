@@ -1167,12 +1167,35 @@ class Store {
    * compared here; the window is told who is on the staff list, what their role
    * is, and whether a recovery code exists. Nothing that could be tried offline.
    */
-  publicState() {
-    return {
+  publicState({ capabilities = null } = {}) {
+    const state = {
       ...this.db,
       users: this.listUsers(),
       recovery: this.recoveryStatus(),
     };
+
+    // With no staff list there is one person and nothing to withhold.
+    if (!capabilities) return state;
+
+    const may = (capability) => capabilities.includes(capability);
+
+    // What a shop pays for its stock is the owner's business, and a till does
+    // not need it to sell anything. It used to cross the bridge for every
+    // product on every refresh, which put the shop's entire cost base — and
+    // therefore its margins — in the hands of whoever was standing at the
+    // counter with the developer tools open.
+    if (!may('pricing.view')) {
+      state.items = state.items.map((item) => ({ ...item, cost: 0 }));
+    }
+
+    // A half-typed invoice belongs to whoever is typing it, and the totals on
+    // it are the shop's trade with a supplier.
+    if (!may('documents.manage')) state.drafts = [];
+
+    // The customer list crosses only for someone who may see customers at all.
+    if (!may('clients.view')) state.clients = [];
+
+    return state;
   }
 
   // ------------------------------------------------------------------- items

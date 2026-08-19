@@ -199,6 +199,19 @@ function authState() {
  * list there is nobody to name, and inventing "Owner" would put a person in the
  * record who does not exist.
  */
+/**
+ * What the person at the screen may see, for trimming the state sent to them.
+ *
+ * Null when nobody has set up staff at all, which is the one-person shop the
+ * program started as: there is nobody to withhold anything from.
+ */
+function forThisPerson() {
+  const { users } = store.getState();
+  if (users.length === 0) return { capabilities: null };
+  const role = effectiveRole(users, signedInId);
+  return { capabilities: role ? [...ROLE_CAPABILITIES[role]] : [] };
+}
+
 function whoAmI() {
   const user = store.getState().users.find((candidate) => candidate.id === signedInId);
   return user ? user.name : '';
@@ -431,7 +444,7 @@ function registerIpc() {
     systemLocale: installerLanguage() || app.getLocale(),
   }));
 
-  handle('state:get', 'items.view', () => store.publicState());
+  handle('state:get', 'items.view', () => store.publicState(forThisPerson()));
 
   // ------------------------------------------------------------------- staff
 
@@ -637,13 +650,13 @@ function registerIpc() {
     return {
       ...posted,
       prices: deliveryReview(store.getState(), store.movements, posted.document),
-      state: store.publicState(),
+      state: store.publicState(forThisPerson()),
     };
   });
 
   handle('docs:void', 'documents.manage', (id) => ({
     ...store.voidDocument(id, { by: whoAmI() }),
-    state: store.publicState(),
+    state: store.publicState(forThisPerson()),
   }));
 
   handle('docs:list', 'documents.manage', (options = {}) => store.listDocuments(options));
@@ -845,7 +858,7 @@ function registerIpc() {
   handle('stocktake:cancel', 'stocktake.run', () => store.cancelStockTake());
   handle('stocktake:apply', 'stocktake.run', () => ({
     ...store.applyStockTake({ by: whoAmI() }),
-    state: store.publicState(),
+    state: store.publicState(forThisPerson()),
   }));
 
   // ---------------------------------------------------------------- printing
@@ -1029,7 +1042,7 @@ function registerIpc() {
     if (!rows.length) throw new Error('No rows found. The file needs a header row with at least a "Name" column.');
 
     const result = store.importRows(rows);
-    return { canceled: false, ...result, state: store.publicState() };
+    return { canceled: false, ...result, state: store.publicState(forThisPerson()) };
   });
 
   // A full backup is not an export. It carries the staff list as it is stored —
@@ -1101,7 +1114,7 @@ function registerIpc() {
     if (confirm.response !== 0) return { canceled: true };
 
     const outcome = store.adoptFolder(folder);
-    return { canceled: false, ...outcome, state: store.publicState() };
+    return { canceled: false, ...outcome, state: store.publicState(forThisPerson()) };
   });
 
   handle('data:restore', 'settings.manage', async () => {
@@ -1150,7 +1163,7 @@ function registerIpc() {
     // A restored file may bring a different staff list with it, so whoever is
     // signed in now may not exist any more. Start the sitting again.
     signedInId = null;
-    return { canceled: false, state: store.publicState() };
+    return { canceled: false, state: store.publicState(forThisPerson()) };
   });
 
   handle('dialog:confirm-delete', 'items.delete', async (count) => {
