@@ -1862,6 +1862,13 @@ class Store {
     const progress = this.stockTakeProgress();
     if (!progress) throw new Error('No count is in progress.');
 
+    // Every count in the shop is about to be overwritten by what somebody
+    // walked round and typed. Usually that is exactly right and the whole point
+    // — but a mistyped shelf, or a count abandoned half way and applied by
+    // accident, is a thousand quantities gone with nothing to compare against.
+    // A restore takes a copy first; so does this now.
+    this.snapshot('before-stock-take');
+
     const applied = [];
     for (const line of progress.lines) {
       const item = this.db.items.find((candidate) => candidate.id === line.id);
@@ -2272,6 +2279,12 @@ class Store {
    * shop can bring a spreadsheet across without losing its own columns.
    */
   importRows(rows, { createMissing = true } = {}) {
+    // A supplier's spreadsheet with its columns lined up one to the left will
+    // put prices in the cost box and costs in the price box across the whole
+    // shop, in one press, with no way back. The copy costs a few milliseconds
+    // and is the difference between a mistake and a disaster.
+    this.snapshot('before-import');
+
     const result = {
       added: 0, updated: 0, skipped: 0, newCategories: 0, newFields: 0,
       /** Columns that could not become details because the ceiling was reached. */
