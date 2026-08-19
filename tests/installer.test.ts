@@ -92,6 +92,46 @@ assert.ok(
 );
 ok('the page is built where its dialog toolkit is available');
 
+// ------------------------------------ each complaint names the box it means
+//
+// An empty "type it again" box was reported as "the two PINs are different".
+// Nothing had been typed to differ, and the message sends a person back to
+// check the field that was already right. An empty PIN was reported as being
+// the wrong length, which reads as a complaint about a PIN nobody has chosen.
+// This is the first screen of a program somebody has just decided to trust with
+// their stock, and it was telling them something untrue about their own typing.
+const leaveStart = nsh.indexOf('Function managerPageLeave');
+const leaveBody = nsh.slice(leaveStart, nsh.indexOf('!macroend', leaveStart));
+
+// Empty PIN and short PIN are different complaints, and the empty one is asked
+// about first — otherwise the length message answers for both again.
+const emptyPin = leaveBody.indexOf('Choose a PIN for opening MyVault');
+const shortPin = leaveBody.indexOf('The PIN must be between 4 and 12 digits');
+assert.ok(emptyPin > 0, 'an empty PIN has its own message');
+assert.ok(shortPin > 0, 'and a wrong-length one still has its own');
+assert.ok(emptyPin < shortPin, 'the empty case is checked first, or the length message answers it');
+assert.match(leaveBody, /StrLen \$R2 \$managerPin[\s\S]*\$\{If\} \$R2 == 0/, 'by measuring what was typed');
+ok('an empty PIN is not reported as a PIN of the wrong length');
+
+// Same for the second box: blank and different are not the same thing.
+const emptyConfirm = leaveBody.indexOf('Type the PIN a second time');
+const mismatch = leaveBody.indexOf('The two PINs are different');
+assert.ok(emptyConfirm > 0, 'an empty confirmation has its own message');
+assert.ok(mismatch > 0, 'and a genuine mismatch keeps its own');
+assert.ok(emptyConfirm < mismatch, 'blank is checked before different, or it never reports blank');
+assert.match(leaveBody, /StrLen \$R6 \$R1[\s\S]*\$\{If\} \$R6 == 0/, 'measured, not guessed at');
+ok('an empty second box is not reported as the two PINs disagreeing');
+
+// Every complaint must stop the page, or the installer would grumble and then
+// carry on with a manager it just refused.
+const complaints = (leaveBody.match(/MessageBox MB_OK\|MB_ICONEXCLAMATION/g) || []).length;
+const aborts = (leaveBody.match(/^\s*Abort\s*$/gm) || []).length;
+// Name, PIN missing, PIN too short or too long, PIN not digits, confirmation
+// missing, confirmation different.
+assert.strictEqual(complaints, 6, 'six things can be wrong on that page');
+assert.strictEqual(aborts, complaints, 'and each one stops the page rather than warning and proceeding');
+ok('every complaint keeps the person on the page instead of accepting it anyway');
+
 // ------------------------------------------- an update is not a new shop
 //
 // The manager page appeared on every install, including over a copy that had

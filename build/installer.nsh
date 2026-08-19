@@ -89,12 +89,25 @@
       ${NSD_GetText} $managerPinBox $managerPin
       ${NSD_GetText} $managerConfirmBox $R1
 
+      ; Each of these says what is actually wrong with what is on screen.
+      ;
+      ; They did not. An empty second box was reported as "the two PINs are
+      ; different", which is not what happened — nothing was typed to differ —
+      ; and it sends a person back to check the first box, which was fine. An
+      ; empty PIN was reported as being the wrong length, which reads as a
+      ; complaint about a PIN that has not been chosen yet. Both left the
+      ; shopkeeper looking at the wrong field on the first screen of the program
+      ; they have just decided to trust with their stock.
       ${If} $managerName == ""
         MessageBox MB_OK|MB_ICONEXCLAMATION "Enter the name of the person who will manage MyVault."
         Abort
       ${EndIf}
 
       StrLen $R2 $managerPin
+      ${If} $R2 == 0
+        MessageBox MB_OK|MB_ICONEXCLAMATION "Choose a PIN for opening MyVault. It can be 4 to 12 digits."
+        Abort
+      ${EndIf}
       ${If} $R2 < 4
       ${OrIf} $R2 > 12
         MessageBox MB_OK|MB_ICONEXCLAMATION "The PIN must be between 4 and 12 digits."
@@ -129,6 +142,12 @@
 
       ${IfNot} $R5 == $managerPin
         MessageBox MB_OK|MB_ICONEXCLAMATION "The PIN must be digits only."
+        Abort
+      ${EndIf}
+
+      StrLen $R6 $R1
+      ${If} $R6 == 0
+        MessageBox MB_OK|MB_ICONEXCLAMATION "Type the PIN a second time in the last box, so a slip of the finger cannot lock you out."
         Abort
       ${EndIf}
 
