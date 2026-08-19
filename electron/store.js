@@ -31,6 +31,14 @@ const MAX_BACKUPS = 10;
 const MAX_SUPPLIER_CODES = 12;
 
 /**
+ * Where the second drive keeps the list of copies MyVault wrote there.
+ *
+ * The rolling window prunes from this list and from nothing else, so a shop's
+ * own backups can sit in the same folder and be perfectly safe.
+ */
+const MIRROR_LEDGER = '.myvault-mirror.json';
+
+/**
  * One supplier's name, reduced to something two spellings of it agree on.
  *
  * "ΑΦΟΙ ΠΑΠΑΔΟΠΟΥΛΟΥ Α.Ε." and "ΑΦΟΙ ΠΑΠΑΔΟΠΟΥΛΟΥ ΑΕ" are the same wholesaler
@@ -995,8 +1003,10 @@ class Store {
     try {
       fs.mkdirSync(folder, { recursive: true });
       const stamp = backupStamp();
-      const target = path.join(folder, `myvault-backup-${stamp}.json`);
+      const name = `myvault-backup-${stamp}.json`;
+      const target = path.join(folder, name);
       fs.copyFileSync(this.file, target);
+      this.rememberMirrored(folder, name);
       this.pruneMirror(folder);
       this.mirrorLogs(folder);
       this.lastMirror = { at: nowIso(), path: target, error: '' };
@@ -1055,20 +1065,61 @@ class Store {
     return copied;
   }
 
-  /** The same rolling window as the local backups, so a stick never fills up. */
+  /**
+   * The same rolling window as the local backups, so a stick never fills up —
+   * and it deletes only what it put there itself.
+   *
+   * It used to delete every myvault-backup-*.json in the folder. "Backup all
+   * data" writes files by that very name, so a shop that pointed the second
+   * copy at the folder where it keeps its own backups had them quietly deleted
+   * by the eleventh automatic copy. The files a shop makes deliberately are the
+   * ones they will reach for on the worst day.
+   *
+   * So MyVault keeps a list of its own copies beside them, and prunes from the
+   * list. Anything not on it — a manual backup, a file somebody dragged there,
+   * a copy of last year's — is left alone for ever. If the list is missing or
+   * unreadable, nothing is deleted at all: forgetting which files are ours is a
+   * reason to stop, not a reason to guess.
+   */
   pruneMirror(folder) {
+    const ledgerPath = path.join(folder, MIRROR_LEDGER);
+    let mine = [];
     try {
-      const entries = fs
-        .readdirSync(folder)
-        .filter((name) => name.startsWith('myvault-backup-') && name.endsWith('.json'))
-        .sort();
-      while (entries.length > MAX_BACKUPS) {
-        const oldest = entries.shift();
-        try {
-          fs.unlinkSync(path.join(folder, oldest));
-        } catch { /* ignore */ }
-      }
+      const parsed = JSON.parse(fs.readFileSync(ledgerPath, 'utf8'));
+      mine = Array.isArray(parsed?.wrote) ? parsed.wrote.filter((n) => typeof n === 'string') : [];
+    } catch {
+      return;
+    }
+
+    // Anything on the list that is no longer there has been dealt with already.
+    const present = mine.filter((name) => {
+      try { return fs.existsSync(path.join(folder, name)); } catch { return false; }
+    });
+
+    while (present.length > MAX_BACKUPS) {
+      const oldest = present.shift();
+      try {
+        fs.unlinkSync(path.join(folder, oldest));
+      } catch { /* ignore */ }
+    }
+
+    try {
+      fs.writeFileSync(ledgerPath, JSON.stringify({ wrote: present }, null, 2), 'utf8');
     } catch { /* the folder may have gone away between writing and tidying */ }
+  }
+
+  /** Adds a copy to the list of what MyVault itself wrote to the second drive. */
+  rememberMirrored(folder, name) {
+    const ledgerPath = path.join(folder, MIRROR_LEDGER);
+    let wrote = [];
+    try {
+      const parsed = JSON.parse(fs.readFileSync(ledgerPath, 'utf8'));
+      if (Array.isArray(parsed?.wrote)) wrote = parsed.wrote.filter((n) => typeof n === 'string');
+    } catch { /* a folder used for the first time has no list yet */ }
+    if (!wrote.includes(name)) wrote.push(name);
+    try {
+      fs.writeFileSync(ledgerPath, JSON.stringify({ wrote }, null, 2), 'utf8');
+    } catch { /* best effort: without the list, nothing gets pruned, which is safe */ }
   }
 
   /** What the settings screen shows about the second copy. */
