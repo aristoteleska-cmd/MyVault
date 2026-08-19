@@ -827,6 +827,79 @@ class Store {
   }
 
   /**
+   * Takes over a MyVault data folder that is sitting somewhere else.
+   *
+   * This exists because of a real morning. A shop runs the portable copy off a
+   * stick for a while, then installs MyVault properly — and the installed copy
+   * keeps its data in the Windows app-data folder while a year of stock sits in
+   * MyVault-Data beside the old .exe. Nothing is lost and nothing is broken, but
+   * the shop opens the program and sees an empty catalogue, which is
+   * indistinguishable from having lost everything.
+   *
+   * Rather than explaining app-data folders to a shopkeeper, this points MyVault
+   * at the folder they still have: their myvault.json, and the history and
+   * invoices folders beside it, become this copy's own. A safety copy of
+   * whatever is here now is taken first, so pointing it at the wrong folder is
+   * undoable.
+   *
+   * The same route recovers a folder off a backup drive, or one copied from an
+   * old PC, without needing a backup file to have been made at all.
+   */
+  adoptFolder(folder) {
+    const file = path.join(folder, 'myvault.json');
+    if (!fs.existsSync(file)) {
+      throw new Error(
+        'There is no myvault.json in that folder, so it is not a MyVault data '
+        + 'folder. Look for a folder called MyVault-Data next to the program, or '
+        + 'the "data" folder inside MyVault in your app data.',
+      );
+    }
+    if (path.resolve(folder) === path.resolve(this.dataDir)) {
+      throw new Error('That is the folder MyVault is already using.');
+    }
+
+    let parsed;
+    try {
+      parsed = JSON.parse(fs.readFileSync(file, 'utf8'));
+    } catch {
+      throw new Error('That folder has a myvault.json, but it could not be read.');
+    }
+    if (!parsed || !Array.isArray(parsed.items)) {
+      throw new Error('That myvault.json does not look like a MyVault shop.');
+    }
+
+    // The history and the invoices are whole years of text, read the same way a
+    // backup carries them — so one path puts a shop back, however it arrived.
+    const logs = { movements: {}, invoices: {} };
+    const collect = (dirName, pattern, into) => {
+      let names;
+      try {
+        names = fs.readdirSync(path.join(folder, dirName));
+      } catch {
+        return;
+      }
+      for (const name of names) {
+        const match = pattern.exec(name);
+        if (!match) continue;
+        try {
+          into[match[1]] = fs.readFileSync(path.join(folder, dirName, name), 'utf8');
+        } catch { /* a year that cannot be read is reported by being absent */ }
+      }
+    };
+    collect('history', /^movements-(\d{4})\.ndjson$/, logs.movements);
+    collect('invoices', /^invoices-(\d{4})\.ndjson$/, logs.invoices);
+
+    const safety = this.snapshot('before-adopting');
+    const outcome = this.importAll({ ...parsed, logs });
+    return {
+      ...outcome,
+      from: folder,
+      safety: safety || '',
+      items: this.db.items.length,
+    };
+  }
+
+  /**
    * An immediate, labelled copy of the current file — used before an update
    * rewrites anything, and before a restore replaces everything.
    */

@@ -930,6 +930,58 @@ function registerIpc() {
     return { canceled: false, filePath };
   });
 
+  /**
+   * Points MyVault at a data folder it is not currently using.
+   *
+   * The commonest way a shop loses sight of its stock is not a fault at all: the
+   * portable copy keeps its data beside the .exe, the installed copy keeps it in
+   * the Windows app-data folder, and moving from one to the other opens an empty
+   * catalogue with a year of trading still on the disk. This is how they get it
+   * back without being taught where either folder is.
+   */
+  handle('data:adopt-folder', 'settings.manage', async () => {
+    const { canceled, filePaths } = await dialog.showOpenDialog(mainWindow, {
+      title: 'Find your MyVault data folder',
+      message: 'Choose the folder that holds myvault.json — usually MyVault-Data, next to the copy you were using before.',
+      properties: ['openDirectory'],
+    });
+    if (canceled || !filePaths?.length) return { canceled: true };
+
+    const folder = filePaths[0];
+    // Read it before asking, so the question names what is actually in there.
+    const preview = (() => {
+      try {
+        const parsed = JSON.parse(fs.readFileSync(path.join(folder, 'myvault.json'), 'utf8'));
+        return Array.isArray(parsed?.items) ? parsed.items.length : null;
+      } catch {
+        return null;
+      }
+    })();
+    if (preview === null) {
+      throw new Error(
+        'There is no MyVault data in that folder. Look for a folder called '
+        + 'MyVault-Data next to the program you were using before, or the "data" '
+        + 'folder inside MyVault in your app data.',
+      );
+    }
+
+    const confirm = await dialog.showMessageBox(mainWindow, {
+      type: 'warning',
+      title: 'Use this shop instead?',
+      message: `Replace what is in MyVault now with the ${preview} products in that folder?`,
+      detail: 'The sales history and invoices in that folder come across too. A copy '
+        + 'of what is in MyVault at the moment is saved to the backups folder first, '
+        + 'so this can be undone.',
+      buttons: ['Use that folder', 'Cancel'],
+      defaultId: 1,
+      cancelId: 1,
+    });
+    if (confirm.response !== 0) return { canceled: true };
+
+    const outcome = store.adoptFolder(folder);
+    return { canceled: false, ...outcome, state: store.publicState() };
+  });
+
   handle('data:restore', 'settings.manage', async () => {
     const { canceled, filePaths } = await dialog.showOpenDialog(mainWindow, {
       title: 'Restore from a backup file',

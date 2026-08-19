@@ -262,6 +262,17 @@ async function main() {
   await window.waitForSelector('text=Olive oil 1L', { timeout: 10_000 });
   ok('the shop still sees its stock after the update');
 
+  // ---------------------------------------- the PDF reader is where the job starts
+  //
+  // It was buried: the button existed only inside an open delivery, so somebody
+  // holding a supplier's invoice had to know to create a blank document first
+  // and then look inside it. A feature nobody can find is a feature nobody has.
+  await window.click('.nav-item:has-text("Invoices")');
+  await window.waitForSelector('button:has-text("Read a PDF invoice")', { timeout: 10_000 });
+  const beforeAnyDraft = await window.isVisible('button:has-text("Read a PDF invoice")');
+  assert.strictEqual(beforeAnyDraft, true, 'the button is on the Invoices screen itself');
+  ok('reading a PDF invoice is offered before any document has been started');
+
   await app.close();
 
   // ------------------------------------- and it is still an offline program

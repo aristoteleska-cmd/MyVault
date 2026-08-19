@@ -211,6 +211,8 @@ interface VaultValue {
   importCsv: () => Promise<void>;
   backup: () => Promise<void>;
   restore: () => Promise<void>;
+  /** Point MyVault at a data folder that lives elsewhere on this computer. */
+  adoptDataFolder: () => Promise<void>;
   openDataFolder: () => Promise<void>;
 }
 
@@ -898,6 +900,21 @@ export function VaultProvider({ children }: { children: ReactNode }) {
     }
   }, [run, notify]);
 
+  /**
+   * Takes over a MyVault folder that is somewhere else on this computer.
+   *
+   * The case this is for: a shop used the portable copy, then installed MyVault,
+   * and the installed one keeps its data in a different place — so a year of
+   * stock is still on the disk and the screen is empty.
+   */
+  const adoptDataFolder = useCallback(async () => {
+    const result = await run(window.myvault.data.adoptFolder());
+    if (result && !result.canceled && result.state) {
+      setDb(result.state);
+      notify('toast.adoptedFolder', { count: result.items ?? 0 }, 'success');
+    }
+  }, [run, notify]);
+
   const openDataFolder = useCallback(async () => {
     await run(window.myvault.data.openFolder());
   }, [run]);
@@ -1157,6 +1174,7 @@ export function VaultProvider({ children }: { children: ReactNode }) {
       importCsv,
       backup,
       restore,
+      adoptDataFolder,
       openDataFolder,
     }),
     [
@@ -1173,7 +1191,7 @@ export function VaultProvider({ children }: { children: ReactNode }) {
       clearHistoryTrouble,
       addCategory, updateCategory, deleteCategory,
       addField, updateField, deleteField, moveField,
-      updateSettings, exportCsv, importCsv, backup, restore, openDataFolder,
+      updateSettings, exportCsv, importCsv, backup, restore, adoptDataFolder, openDataFolder,
       update, checkForUpdate, downloadUpdate, installUpdate, scanBarcodePhoto,
       auth, can, signIn, signOut, createFirstAdmin,
       staff, refreshStaff, addStaff, updateStaff, removeStaff,

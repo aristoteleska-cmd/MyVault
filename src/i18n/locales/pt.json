@@ -747,5 +747,9 @@
   "docs.pdfPrintedTotal": "a fatura indica {money}",
   "docs.pdfUnknownSupplier": "fornecedor sem nome",
   "docs.pdfUnmatchedTitle": "Ainda não estão no seu stock — adicione-os e leia o PDF outra vez:",
-  "docs.pdfUnmatchedLine": "{count} a {money}"
+  "docs.pdfUnmatchedLine": "{count} a {money}",
+  "settings.adoptFolder": "Já usa o MyVault neste computador?",
+  "settings.adoptFolderDesc": "Se o seu stock aparece vazio depois de instalar ou mudar o MyVault, a sua loja está provavelmente ainda na pasta que a cópia antiga usava — MyVault-Data ao lado do programa portátil, ou a pasta data da cópia anterior. Indique-a ao MyVault e volta tudo, incluindo o histórico de vendas.",
+  "settings.adoptFolderBtn": "Encontrar a minha pasta de dados antiga",
+  "toast.adoptedFolder": "A sua loja voltou — {count} produtos, com o histórico."
 }

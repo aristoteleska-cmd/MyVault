@@ -747,5 +747,9 @@
   "docs.pdfPrintedTotal": "الفاتورة تذكر {money}",
   "docs.pdfUnknownSupplier": "اسم المورّد غير مذكور",
   "docs.pdfUnmatchedTitle": "ليست في مخزونك بعد — أضِفها ثم اقرأ ملف PDF من جديد:",
-  "docs.pdfUnmatchedLine": "{count} بسعر {money}"
+  "docs.pdfUnmatchedLine": "{count} بسعر {money}",
+  "settings.adoptFolder": "هل تستخدم MyVault على هذا الحاسوب من قبل؟",
+  "settings.adoptFolderDesc": "إذا بدا مخزونك فارغًا بعد التثبيت أو نقل البرنامج، فمتجرك على الأرجح ما زال في مجلد النسخة القديمة — مجلد MyVault-Data بجوار البرنامج المحمول، أو مجلد data الخاص بالنسخة السابقة. دُلّ MyVault عليه ليعود كل شيء، وسجل المبيعات معه.",
+  "settings.adoptFolderBtn": "ابحث عن مجلد بياناتي القديم",
+  "toast.adoptedFolder": "عاد متجرك — {count} منتجًا، مع سجله."
 }

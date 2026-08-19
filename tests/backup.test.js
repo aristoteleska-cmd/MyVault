@@ -44,6 +44,13 @@ function scratch() {
   return dir;
 }
 
+function refusesWith(fn, expected) {
+  let message = '';
+  try { fn(); } catch (error) { message = error.message; }
+  assert.ok(message, 'expected this to be refused, and it was not');
+  assert.ok(message.includes(expected), `refusal did not mention "${expected}": ${message}`);
+}
+
 /** Counts what is on file, not what an object in memory remembers. */
 function tally(store) {
   let movements = 0;
@@ -308,6 +315,60 @@ function tradingShop() {
   fresh.importAll(rebuilt);
   assert.deepStrictEqual(tally(fresh), tally(old), 'everything on the stick came back');
   ok('a shop whose PC is gone can rebuild from the stick alone');
+}
+
+// ================================ the folder is there, MyVault is looking elsewhere
+{
+  // The morning this exists for. A shop runs the portable copy for a while, then
+  // installs MyVault properly. The installed copy keeps its data in the Windows
+  // app-data folder, so it opens on an empty catalogue while a year of trading
+  // sits in MyVault-Data beside the old .exe. Nothing is lost and nothing is
+  // broken, and from the counter it is indistinguishable from having lost
+  // everything.
+  const { store: old } = tradingShop();
+  const before = tally(old);
+
+  const installed = shop();
+  assert.deepStrictEqual(tally(installed), { movements: 0, invoices: 0, items: 0 });
+
+  const outcome = installed.adoptFolder(old.dataDir);
+
+  assert.strictEqual(outcome.from, old.dataDir);
+  assert.deepStrictEqual(tally(installed), before, 'the whole shop came across');
+  assert.ok(outcome.movementYears >= 1, 'including the years of history');
+  assert.ok(outcome.invoiceYears >= 1, 'and the invoices');
+  ok('a shop can point MyVault at the folder its old copy was using, and get everything back');
+
+  // Undoable: what was here before is parked, not overwritten and forgotten.
+  assert.ok(outcome.safety, 'a copy of what was here first was taken');
+  assert.ok(fs.existsSync(outcome.safety), 'and it is where it says');
+  ok('with a copy of whatever was here first, so pointing at the wrong folder is undoable');
+
+  // The folder it came from is left exactly as it was — a shop that adopts the
+  // wrong one has not damaged the right one.
+  assert.deepStrictEqual(tally(old), before, 'the folder it read from is untouched');
+  ok('and the folder it read from is not disturbed');
+}
+
+// ==================================================== and it refuses the rest
+{
+  const store = shop();
+  const empty = scratch();
+
+  refusesWith(() => store.adoptFolder(empty), 'not a MyVault data folder');
+  refusesWith(() => store.adoptFolder(store.dataDir), 'already using');
+  ok('a folder with no shop in it, or the one already in use, is refused by name');
+
+  fs.writeFileSync(path.join(empty, 'myvault.json'), 'not json at all', 'utf8');
+  refusesWith(() => store.adoptFolder(empty), 'could not be read');
+
+  fs.writeFileSync(path.join(empty, 'myvault.json'), JSON.stringify({ hello: 'world' }), 'utf8');
+  refusesWith(() => store.adoptFolder(empty), 'does not look like a MyVault shop');
+  ok('and so is a myvault.json that is damaged or is not one at all');
+
+  // Refused means nothing happened, not half a shop.
+  assert.deepStrictEqual(tally(store), { movements: 0, invoices: 0, items: 0 });
+  ok('a refusal leaves this copy exactly as it was');
 }
 
 for (const dir of dirs) fs.rmSync(dir, { recursive: true, force: true });

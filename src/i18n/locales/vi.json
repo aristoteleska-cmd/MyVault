@@ -747,5 +747,9 @@
   "docs.pdfPrintedTotal": "hóa đơn ghi {money}",
   "docs.pdfUnknownSupplier": "không ghi tên nhà cung cấp",
   "docs.pdfUnmatchedTitle": "Chưa có trong kho của bạn — hãy thêm rồi đọc lại tệp PDF:",
-  "docs.pdfUnmatchedLine": "{count} với giá {money}"
+  "docs.pdfUnmatchedLine": "{count} với giá {money}",
+  "settings.adoptFolder": "Bạn đã dùng MyVault trên máy này rồi?",
+  "settings.adoptFolderDesc": "Nếu sau khi cài hoặc chuyển MyVault mà kho hàng trông trống, cửa hàng của bạn có lẽ vẫn nằm trong thư mục của bản cũ — MyVault-Data cạnh chương trình chạy trực tiếp, hoặc thư mục data của bản trước. Hãy chỉ thư mục đó cho MyVault, mọi thứ sẽ trở lại cùng lịch sử bán hàng.",
+  "settings.adoptFolderBtn": "Tìm thư mục dữ liệu cũ của tôi",
+  "toast.adoptedFolder": "Cửa hàng của bạn đã trở lại — {count} sản phẩm, kèm lịch sử."
 }

@@ -47,6 +47,18 @@
     Page custom managerPage managerPageLeave
 
     Function managerPage
+      ; An update is not a new shop.
+      ;
+      ; This page used to appear every time, including when installing over a
+      ; copy that has been in use for a year. The shop typed a new PIN, MyVault
+      ; ignored it — an existing staff list is never overwritten — and the owner
+      ; was left holding a PIN that does not open their own program. Asking at
+      ; all was the mistake: if there is a shop on this machine already, its PIN
+      ; and its staff are already set and none of this is anybody's business.
+      IfFileExists "$APPDATA\MyVault\data\myvault.json" 0 +3
+        StrCpy $managerName ""
+        Abort
+
       !insertmacro MUI_HEADER_TEXT "Who will manage MyVault?" "Choose a PIN. You will type it to open MyVault, and you can add the rest of your staff afterwards."
 
       nsDialogs::Create 1018

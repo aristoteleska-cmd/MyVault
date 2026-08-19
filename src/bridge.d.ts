@@ -237,6 +237,15 @@ export interface MyVaultBridge {
     importCsv(): Promise<Result<ImportResult>>;
     backup(): Promise<Result<ExportResult>>;
     restore(): Promise<Result<RestoreResult>>;
+    adoptFolder(): Promise<Result<{
+      canceled: boolean;
+      from?: string;
+      items?: number;
+      movementYears?: number;
+      invoiceYears?: number;
+      safety?: string;
+      state?: Database;
+    }>>;
     openFolder(): Promise<Result<string>>;
     pickImage(): Promise<Result<PickedImage>>;
   };

@@ -747,5 +747,9 @@
   "docs.pdfPrintedTotal": "το τιμολόγιο γράφει {money}",
   "docs.pdfUnknownSupplier": "χωρίς όνομα προμηθευτή",
   "docs.pdfUnmatchedTitle": "Δεν υπάρχουν ακόμη στα είδη σας — προσθέστε τα και διαβάστε ξανά το PDF:",
-  "docs.pdfUnmatchedLine": "{count} προς {money}"
+  "docs.pdfUnmatchedLine": "{count} προς {money}",
+  "settings.adoptFolder": "Χρησιμοποιείτε ήδη το MyVault σε αυτόν τον υπολογιστή;",
+  "settings.adoptFolderDesc": "Αν μετά την εγκατάσταση ή τη μετακίνηση του MyVault τα είδη φαίνονται άδεια, το κατάστημά σας πιθανότατα βρίσκεται ακόμη στον φάκελο που χρησιμοποιούσε το προηγούμενο αντίγραφο — στο MyVault-Data δίπλα στο φορητό πρόγραμμα ή στον φάκελο data του παλιού αντιγράφου. Δείξτε τον στο MyVault και επιστρέφουν όλα, μαζί με το ιστορικό πωλήσεων.",
+  "settings.adoptFolderBtn": "Εύρεση του παλιού φακέλου δεδομένων",
+  "toast.adoptedFolder": "Το κατάστημά σας επανήλθε — {count} προϊόντα, με το ιστορικό του."
 }

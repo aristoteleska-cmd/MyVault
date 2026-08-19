@@ -747,5 +747,9 @@
   "docs.pdfPrintedTotal": "बिल पर {money} छपा है",
   "docs.pdfUnknownSupplier": "आपूर्तिकर्ता का नाम नहीं",
   "docs.pdfUnmatchedTitle": "ये अभी आपके स्टॉक में नहीं हैं — इन्हें जोड़ें, फिर पीडीएफ़ दोबारा पढ़ें:",
-  "docs.pdfUnmatchedLine": "{money} पर {count}"
+  "docs.pdfUnmatchedLine": "{money} पर {count}",
+  "settings.adoptFolder": "क्या आप इस कंप्यूटर पर MyVault पहले से चला रहे हैं?",
+  "settings.adoptFolderDesc": "इंस्टॉल करने या जगह बदलने के बाद अगर आपका स्टॉक खाली दिखे, तो आपकी दुकान शायद पुरानी प्रति के फ़ोल्डर में ही है — पोर्टेबल प्रोग्राम के पास MyVault-Data, या पिछली प्रति का data फ़ोल्डर। MyVault को वह फ़ोल्डर दिखाइए, बिक्री इतिहास समेत सब वापस आ जाएगा।",
+  "settings.adoptFolderBtn": "मेरा पुराना डेटा फ़ोल्डर ढूँढें",
+  "toast.adoptedFolder": "आपकी दुकान वापस आ गई — {count} उत्पाद, इतिहास सहित।"
 }

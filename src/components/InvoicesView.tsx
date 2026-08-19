@@ -216,6 +216,33 @@ export function InvoicesView() {
             <Icon name="upload" size={16} />
             {t('docs.newOut')}
           </button>
+          {/*
+            Reading a PDF used to live only inside an open delivery, which is
+            where it does its work but not where anybody looks for it: a person
+            holding an invoice wants to hand MyVault the invoice, not start a
+            blank document first and find a button inside it. So the same job
+            starts from here — the delivery is created underneath and the PDF
+            fills it — and the button is where the task begins.
+          */}
+          <button
+            type="button"
+            className="btn"
+            disabled={busy}
+            onClick={async () => {
+              setBusy(true);
+              try {
+                const fresh = await startDoc('in');
+                if (!fresh) return;
+                const result = await importDocPdf(fresh.id);
+                if (result) setPdfRead(result);
+              } finally {
+                setBusy(false);
+              }
+            }}
+          >
+            <Icon name="file" size={16} />
+            {t('docs.importPdf')}
+          </button>
         </div>
       )}
 

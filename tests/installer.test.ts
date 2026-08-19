@@ -92,6 +92,38 @@ assert.ok(
 );
 ok('the page is built where its dialog toolkit is available');
 
+// ------------------------------------------- an update is not a new shop
+//
+// The manager page appeared on every install, including over a copy that had
+// been in use for a year. The owner typed a new PIN, MyVault ignored it — an
+// existing staff list is never overwritten — and they were left holding a PIN
+// that does not open their own program, wondering why an update had reset it.
+const managerBody = nsh.slice(nsh.indexOf('Function managerPage'), nsh.indexOf('Function managerPageLeave'));
+
+assert.match(
+  managerBody,
+  /IfFileExists\s+"\$APPDATA\\MyVault\\data\\myvault\.json"/,
+  'the page looks for an existing shop before asking anything',
+);
+// The check has to come before the page is drawn, or it asks and then leaves.
+assert.ok(
+  managerBody.indexOf('IfFileExists') < managerBody.indexOf('MUI_HEADER_TEXT'),
+  'and does so before putting anything on screen',
+);
+assert.ok(
+  managerBody.indexOf('Abort') < managerBody.indexOf('nsDialogs::Create'),
+  'skipping the page happens before the dialog is created',
+);
+// And it must not leave a name behind, or customInstall would write registry
+// values for a manager this install never collected.
+assert.match(managerBody, /StrCpy \$managerName ""/, 'no half-filled manager is left behind');
+assert.match(
+  nsh,
+  /\$\{If\} \$managerName != ""/,
+  'and the registry values are only written when a manager was actually asked for',
+);
+ok('installing over an existing shop does not ask for a new PIN');
+
 // ------------------------------------------------------------- wiring to the build
 assert.strictEqual(nsis.include, 'build/installer.nsh', 'electron-builder compiles this file');
 assert.strictEqual(nsis.perMachine, false, 'a shop assistant can install without an admin password');

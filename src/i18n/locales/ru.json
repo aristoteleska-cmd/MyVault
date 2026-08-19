@@ -747,5 +747,9 @@
   "docs.pdfPrintedTotal": "в счёте указано {money}",
   "docs.pdfUnknownSupplier": "поставщик не указан",
   "docs.pdfUnmatchedTitle": "Этих товаров у вас пока нет — добавьте их и прочитайте PDF снова:",
-  "docs.pdfUnmatchedLine": "{count} по {money}"
+  "docs.pdfUnmatchedLine": "{count} по {money}",
+  "settings.adoptFolder": "Уже пользуетесь MyVault на этом компьютере?",
+  "settings.adoptFolderDesc": "Если после установки или переноса товары выглядят пустыми, ваш магазин, скорее всего, остался в папке прежней копии — MyVault-Data рядом с портативной программой или папка data прежней установки. Укажите её MyVault, и всё вернётся, включая историю продаж.",
+  "settings.adoptFolderBtn": "Найти мою прежнюю папку данных",
+  "toast.adoptedFolder": "Магазин вернулся — {count} товаров, вместе с историей."
 }

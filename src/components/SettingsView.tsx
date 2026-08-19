@@ -481,7 +481,8 @@ function UpdatesPanel() {
 
 export function SettingsView() {
   const {
-    db, info, updateSettings, exportCsv, importCsv, backup, restore, openDataFolder,
+    db, info, updateSettings, exportCsv, importCsv, backup, restore, adoptDataFolder,
+    openDataFolder,
     importSummary, clearImportSummary, notifyImport,
   } = useVault();
   const { t } = useI18n();
@@ -739,6 +740,25 @@ export function SettingsView() {
               <button type="button" className="btn" onClick={() => void restore()}>
                 <Icon name="folder" size={16} />
                 {t('settings.restoreBtn')}
+              </button>
+            </div>
+          </div>
+
+          {/*
+            The empty-catalogue morning. Nothing is lost — the shop is in the
+            other copy's folder — but "my stock is gone" and "MyVault is looking
+            in a different place" feel identical from the counter, so the way out
+            has to be on the screen rather than in an explanation of app data.
+          */}
+          <div className="setting-row">
+            <div className="setting-text">
+              <div className="setting-title">{t('settings.adoptFolder')}</div>
+              <div className="setting-desc">{t('settings.adoptFolderDesc')}</div>
+            </div>
+            <div className="setting-control">
+              <button type="button" className="btn" onClick={() => void adoptDataFolder()}>
+                <Icon name="folder" size={16} />
+                {t('settings.adoptFolderBtn')}
               </button>
             </div>
           </div>

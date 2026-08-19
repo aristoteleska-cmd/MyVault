@@ -193,6 +193,8 @@ contextBridge.exposeInMainWorld('myvault', {
     importCsv: () => invoke('data:import-csv'),
     backup: () => invoke('data:backup'),
     restore: () => invoke('data:restore'),
+    /** Take over a MyVault data folder that lives somewhere else on this PC. */
+    adoptFolder: () => invoke('data:adopt-folder'),
     openFolder: () => invoke('data:open-folder'),
     /** Picks a picture and hands back its bytes; reading it is the UI's job. */
     pickImage: () => invoke('data:pick-image'),
