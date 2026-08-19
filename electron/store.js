@@ -27,6 +27,20 @@ const { ROUNDING_STYLES } = require('./pricing');
 const SCHEMA_VERSION = 3;
 const MAX_BACKUPS = 10;
 
+/** How many suppliers' codes one product may carry. A shop has a few, not fifty. */
+const MAX_SUPPLIER_CODES = 12;
+
+/**
+ * One supplier's name, reduced to something two spellings of it agree on.
+ *
+ * "ΑΦΟΙ ΠΑΠΑΔΟΠΟΥΛΟΥ Α.Ε." and "ΑΦΟΙ ΠΑΠΑΔΟΠΟΥΛΟΥ ΑΕ" are the same wholesaler
+ * and would otherwise remember their codes twice over.
+ */
+const supplierKey = (name) => String(name || '')
+  .toLowerCase()
+  .replace(/[^\p{L}\p{N}]+/gu, '')
+  .slice(0, 60);
+
 /**
  * Up to this many products the data file is written indented, so a shop can
  * open it and read it. Beyond it the indentation is roughly half the bytes, and
@@ -702,6 +716,29 @@ class Store {
           ? null
           : Math.max(0, clampQuantity(input.lowStockThreshold)),
       supplier: asString(input.supplier, 120).trim(),
+      /**
+       * What this shop's suppliers call this product on their own invoices.
+       *
+       * A wholesaler's invoice names a product by their code — 558, NG-4410 —
+       * which is nothing like a barcode and rarely matches the name on the
+       * shelf. Remembered the first time a person resolves it, so the next
+       * invoice from that supplier matches on sight instead of arriving as a
+       * list of things the shop apparently does not stock.
+       *
+       * Kept on the product rather than in a table of its own: deleting the
+       * product should take its aliases with it, and a backup should carry them
+       * without anything extra being thought about.
+       */
+      supplierCodes: Array.isArray(input.supplierCodes)
+        ? input.supplierCodes
+            .filter((entry) => entry && typeof entry === 'object')
+            .map((entry) => ({
+              supplier: asString(entry.supplier, 120).trim(),
+              code: asString(entry.code, 64).trim(),
+            }))
+            .filter((entry) => entry.code)
+            .slice(0, MAX_SUPPLIER_CODES)
+        : [],
       // Null means "whatever the shop's default is", exactly like the low
       // stock limit above it. A shop selling mostly books at 6% sets the
       // default once and overrides the few things that differ.
@@ -1609,7 +1646,21 @@ class Store {
       this.db.items.map((item) => [item.name.trim().toLowerCase(), item]),
     );
 
-    const result = { added: 0, unmatched: [] };
+    // What this supplier called each product last time. Built per import rather
+    // than kept about, because it is only ever asked once per line.
+    const supplier = supplierKey(draft.supplier);
+    const byCode = new Map();
+    for (const item of this.db.items) {
+      for (const known of item.supplierCodes || []) {
+        if (!known.code) continue;
+        // Keyed by supplier as well as code: two wholesalers both number things
+        // from 1, and matching on a bare "558" across all of them would put the
+        // wrong product on a delivery.
+        byCode.set(`${supplierKey(known.supplier)}|${known.code.toLowerCase()}`, item);
+      }
+    }
+
+    const result = { added: 0, unmatched: [], learned: 0 };
 
     for (const row of rows) {
       const lower = {};
@@ -1631,12 +1682,25 @@ class Store {
 
       if (!quantity) continue;
 
+      const code = asString(lower.code ?? lower.sku ?? '', 64).trim();
       const item = (barcode && byBarcode.get(barcode))
+        || (code && byCode.get(`${supplier}|${code.toLowerCase()}`))
         || (name && byName.get(name.toLowerCase()));
 
       if (!item) {
-        result.unmatched.push({ barcode, name, quantity, price, discount });
+        result.unmatched.push({ barcode, name, code, quantity, price, discount, rate });
         continue;
+      }
+
+      // Matched some other way, and the paper names a code this supplier uses:
+      // remember it, so next month's invoice needs nobody's help.
+      if (code && supplier && !byCode.has(`${supplier}|${code.toLowerCase()}`)) {
+        item.supplierCodes = [
+          ...(item.supplierCodes || []),
+          { supplier: draft.supplier, code },
+        ].slice(-MAX_SUPPLIER_CODES);
+        byCode.set(`${supplier}|${code.toLowerCase()}`, item);
+        result.learned += 1;
       }
 
       draft.lines.push(normalizeLine({
