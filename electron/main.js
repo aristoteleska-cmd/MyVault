@@ -460,6 +460,16 @@ function registerIpc() {
     // resets what this side is counting.
     const waitFor = signInDelay();
     if (waitFor > 0) {
+      // Knocking while the door is shut counts as knocking.
+      //
+      // It did not, and that was the whole of the defence gone: a refused
+      // attempt left the count where it was, so the wait stayed at one second
+      // for ever and a script simply paced itself. Measured against the running
+      // app, sixty guesses went through in six-tenths of a second and every one
+      // of the refusals asked for the same single second — ten thousand PINs in
+      // under three hours, not the days this was supposed to cost.
+      wrongPins += 1;
+      lastWrongPinAt = Date.now();
       throw new Error(
         `Too many wrong PINs. Wait ${Math.ceil(waitFor / 1000)} seconds and try again.`,
       );
@@ -471,9 +481,6 @@ function registerIpc() {
     if (!found) {
       wrongPins += 1;
       lastWrongPinAt = Date.now();
-      // The wait is deliberately slow to start — a shopkeeper's third attempt
-      // at their own PIN should not feel like a punishment — and unbearable by
-      // the hundredth, which is where a machine would be.
       throw new Error('That PIN was not recognised.');
     }
 
