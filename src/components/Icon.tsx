@@ -10,7 +10,7 @@ export type IconName =
   | 'chevronLeft' | 'chevronRight' | 'close' | 'check' | 'download'
   | 'upload' | 'folder' | 'alert' | 'box' | 'barcode' | 'filter'
   | 'sun' | 'moon' | 'monitor' | 'info' | 'sort' | 'save' | 'image' | 'staff'
-  | 'chart' | 'people' | 'clock' | 'undo' | 'receipt' | 'invoice';
+  | 'chart' | 'people' | 'clock' | 'undo' | 'receipt' | 'invoice' | 'file';
 
 const paths: Record<IconName, React.ReactNode> = {
   vault: (
@@ -183,6 +183,14 @@ const paths: Record<IconName, React.ReactNode> = {
     <>
       <path d="M4.5 5.5a1 1 0 0 1 1-1h10.2L19.5 8.3v10.2a1 1 0 0 1-1 1h-13a1 1 0 0 1-1-1z" />
       <path d="M8 4.5v5h7v-5M8 19.5V14h8v5.5" />
+    </>
+  ),
+  /** A sheet with a folded corner and lines of text: the supplier's PDF. */
+  file: (
+    <>
+      <path d="M6 3.5h7.5L19 9v11.5H6z" />
+      <path d="M13.5 3.5V9H19" />
+      <path d="M9 13h7M9 16.5h5" />
     </>
   ),
 };

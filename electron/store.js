@@ -1550,6 +1550,11 @@ class Store {
       const price = clampMoney(
         lower.price ?? lower['unit price'] ?? lower.cost ?? lower['unit cost'] ?? 0,
       );
+      // A supplier who prints a discount and a rate on the line means them, and
+      // dropping them would leave the draft disagreeing with the paper it was
+      // read from — the one thing an imported document must never do.
+      const discount = Number(lower.discount ?? lower['discount %'] ?? lower['disc %'] ?? 0) || 0;
+      const rate = lower['vat rate'] ?? lower.vat ?? lower['vat %'] ?? lower['φπα'];
 
       if (!quantity) continue;
 
@@ -1557,7 +1562,7 @@ class Store {
         || (name && byName.get(name.toLowerCase()));
 
       if (!item) {
-        result.unmatched.push({ barcode, name, quantity, price });
+        result.unmatched.push({ barcode, name, quantity, price, discount });
         continue;
       }
 
@@ -1567,7 +1572,13 @@ class Store {
         barcode: item.barcode,
         quantity,
         unitPrice: price || (draft.kind === 'in' ? item.cost : item.price),
-        vatRate: this.vatRateFor(item),
+        discount,
+        // The rate the supplier charged, where the file says; otherwise the rate
+        // this shop has for the product. A rate read off the paper is a fact
+        // about that delivery, and the VAT return is built from these lines.
+        vatRate: rate === undefined || rate === '' || rate === null
+          ? this.vatRateFor(item)
+          : normalizeRate(rate),
       }, { kind: draft.kind }));
       result.added += 1;
     }

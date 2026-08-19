@@ -739,5 +739,13 @@
   "settings.historyTrouble": "Историю продаж не удалось записать",
   "settings.historyTroubleDesc": "{count} движений товара с {when} не записаны в историю продаж. Остатки на полках верны; этих движений нет ни в выручке, ни в декларации по НДС.",
   "settings.historyTroubleWriting": "Сейчас запись снова работает. Более ранние движения по-прежнему отсутствуют.",
-  "settings.historyTroubleClear": "Я это видел"
+  "settings.historyTroubleClear": "Я это видел",
+  "docs.importPdf": "Прочитать счёт в PDF",
+  "docs.pdfReadTitle": "Прочитано из PDF",
+  "docs.pdfReadFrom": "{supplier} · счёт {number} · {date}",
+  "docs.pdfReadCounts": "Строк в счёте: {read}, добавлено в черновик: {added}, не распознано: {missed}",
+  "docs.pdfPrintedTotal": "в счёте указано {money}",
+  "docs.pdfUnknownSupplier": "поставщик не указан",
+  "docs.pdfUnmatchedTitle": "Этих товаров у вас пока нет — добавьте их и прочитайте PDF снова:",
+  "docs.pdfUnmatchedLine": "{count} по {money}"
 }

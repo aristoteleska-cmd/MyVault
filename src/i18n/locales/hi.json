@@ -739,5 +739,13 @@
   "settings.historyTrouble": "बिक्री इतिहास लिखा नहीं जा सका",
   "settings.historyTroubleDesc": "{when} से {count} स्टॉक बदलाव बिक्री इतिहास में नहीं लिखे गए। शेल्फ़ की गिनती सही है; ये बदलाव आमदनी और वैट रिटर्न में नहीं हैं।",
   "settings.historyTroubleWriting": "अब फिर से लिखा जा रहा है। पहले के बदलाव अब भी नहीं हैं।",
-  "settings.historyTroubleClear": "मैंने देख लिया"
+  "settings.historyTroubleClear": "मैंने देख लिया",
+  "docs.importPdf": "पीडीएफ़ बिल पढ़ें",
+  "docs.pdfReadTitle": "पीडीएफ़ से पढ़ा गया",
+  "docs.pdfReadFrom": "{supplier} · बिल {number} · {date}",
+  "docs.pdfReadCounts": "बिल में {read} पंक्तियाँ, {added} इस मसौदे में जोड़ी गईं, {missed} पहचानी नहीं गईं",
+  "docs.pdfPrintedTotal": "बिल पर {money} छपा है",
+  "docs.pdfUnknownSupplier": "आपूर्तिकर्ता का नाम नहीं",
+  "docs.pdfUnmatchedTitle": "ये अभी आपके स्टॉक में नहीं हैं — इन्हें जोड़ें, फिर पीडीएफ़ दोबारा पढ़ें:",
+  "docs.pdfUnmatchedLine": "{money} पर {count}"
 }

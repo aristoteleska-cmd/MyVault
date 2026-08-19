@@ -22,6 +22,7 @@ import type {
   FieldType,
   Item,
   Movement,
+  PdfInvoiceResult,
   ReorderList,
   Settings,
   StatsReport,
@@ -126,6 +127,8 @@ interface VaultValue {
   voidDoc: (id: string) => Promise<boolean>;
   listDocs: (options?: { limit?: number }) => Promise<PostedDocument[] | null>;
   importDocCsv: (id: string) => Promise<DraftDocument | null>;
+  /** Reads a supplier's PDF invoice onto the draft, and hands back what it read. */
+  importDocPdf: (id: string) => Promise<PdfInvoiceResult | null>;
 
   /** What the shop owes, and the calendar periods it can be filed for. */
   vatReport: (range?: { from?: string; to?: string }) => Promise<VatReport | null>;
@@ -655,6 +658,16 @@ export function VaultProvider({ children }: { children: ReactNode }) {
     return result.draft ?? null;
   }, [run, replaceDraft, notify]);
 
+  const importDocPdf = useCallback(async (id: string) => {
+    const result = await run(window.myvault.docs.importPdf(id));
+    if (!result || result.canceled) return null;
+    if (result.draft) replaceDraft(result.draft);
+    const missed = result.unmatched?.length ?? 0;
+    notify(missed ? 'toast.docImportedSome' : 'toast.docImported',
+      { count: result.added ?? 0, missed }, missed ? 'info' : 'success');
+    return result;
+  }, [run, replaceDraft, notify]);
+
   const vatReport = useCallback(
     async (range?: { from?: string; to?: string }) => run(window.myvault.vat.report(range)),
     [run],
@@ -1096,6 +1109,7 @@ export function VaultProvider({ children }: { children: ReactNode }) {
       voidDoc,
       listDocs,
       importDocCsv,
+      importDocPdf,
       vatReport,
       vatPeriods,
       returnItem,
@@ -1153,7 +1167,7 @@ export function VaultProvider({ children }: { children: ReactNode }) {
       statsReport, recentMovements, reorderList, vatReport, vatPeriods, returnItem,
       priceReview, priceAdvice, applyPrice,
       drafts, refreshDrafts, startDoc, updateDoc, setDocLine, removeDocLine,
-      discardDoc, postDoc, voidDoc, listDocs, importDocCsv,
+      discardDoc, postDoc, voidDoc, listDocs, importDocCsv, importDocPdf,
       startStockTake, stockTakeProgress, countStockTake, cancelStockTake, applyStockTake,
       printPdf, backupStatus, refreshBackupStatus, chooseBackupFolder, forgetBackupFolder, backupNow,
       clearHistoryTrouble,

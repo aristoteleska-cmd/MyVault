@@ -29,7 +29,8 @@
   },
   "dependencies": {
     "@zxing/library": "^0.21.3",
-    "electron-updater": "^6.8.9"
+    "electron-updater": "^6.8.9",
+    "pdfjs-dist": "^5.7.284"
   },
   "devDependencies": {
     "@types/react": "^19.2.2",
@@ -50,7 +51,7 @@
   "build": {
     "appId": "com.myvault.app",
     "productName": "MyVault",
-    "copyright": "Copyright \u00a9 2026 Aristotelis Katsigiannis. All rights reserved.",
+    "copyright": "Copyright © 2026 Aristotelis Katsigiannis. All rights reserved.",
     "directories": {
       "output": "release",
       "buildResources": "build"

@@ -739,5 +739,13 @@
   "settings.historyTrouble": "L'historique des ventes n'a pas pu être écrit",
   "settings.historyTroubleDesc": "{count} mouvements de stock depuis {when} n'ont pas été écrits dans l'historique des ventes. Les quantités en rayon sont justes ; ces mouvements manquent dans la recette et dans la déclaration de TVA.",
   "settings.historyTroubleWriting": "L'écriture fonctionne à nouveau. Les mouvements précédents manquent toujours.",
-  "settings.historyTroubleClear": "J'ai vu"
+  "settings.historyTroubleClear": "J'ai vu",
+  "docs.importPdf": "Lire une facture PDF",
+  "docs.pdfReadTitle": "Lu dans le PDF",
+  "docs.pdfReadFrom": "{supplier} · facture {number} · {date}",
+  "docs.pdfReadCounts": "{read} lignes sur la facture, {added} ajoutées au brouillon, {missed} non reconnues",
+  "docs.pdfPrintedTotal": "la facture indique {money}",
+  "docs.pdfUnknownSupplier": "fournisseur non nommé",
+  "docs.pdfUnmatchedTitle": "Pas encore dans votre stock — ajoutez-les, puis relisez le PDF :",
+  "docs.pdfUnmatchedLine": "{count} à {money}"
 }

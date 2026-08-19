@@ -54,6 +54,17 @@ const MAX_CSV_BYTES = 64 * 1024 * 1024;
 const MAX_JSON_BYTES = 64 * 1024 * 1024;
 
 /**
+ * A supplier's invoice is one to a few pages.
+ *
+ * Even a scanned one at photocopier quality is a couple of megabytes; a
+ * hundred-page catalogue is not an invoice and there is no reason to hand the
+ * parser one. The ceiling is generous enough for a delivery note with photos of
+ * every product on it and still small enough that a malformed file cannot make
+ * MyVault chew through a shop's memory.
+ */
+const MAX_PDF_BYTES = 32 * 1024 * 1024;
+
+/**
  * The picture formats a barcode can arrive in, by the bytes they start with.
  *
  * Deliberately a short list. Every one of these is a bitmap that a browser
@@ -256,6 +267,32 @@ function readCsvFile(filePath) {
   return readTextFile(filePath, { maxBytes: MAX_CSV_BYTES, what: 'file' });
 }
 
+/**
+ * Reads a PDF the shop chose, having satisfied itself that it is one.
+ *
+ * The bytes decide again. Every PDF begins with %PDF- and a version, and a file
+ * that does not is refused here rather than inside a parser — a parser is a much
+ * larger surface than a five-byte comparison, and the whole reason this module
+ * exists is that the smaller check goes first.
+ *
+ * Returns the bytes rather than a path: what reads them is a library, and a
+ * library that is handed a buffer cannot be talked into opening something else
+ * on this machine.
+ */
+function readPdfFile(filePath) {
+  assertOrdinaryFile(filePath, { maxBytes: MAX_PDF_BYTES, what: 'PDF' });
+
+  const bytes = fs.readFileSync(filePath);
+  const header = bytes.subarray(0, 5).toString('latin1');
+  if (header !== '%PDF-') {
+    throw new Error(
+      'That file is not a PDF, whatever it is called. '
+      + 'Choose the invoice your supplier sent as a PDF, or use the CSV import instead.',
+    );
+  }
+  return bytes;
+}
+
 function readJsonFile(filePath) {
   const text = readTextFile(filePath, { maxBytes: MAX_JSON_BYTES, what: 'backup' });
   try {
@@ -271,6 +308,7 @@ module.exports = {
   MAX_IMAGE_PIXELS,
   MAX_CSV_BYTES,
   MAX_JSON_BYTES,
+  MAX_PDF_BYTES,
   SIGNATURES,
   sniffImage,
   imageSize,
@@ -279,4 +317,5 @@ module.exports = {
   readTextFile,
   readCsvFile,
   readJsonFile,
+  readPdfFile,
 };

@@ -739,5 +739,13 @@
   "settings.historyTrouble": "Verkaufshistorie konnte nicht geschrieben werden",
   "settings.historyTroubleDesc": "{count} Bestandsbewegungen seit {when} wurden nicht in die Verkaufshistorie geschrieben. Die Bestände stimmen; diese Bewegungen fehlen in den Einnahmen und in der Umsatzsteuererklärung.",
   "settings.historyTroubleWriting": "Es wird jetzt wieder geschrieben. Die früheren Bewegungen fehlen weiterhin.",
-  "settings.historyTroubleClear": "Ich habe es gesehen"
+  "settings.historyTroubleClear": "Ich habe es gesehen",
+  "docs.importPdf": "PDF-Rechnung einlesen",
+  "docs.pdfReadTitle": "Aus der PDF gelesen",
+  "docs.pdfReadFrom": "{supplier} · Rechnung {number} · {date}",
+  "docs.pdfReadCounts": "{read} Positionen auf der Rechnung, {added} in den Entwurf übernommen, {missed} nicht erkannt",
+  "docs.pdfPrintedTotal": "die Rechnung weist {money} aus",
+  "docs.pdfUnknownSupplier": "Lieferant nicht genannt",
+  "docs.pdfUnmatchedTitle": "Noch nicht in Ihrem Bestand — anlegen und die PDF erneut einlesen:",
+  "docs.pdfUnmatchedLine": "{count} zu {money}"
 }

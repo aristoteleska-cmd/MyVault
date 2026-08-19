@@ -739,5 +739,13 @@
   "settings.historyTrouble": "تعذّرت كتابة سجل المبيعات",
   "settings.historyTroubleDesc": "لم تُكتب {count} من حركات المخزون منذ {when} في سجل المبيعات. الكميات على الرفوف صحيحة، لكن هذه الحركات ناقصة من الإيرادات ومن إقرار ضريبة القيمة المضافة.",
   "settings.historyTroubleWriting": "الكتابة تعمل الآن من جديد. أما الحركات السابقة فما زالت ناقصة.",
-  "settings.historyTroubleClear": "اطّلعت على ذلك"
+  "settings.historyTroubleClear": "اطّلعت على ذلك",
+  "docs.importPdf": "قراءة فاتورة PDF",
+  "docs.pdfReadTitle": "قُرئ من ملف PDF",
+  "docs.pdfReadFrom": "{supplier} · فاتورة {number} · {date}",
+  "docs.pdfReadCounts": "{read} بندًا في الفاتورة، أُضيف {added} إلى المسودة، ولم يُتعرَّف على {missed}",
+  "docs.pdfPrintedTotal": "الفاتورة تذكر {money}",
+  "docs.pdfUnknownSupplier": "اسم المورّد غير مذكور",
+  "docs.pdfUnmatchedTitle": "ليست في مخزونك بعد — أضِفها ثم اقرأ ملف PDF من جديد:",
+  "docs.pdfUnmatchedLine": "{count} بسعر {money}"
 }

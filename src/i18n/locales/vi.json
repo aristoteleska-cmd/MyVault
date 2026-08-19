@@ -739,5 +739,13 @@
   "settings.historyTrouble": "Không ghi được lịch sử bán hàng",
   "settings.historyTroubleDesc": "{count} thay đổi tồn kho từ {when} chưa được ghi vào lịch sử bán hàng. Số lượng trên kệ vẫn đúng; những thay đổi đó thiếu trong doanh thu và tờ khai thuế GTGT.",
   "settings.historyTroubleWriting": "Bây giờ đã ghi được trở lại. Những thay đổi trước đó vẫn còn thiếu.",
-  "settings.historyTroubleClear": "Tôi đã xem"
+  "settings.historyTroubleClear": "Tôi đã xem",
+  "docs.importPdf": "Đọc hóa đơn PDF",
+  "docs.pdfReadTitle": "Đã đọc từ tệp PDF",
+  "docs.pdfReadFrom": "{supplier} · hóa đơn {number} · {date}",
+  "docs.pdfReadCounts": "{read} dòng trên hóa đơn, {added} dòng đã thêm vào bản nháp, {missed} dòng không nhận ra",
+  "docs.pdfPrintedTotal": "hóa đơn ghi {money}",
+  "docs.pdfUnknownSupplier": "không ghi tên nhà cung cấp",
+  "docs.pdfUnmatchedTitle": "Chưa có trong kho của bạn — hãy thêm rồi đọc lại tệp PDF:",
+  "docs.pdfUnmatchedLine": "{count} với giá {money}"
 }

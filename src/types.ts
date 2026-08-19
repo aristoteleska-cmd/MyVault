@@ -619,3 +619,34 @@ export interface Filters {
   stock: StockFilter;
   customValues: Record<string, string>;
 }
+
+/**
+ * What MyVault made of a supplier's PDF invoice.
+ *
+ * Everything here is what the paper says, not what MyVault decided: the fields
+ * it could not find come back empty, the lines whose arithmetic did not agree
+ * are named in `warnings`, and nothing is posted until a person looks at the
+ * draft and says so.
+ */
+export interface PdfInvoiceSummary {
+  supplier: string;
+  number: string;
+  /** ISO date, or empty when the invoice does not print one MyVault could read. */
+  date: string;
+  vatNumber: string;
+  totals: { net: number | null; vat: number | null; gross: number | null };
+  /** Whether the lines add up to the total the invoice prints. Null if unknowable. */
+  netCheck: boolean | null;
+  warnings: string[];
+  /** Product lines found on the paper, matched or not. */
+  read: number;
+  pages: number;
+}
+
+export interface PdfInvoiceResult {
+  canceled: boolean;
+  added?: number;
+  unmatched?: { barcode: string; name: string; quantity: number; price: number }[];
+  draft?: DraftDocument;
+  invoice?: PdfInvoiceSummary;
+}

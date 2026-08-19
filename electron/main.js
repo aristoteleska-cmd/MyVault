@@ -15,7 +15,9 @@ const { NETWORK_SWITCHES, DISABLED_FEATURES, UPDATE_HOSTS, enforceOffline } = re
 const { parseCsv, toCsv } = require('./csv');
 // Every path that reads a file off the disk goes through here, so a rule cannot
 // be enforced on one and forgotten on another. See the note at the top of it.
-const { readImageFile, readCsvFile, readJsonFile } = require('./files');
+const { readImageFile, readCsvFile, readJsonFile, readPdfFile } = require('./files');
+const { extractPdfText } = require('./pdf-text');
+const { readInvoice, toImportRows } = require('./invoice-read');
 const { Updater } = require('./updater');
 const {
   ROLES, CAPABILITIES, ROLE_CAPABILITIES, COUNTER_REASONS, requestedReason,
@@ -605,6 +607,69 @@ function registerIpc() {
     const rows = parseCsv(readCsvFile(filePaths[0]));
     if (!rows.length) throw new Error('No rows found. The file needs a header row.');
     return { canceled: false, ...store.importDraftLines(id, rows) };
+  });
+
+  /**
+   * Reads a supplier's PDF invoice onto the draft.
+   *
+   * The half-hour of typing this replaces is the whole point, but a document
+   * MyVault did not write is never posted on its own say-so: what comes back is
+   * a filled draft, what it could not match, and everything about the paper that
+   * did not add up. A person looks at it and presses post, exactly as they would
+   * have after typing it.
+   *
+   * The work happens here rather than in the window because the window has no
+   * business holding a parser or a file. Bytes are read through the same gate as
+   * every other file, checked to be a PDF, and handed to pdfjs as a buffer.
+   */
+  handle('docs:import-pdf', 'documents.manage', async (id) => {
+    const { canceled, filePaths } = await dialog.showOpenDialog(mainWindow, {
+      title: 'Choose the supplier\'s invoice',
+      properties: ['openFile'],
+      filters: [{ name: 'PDF invoice', extensions: ['pdf'] }],
+    });
+    if (canceled || !filePaths?.length) return { canceled: true };
+
+    const extracted = await extractPdfText(readPdfFile(filePaths[0]));
+    if (extracted.scanned) {
+      throw new Error(
+        'That PDF is a picture of an invoice rather than a document with text in '
+        + 'it — a scan or a photocopy. There are no words in the file to read, so '
+        + 'it has to be typed in. A PDF sent straight from your supplier\'s '
+        + 'accounting program will read.',
+      );
+    }
+
+    const invoice = readInvoice(extracted);
+    if (!invoice.ok) {
+      throw new Error(
+        invoice.reason === 'noTable'
+          ? 'MyVault could not find a table of products in that PDF. Check it is the '
+            + 'invoice itself rather than a covering letter or a statement.'
+          : 'MyVault found the table in that PDF but no product lines with a quantity in it.',
+      );
+    }
+
+    const { rows, warnings } = toImportRows(invoice);
+    const imported = store.importDraftLines(id, rows);
+    return {
+      canceled: false,
+      ...imported,
+      invoice: {
+        supplier: invoice.supplier,
+        number: invoice.number,
+        date: invoice.date,
+        vatNumber: invoice.vatNumber,
+        totals: invoice.totals,
+        netCheck: invoice.netCheck,
+        // What the paper says that did not add up, and what MyVault's own
+        // per-unit arithmetic could not reproduce exactly. Both are things the
+        // person approving this draft needs in front of them.
+        warnings: [...invoice.warnings, ...warnings],
+        read: invoice.lines.length,
+        pages: extracted.pageCount,
+      },
+    };
   });
 
   // --------------------------------------------------------------------- VAT

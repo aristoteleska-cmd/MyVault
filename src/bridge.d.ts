@@ -22,6 +22,7 @@ import type {
   HistoryTrouble,
   Item,
   Movement,
+  PdfInvoiceResult,
   MovementReason,
   Role,
   Settings,
@@ -121,6 +122,7 @@ export interface MyVaultBridge {
       unmatched?: { barcode: string; name: string; quantity: number; price: number }[];
       draft?: DraftDocument;
     }>>;
+    importPdf(id: string): Promise<Result<PdfInvoiceResult>>;
   };
 
   vat: {

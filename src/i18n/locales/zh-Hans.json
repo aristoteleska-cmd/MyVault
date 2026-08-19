@@ -739,5 +739,13 @@
   "settings.historyTrouble": "销售记录未能写入",
   "settings.historyTroubleDesc": "自 {when} 起有 {count} 笔库存变动未写入销售记录。货架数量是对的；这些变动不在营业额和增值税申报里。",
   "settings.historyTroubleWriting": "现在又能写入了。之前的那些变动仍然缺失。",
-  "settings.historyTroubleClear": "我已知悉"
+  "settings.historyTroubleClear": "我已知悉",
+  "docs.importPdf": "读取 PDF 发票",
+  "docs.pdfReadTitle": "已从 PDF 读取",
+  "docs.pdfReadFrom": "{supplier} · 发票 {number} · {date}",
+  "docs.pdfReadCounts": "发票共 {read} 行，已加入草稿 {added} 行，{missed} 行未能识别",
+  "docs.pdfPrintedTotal": "发票上写着 {money}",
+  "docs.pdfUnknownSupplier": "未写供货商名称",
+  "docs.pdfUnmatchedTitle": "这些还不在您的库存里 — 先添加，然后重新读取 PDF：",
+  "docs.pdfUnmatchedLine": "{count} 件，单价 {money}"
 }

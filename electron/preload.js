@@ -63,6 +63,8 @@ contextBridge.exposeInMainWorld('myvault', {
     void: (id) => invoke('docs:void', id),
     list: (options) => invoke('docs:list', options),
     importCsv: (id) => invoke('docs:import-csv', id),
+    /** Reads a supplier's PDF invoice onto the draft, and says what it read. */
+    importPdf: (id) => invoke('docs:import-pdf', id),
   },
 
   /** What the shop owes the tax office, and for which calendar period. */

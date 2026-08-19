@@ -739,5 +739,13 @@
   "settings.historyTrouble": "No se pudo escribir el historial de ventas",
   "settings.historyTroubleDesc": "{count} movimientos de existencias desde {when} no se escribieron en el historial de ventas. Las cantidades en las estanterías son correctas; esos movimientos faltan en la recaudación y en la declaración del IVA.",
   "settings.historyTroubleWriting": "Ahora vuelve a escribirse. Los movimientos anteriores siguen faltando.",
-  "settings.historyTroubleClear": "Lo he visto"
+  "settings.historyTroubleClear": "Lo he visto",
+  "docs.importPdf": "Leer una factura PDF",
+  "docs.pdfReadTitle": "Leído del PDF",
+  "docs.pdfReadFrom": "{supplier} · factura {number} · {date}",
+  "docs.pdfReadCounts": "{read} líneas en la factura, {added} añadidas al borrador, {missed} sin reconocer",
+  "docs.pdfPrintedTotal": "la factura indica {money}",
+  "docs.pdfUnknownSupplier": "proveedor sin nombre",
+  "docs.pdfUnmatchedTitle": "Aún no están en sus existencias — añádalos y vuelva a leer el PDF:",
+  "docs.pdfUnmatchedLine": "{count} a {money}"
 }

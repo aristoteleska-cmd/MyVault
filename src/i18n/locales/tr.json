@@ -739,5 +739,13 @@
   "settings.historyTrouble": "Satış geçmişi yazılamadı",
   "settings.historyTroubleDesc": "{when} tarihinden bu yana {count} stok hareketi satış geçmişine yazılmadı. Raftaki miktarlar doğru; bu hareketler cirodan ve KDV beyanından eksik.",
   "settings.historyTroubleWriting": "Şu anda yeniden yazılıyor. Önceki hareketler hâlâ eksik.",
-  "settings.historyTroubleClear": "Gördüm"
+  "settings.historyTroubleClear": "Gördüm",
+  "docs.importPdf": "PDF fatura oku",
+  "docs.pdfReadTitle": "PDF'ten okundu",
+  "docs.pdfReadFrom": "{supplier} · fatura {number} · {date}",
+  "docs.pdfReadCounts": "Faturada {read} satır, taslağa {added} eklendi, {missed} tanınmadı",
+  "docs.pdfPrintedTotal": "fatura {money} yazıyor",
+  "docs.pdfUnknownSupplier": "tedarikçi adı yok",
+  "docs.pdfUnmatchedTitle": "Stok listenizde yok — bunları ekleyip PDF'i yeniden okutun:",
+  "docs.pdfUnmatchedLine": "{money} fiyatla {count} adet"
 }

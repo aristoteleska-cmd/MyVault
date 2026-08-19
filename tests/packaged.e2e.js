@@ -148,6 +148,31 @@ function extract(appImage) {
   assert.ok(blocked.policy.includes("script-src 'self'"), 'and only allows its own bundle');
   ok('injected script does not run in the packaged window — the policy holds');
 
+  // ------------------------------------------------------------ the PDF reader
+  //
+  // pdfjs is a dependency loaded on demand from inside the packed archive, which
+  // is exactly the arrangement that works in development and fails in a bundle.
+  // Nothing else in this file would notice: reading a PDF is the one feature
+  // whose parser is neither bundled by Vite nor loaded at startup.
+  // The dialog cannot be driven from here, so this proves the half that
+  // packaging breaks: that the parser loads at all inside the asar and reads a
+  // real file. The channel above it is covered by tests/invoice-pdf.test.js.
+  const parsed = await app.evaluate(async (_electron, fixturePath) => {
+    // The bundled main module's own require, so the modules resolve inside the
+    // asar exactly as they do when a shop presses the button.
+    const load = process.mainModule.require.bind(process.mainModule);
+    const { readPdfFile } = load('./files.js');
+    const { extractPdfText } = load('./pdf-text.js');
+    const { readInvoice } = load('./invoice-read.js');
+    const read = readInvoice(await extractPdfText(readPdfFile(fixturePath)));
+    return { supplier: read.supplier, lines: read.lines.length, net: read.totals.net };
+  }, path.join(root, 'tests', 'fixtures', 'supplier-greek.pdf'));
+
+  assert.strictEqual(parsed.supplier, 'ΑΦΟΙ ΠΑΠΑΔΟΠΟΥΛΟΥ Α.Ε.');
+  assert.strictEqual(parsed.lines, 4);
+  assert.strictEqual(parsed.net, 161.19);
+  ok('the PDF reader loads inside the packed bundle and reads a real invoice');
+
   await app.close();
 
   // The whole point of the program.

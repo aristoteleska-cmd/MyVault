@@ -739,5 +739,13 @@
   "settings.historyTrouble": "Δεν γράφτηκε το ιστορικό πωλήσεων",
   "settings.historyTroubleDesc": "{count} κινήσεις αποθέματος από {when} δεν γράφτηκαν στο ιστορικό πωλήσεων. Οι ποσότητες στα ράφια είναι σωστές· οι κινήσεις αυτές λείπουν από τις εισπράξεις και τη δήλωση ΦΠΑ.",
   "settings.historyTroubleWriting": "Τώρα γράφεται ξανά κανονικά. Οι προηγούμενες κινήσεις εξακολουθούν να λείπουν.",
-  "settings.historyTroubleClear": "Το είδα"
+  "settings.historyTroubleClear": "Το είδα",
+  "docs.importPdf": "Ανάγνωση τιμολογίου PDF",
+  "docs.pdfReadTitle": "Διαβάστηκε από το PDF",
+  "docs.pdfReadFrom": "{supplier} · τιμολόγιο {number} · {date}",
+  "docs.pdfReadCounts": "{read} γραμμές στο τιμολόγιο, {added} προστέθηκαν στο προσχέδιο, {missed} δεν αναγνωρίστηκαν",
+  "docs.pdfPrintedTotal": "το τιμολόγιο γράφει {money}",
+  "docs.pdfUnknownSupplier": "χωρίς όνομα προμηθευτή",
+  "docs.pdfUnmatchedTitle": "Δεν υπάρχουν ακόμη στα είδη σας — προσθέστε τα και διαβάστε ξανά το PDF:",
+  "docs.pdfUnmatchedLine": "{count} προς {money}"
 }

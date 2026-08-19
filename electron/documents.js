@@ -36,8 +36,21 @@ const KINDS = ['in', 'out'];
 
 const READ_CHUNK = 1 << 20; // 1 MiB, as for the movement log
 
+/**
+ * Money, to the cent.
+ *
+ * The correction is not decoration. A tenth off €1,15 is €1,035, which every
+ * person and every accounting package rounds up to €1,04 — but the double a
+ * computer holds for it is 1.0349999999999999, and rounding that gives €1,03. A
+ * cent per unit becomes twelve on a case of twenty-four, and the invoice MyVault
+ * prints then disagrees with the one the supplier sent. Nudging by the smallest
+ * representable amount before rounding puts the value back on the side of the
+ * boundary the arithmetic actually landed on.
+ */
 function money(value) {
-  return Math.round((Number(value) || 0) * 100) / 100;
+  const number = Number(value) || 0;
+  const scaled = number * 100;
+  return Math.round(scaled + Math.sign(scaled) * Number.EPSILON * Math.abs(scaled)) / 100;
 }
 
 function whole(value) {

@@ -55,6 +55,7 @@ notes.
 - Totals along the top: how many products, how many pieces, what the stock is worth
 - Delete with a one-click **Undo**
 - Import and export CSV so a list you already keep in Excel comes across in one go
+- Read a supplier's PDF invoice and let it fill the delivery for you
 
 **Statistics**
 
@@ -110,8 +111,23 @@ nothing is uploaded to a converter.
 The other half of a shop's day is not the till. A delivery arrives with thirty
 lines on a printed note, and pressing plus thirty times is how a shop ends up
 not bothering. **Invoices** lets you enter the whole document — scan or search
-each product, or read the supplier's own CSV straight in — see the totals while
-there is still time to disagree with them, and post the lot in one press.
+each product, read the supplier's own CSV, or hand MyVault the PDF they emailed
+you — see the totals while there is still time to disagree with them, and post
+the lot in one press.
+
+**Reading a supplier's PDF** fills the draft from the paper: the supplier, the
+invoice number and date, and every line with its quantity, price, discount and
+VAT rate. It reads Greek and English invoices, and numbers written either way
+round — 1.234,56 and 1,234.56 are the same amount. Nothing is posted on the
+PDF's say-so: what you get is a draft to look at, with anything the invoice does
+not agree with itself about written out plainly — a line whose total does not
+match its own quantity times price, or a figure MyVault's per-unit pricing
+cannot reproduce to the cent. Products the PDF names that you do not stock yet
+are listed rather than invented.
+
+One limitation, stated plainly: a **scanned** PDF — a photocopy or a photograph
+of an invoice — has no text in it to read, and MyVault says so rather than
+pretending. A PDF sent straight from your supplier's accounting program reads.
 
 Incoming documents add stock and update your cost prices from what the supplier
 actually charged this time. Outgoing ones take stock out and bill it to a
@@ -593,6 +609,8 @@ electron/          Main process — the only code that touches the disk
   files.js         What a file is allowed to be: pictures identified by their
                    own bytes, size and dimension limits, one place for all of it
   csv.js           Dependency-free CSV reader/writer
+  pdf-text.js      Words and where they sit, pulled out of a PDF
+  invoice-read.js  What those words mean: supplier, number, date and lines
 src/               The user interface (React + TypeScript)
   components/      Screens and widgets
   state/vault.tsx  App state and every action the UI can perform

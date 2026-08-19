@@ -739,5 +739,13 @@
   "settings.historyTrouble": "Riwayat penjualan tidak dapat ditulis",
   "settings.historyTroubleDesc": "{count} pergerakan stok sejak {when} tidak ditulis ke riwayat penjualan. Jumlah di rak sudah benar; pergerakan itu hilang dari pemasukan dan laporan PPN.",
   "settings.historyTroubleWriting": "Sekarang sudah bisa ditulis lagi. Pergerakan sebelumnya tetap hilang.",
-  "settings.historyTroubleClear": "Saya sudah lihat"
+  "settings.historyTroubleClear": "Saya sudah lihat",
+  "docs.importPdf": "Baca faktur PDF",
+  "docs.pdfReadTitle": "Dibaca dari PDF",
+  "docs.pdfReadFrom": "{supplier} · faktur {number} · {date}",
+  "docs.pdfReadCounts": "{read} baris pada faktur, {added} ditambahkan ke draf, {missed} tidak dikenali",
+  "docs.pdfPrintedTotal": "faktur mencantumkan {money}",
+  "docs.pdfUnknownSupplier": "pemasok tanpa nama",
+  "docs.pdfUnmatchedTitle": "Belum ada di stok Anda — tambahkan, lalu baca PDF lagi:",
+  "docs.pdfUnmatchedLine": "{count} seharga {money}"
 }

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useVault } from '../state/vault';
 import { useI18n, useT } from '../i18n';
 import { formatDate, formatDateTime, formatMoney, formatNumber } from '../lib/format';
-import type { DeliveryReview, DraftDocument, PostedDocument } from '../types';
+import type { DeliveryReview, DraftDocument, PdfInvoiceResult, PostedDocument } from '../types';
 import { Icon } from './Icon';
 
 /**
@@ -19,7 +19,7 @@ import { Icon } from './Icon';
 export function InvoicesView() {
   const {
     db, drafts, refreshDrafts, startDoc, updateDoc, setDocLine, removeDocLine,
-    discardDoc, postDoc, voidDoc, listDocs, importDocCsv,
+    discardDoc, postDoc, voidDoc, listDocs, importDocCsv, importDocPdf,
   } = useVault();
   const { locale } = useI18n();
   const t = useT();
@@ -36,6 +36,16 @@ export function InvoicesView() {
    * decision, and a decision needs the figures to stay on the screen.
    */
   const [priceNews, setPriceNews] = useState<DeliveryReview | null>(null);
+  /**
+   * What the last PDF said about itself.
+   *
+   * Kept on screen rather than announced in a toast, for the same reason as the
+   * prices above: a supplier, a number and a date that MyVault read off a
+   * document are exactly the things a person needs to see while comparing the
+   * draft with the paper in their hand — and anything that did not add up has to
+   * stay visible until it has been dealt with.
+   */
+  const [pdfRead, setPdfRead] = useState<PdfInvoiceResult | null>(null);
 
   const currency = db.settings.currency;
   const vatOn = db.settings.vatEnabled;
@@ -124,6 +134,72 @@ export function InvoicesView() {
           </ul>
           <div className="toolbar">
             <button type="button" className="btn" onClick={() => setPriceNews(null)}>
+              {t('docs.pricesDismiss')}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {pdfRead?.invoice && (
+        <div className="panel panel-notice">
+          <div className="panel-head">{t('docs.pdfReadTitle')}</div>
+          <p className="panel-sub">
+            {t('docs.pdfReadFrom', {
+              supplier: pdfRead.invoice.supplier || t('docs.pdfUnknownSupplier'),
+              number: pdfRead.invoice.number || '—',
+              date: pdfRead.invoice.date
+                ? formatDate(pdfRead.invoice.date, locale)
+                : '—',
+            })}
+          </p>
+          <p className="panel-sub">
+            {t('docs.pdfReadCounts', {
+              read: pdfRead.invoice.read,
+              added: pdfRead.added ?? 0,
+              missed: pdfRead.unmatched?.length ?? 0,
+            })}
+            {pdfRead.invoice.totals.gross !== null && (
+              <> · {t('docs.pdfPrintedTotal', { money: money(pdfRead.invoice.totals.gross) })}</>
+            )}
+          </p>
+
+          {/* Anything the paper does not agree with itself about. A shop is far
+              better served by "line 3 does not add up" than by a draft that is
+              quietly wrong in a way nobody will notice until the VAT return. */}
+          {pdfRead.invoice.warnings.length > 0 && (
+            <ul className="notice-list">
+              {pdfRead.invoice.warnings.map((warning) => (
+                <li key={warning}>
+                  <span className="cell-note">{warning}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          {/* Products on the invoice that this shop does not stock. They are
+              named rather than counted, because the next thing a person does is
+              add them, and they need to know which. */}
+          {(pdfRead.unmatched?.length ?? 0) > 0 && (
+            <>
+              <p className="panel-sub">{t('docs.pdfUnmatchedTitle')}</p>
+              <ul className="notice-list">
+                {pdfRead.unmatched?.map((line) => (
+                  <li key={`${line.barcode}-${line.name}`}>
+                    <span className="cell-strong">{line.name}</span>
+                    <span className="cell-note">
+                      {line.barcode || '—'} · {t('docs.pdfUnmatchedLine', {
+                        count: line.quantity,
+                        money: money(line.price),
+                      })}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+
+          <div className="toolbar">
+            <button type="button" className="btn" onClick={() => setPdfRead(null)}>
               {t('docs.pricesDismiss')}
             </button>
           </div>
@@ -229,6 +305,23 @@ export function InvoicesView() {
             <button type="button" className="btn" onClick={() => void importDocCsv(draft.id)}>
               <Icon name="upload" size={16} />
               {t('docs.importCsv')}
+            </button>
+            <button
+              type="button"
+              className="btn"
+              disabled={busy}
+              onClick={async () => {
+                setBusy(true);
+                try {
+                  const result = await importDocPdf(draft.id);
+                  if (result) setPdfRead(result);
+                } finally {
+                  setBusy(false);
+                }
+              }}
+            >
+              <Icon name="file" size={16} />
+              {t('docs.importPdf')}
             </button>
           </div>
 
