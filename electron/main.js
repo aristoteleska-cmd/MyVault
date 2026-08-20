@@ -1190,8 +1190,40 @@ function registerIpc() {
 app.whenReady().then(() => {
   enforceOffline(session.defaultSession, { isDev });
 
-  store = new Store(resolveDataDir(), app.getVersion());
-  store.init();
+  const dataDir = resolveDataDir();
+  store = new Store(dataDir, app.getVersion());
+
+  // Starting has to end in something a person can act on.
+  //
+  // This used to be one unguarded call. If it threw — a data folder on a stick
+  // that has been pulled out, a folder the shop has no rights to, a disk with
+  // nothing left on it — the promise rejected, no window was ever created, and
+  // MyVault simply did not appear. Double-clicking the icon and having nothing
+  // happen at all is the worst failure this program has: there is nothing to
+  // read, nothing to try, and nothing to tell anybody.
+  try {
+    store.init();
+  } catch (error) {
+    const detail = error?.message || String(error);
+    console.error('MyVault could not open its data folder:', detail);
+    // Native, because there is no window yet and this is why.
+    const choice = dialog.showMessageBoxSync({
+      type: 'error',
+      title: 'MyVault could not start',
+      message: 'MyVault could not open the folder its data is kept in.',
+      detail: `${dataDir}\n\n${detail}\n\nIf that folder is on a memory stick or a `
+        + 'second drive, check it is plugged in. Your data has not been changed.',
+      buttons: ['Show me the folder', 'Close'],
+      defaultId: 0,
+      cancelId: 1,
+    });
+    if (choice === 0) {
+      // The parent, since the folder itself is what could not be opened.
+      shell.showItemInFolder(dataDir);
+    }
+    app.quit();
+    return;
+  }
 
   const theme = store.getState().settings.theme;
   nativeTheme.themeSource = ['light', 'dark'].includes(theme) ? theme : 'system';

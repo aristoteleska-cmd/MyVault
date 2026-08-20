@@ -18,6 +18,7 @@ const {
   generateRecoveryCode, hashRecoveryCode, verifyRecoveryCode,
 } = require('./roles');
 const { MovementLog } = require('./movements');
+const { writeFileDurably } = require('./durable');
 const { normalizeRate, rateFor } = require('./vat');
 const {
   KINDS, DocumentLog, normalizeLine, unitAfterDiscount, totalsFor, emptyDraft,
@@ -786,8 +787,12 @@ class Store {
     const readable = this.db.items.length <= READABLE_UP_TO;
     const payload = JSON.stringify(this.db, null, readable ? 2 : 0);
 
-    fs.writeFileSync(tmp, payload, 'utf8');
-    fs.renameSync(tmp, this.file);
+    // Written, flushed, renamed, and the rename flushed too. See ./durable.js:
+    // the rename was always atomic, but a rename can reach the disk before the
+    // bytes it points at, which is how a power cut leaves a file of the right
+    // name and the wrong length.
+    writeFileDurably(this.file, payload);
+    void tmp;
     return this.db;
   }
 

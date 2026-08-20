@@ -197,7 +197,11 @@ async function extractPdfText(bytes) {
       scanned: characters < 40,
     };
   } finally {
-    await document.destroy();
+    // pdfjs 6 moved this: the document cleans itself up and the loading task is
+    // what gets destroyed. Both are called, because leaving either behind holds
+    // the file's worker and its memory for as long as MyVault is open.
+    try { document.cleanup(); } catch { /* already gone */ }
+    await task.destroy();
   }
 }
 

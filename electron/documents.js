@@ -31,6 +31,7 @@
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const { appendDurably } = require('./durable');
 
 const KINDS = ['in', 'out'];
 
@@ -85,7 +86,7 @@ class DocumentLog {
   append(document) {
     fs.mkdirSync(this.dir, { recursive: true });
     const year = new Date(document.postedAt || Date.now()).getUTCFullYear();
-    fs.appendFileSync(this.fileFor(year), `${JSON.stringify(document)}\n`, 'utf8');
+    appendDurably(this.fileFor(year), `${JSON.stringify(document)}\n`);
     return document;
   }
 

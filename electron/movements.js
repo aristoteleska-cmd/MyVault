@@ -18,6 +18,7 @@
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const { appendDurably } = require('./durable');
 
 /**
  * Why the stock moved. The sign of `delta` says which way.
@@ -106,7 +107,7 @@ class MovementLog {
     if (service) entry.service = true;
 
     fs.mkdirSync(this.dir, { recursive: true });
-    fs.appendFileSync(this.fileFor(at.getUTCFullYear()), `${JSON.stringify(entry)}\n`, 'utf8');
+    appendDurably(this.fileFor(at.getUTCFullYear()), `${JSON.stringify(entry)}\n`);
     return entry;
   }
 

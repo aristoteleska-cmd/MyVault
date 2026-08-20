@@ -584,6 +584,7 @@ executable. You need [Node.js 20 or newer](https://nodejs.org/).
 npm install
 npm run dev        # Vite dev server + Electron with hot reload
 npm start          # production build, then run it
+npm run check      # types, tests, and a check for known holes in what ships
 npm test           # store, CSV, search, sorting and translation tests
 npm run dist:linux # Linux AppImage + .deb (on Linux)
 npm run test:packaged  # start the built AppImage and check it works
@@ -620,6 +621,33 @@ src/               The user interface (React + TypeScript)
 tests/             Plain-Node tests, no framework
 build/             App icon, the installer script, and the icon generator
 ```
+
+### Keeping it running
+
+MyVault never touches the network, but the code that reads a shop's files is
+somebody else's: pdf.js parses supplier invoices, zxing decodes barcode photos,
+and Electron is a browser. A hole in one of those is a hole in MyVault, and the
+shop cannot patch it themselves.
+
+`npm run check` answers "is this still healthy?" in one command — types, tests,
+and a look for known holes in what actually ships. The build does the same on
+every push, and refuses to publish when something high or critical is found in a
+shipped dependency. Anything lower is printed and does not block: a shop should
+not wait a fortnight for a fix because a test runner had a moderate advisory.
+
+What to look at, in order, when picking this up after a while away:
+
+1. `npm run check` — if it is green, nothing is on fire.
+2. `npm outdated` — Electron is the one that matters; it carries Chromium's
+   security fixes, and only the three most recent major versions get them.
+3. `npx tsc --noEmit && npm run dist:linux && npm run test:packaged` — proves
+   the thing that gets handed to a shop still starts and still works.
+
+The data format is deliberately boring — JSON and newline-delimited JSON, both
+readable in Notepad — so that a shop is never locked in by a program nobody is
+maintaining any more. That is the point of the whole design: if MyVault stops
+being looked after, the shop still has its stock list, its sales and its
+invoices in files it can open.
 
 The renderer never has access to Node or the file system. It can only call the
 fixed list of operations in `electron/preload.js`, and every one of them is

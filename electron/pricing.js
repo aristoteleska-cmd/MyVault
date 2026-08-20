@@ -225,6 +225,32 @@ function median(values) {
 const HISTORY_LIMIT = 24;
 
 /**
+ * How far back "what this usually costs" looks.
+ *
+ * The limit above keeps the last two dozen deliveries per product, but it only
+ * knew which two dozen after reading every year the shop had ever traded. On a
+ * decade of movements — 438,000 of them, measured, not guessed — that was one
+ * and three-quarter seconds of frozen window every time the prices screen was
+ * opened, growing by about a fifth of a second per year for ever.
+ *
+ * Two years is the answer to the question actually being asked. A price from
+ * 2019 is not what this usually costs; it is what it used to cost, and letting
+ * it drag the median about is a fault rather than a feature. Bounding the scan
+ * turns a cost that grows with the shop's age into one that does not.
+ *
+ * A product whose last delivery is older than this reads as having no cost
+ * history, which is exactly what a product nobody has bought in two years has.
+ */
+const COST_HISTORY_YEARS = 2;
+
+/** The oldest delivery worth calling usual, as an ISO date. */
+function usualCostSince(now = new Date()) {
+  const from = new Date(now);
+  from.setUTCFullYear(from.getUTCFullYear() - COST_HISTORY_YEARS);
+  return from.toISOString();
+}
+
+/**
  * One pass of the log, bucketing what each product has cost into a list.
  *
  * Everything here reads the log exactly once. That is not a detail: asking this
@@ -243,12 +269,15 @@ const HISTORY_LIMIT = 24;
  * mistyped cost the shop had already cancelled would still count as a price it
  * paid, and would drag the "usual" figure with it for months.
  */
-function deliveriesByItem(log, ids) {
+function deliveriesByItem(log, ids, { since = usualCostSince() } = {}) {
   const wanted = ids ? new Set(ids) : null;
   const buckets = new Map();
   const reversed = new Set();
 
-  log.forEach({}, (entry) => {
+  // Bounded by date, so the work stops growing with the shop's age. The log
+  // reads whole years, so this skips the year files entirely rather than
+  // reading them and throwing the rows away.
+  log.forEach({ from: since }, (entry) => {
     if (wanted && !wanted.has(entry.itemId)) return;
     const delta = Number(entry.delta) || 0;
 

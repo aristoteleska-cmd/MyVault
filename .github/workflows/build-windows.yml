@@ -57,6 +57,19 @@ jobs:
       - run: npm run typecheck
       - run: npm test
 
+      # A shop's copy never touches the network, but the parsers it hands
+      # supplier files to are somebody else's code. This is how an advisory
+      # against one of them reaches us without anybody having to remember to
+      # look: high or critical in what actually ships stops the build. Anything
+      # lower, and anything that only exists in the build tools, is reported
+      # without failing — a shop should not go without a fix for a fortnight
+      # because a test runner had a moderate advisory.
+      - name: Check the shipped dependencies for known holes
+        run: npm audit --omit=dev --audit-level=high
+      - name: Report anything lower, without blocking
+        if: always()
+        run: npm audit || true
+
       # Starts the real application five times over against one data folder and
       # checks the stock is still there each time. It needs the interface built,
       # because it clicks the actual buttons; the display a CI runner does not
