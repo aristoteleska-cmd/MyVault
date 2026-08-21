@@ -10,6 +10,7 @@ const invoke = (channel, ...args) => ipcRenderer.invoke(channel, ...args);
 
 const menuChannels = [
   'menu:new-item',
+  'menu:read-pdf',
   'menu:import-csv',
   'menu:export-csv',
   'menu:backup',

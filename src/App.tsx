@@ -179,13 +179,21 @@ export function App() {
   }, [openNewItem, focusSearch]);
 
   // Actions coming from the native window menu.
-  const { importCsv, exportCsv, backup, restore } = useVault();
+  const { importCsv, exportCsv, backup, restore, startDoc, importDocPdf } = useVault();
   useEffect(() => {
     if (!window.myvault?.onMenu) return undefined;
     return window.myvault.onMenu((channel) => {
       switch (channel) {
         case 'menu:new-item': openNewItem(); break;
         case 'menu:focus-search': focusSearch(); break;
+        // From anywhere in the program: go to Invoices, start the delivery, and
+        // open the file chooser. Somebody holding an invoice should not have to
+        // know which screen it belongs to before they can hand it over.
+        case 'menu:read-pdf': void (async () => {
+          setView('invoices');
+          const draft = await startDoc('in');
+          if (draft) await importDocPdf(draft.id);
+        })(); break;
         case 'menu:import-csv': void importCsv(); break;
         case 'menu:export-csv': void exportCsv(); break;
         case 'menu:backup': void backup(); break;
@@ -193,7 +201,7 @@ export function App() {
         default: break;
       }
     });
-  }, [openNewItem, focusSearch, importCsv, exportCsv, backup, restore]);
+  }, [openNewItem, focusSearch, importCsv, exportCsv, backup, restore, startDoc, importDocPdf]);
 
   if (loadError) {
     return (

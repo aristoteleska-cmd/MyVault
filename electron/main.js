@@ -349,6 +349,11 @@ function buildMenu() {
       submenu: [
         { label: 'New item', accelerator: 'CmdOrCtrl+N', click: () => send('menu:new-item') },
         { type: 'separator' },
+        // Reading a supplier's PDF lives on the Invoices screen, which is where
+        // the work happens — and in the File menu, which is where a person who
+        // has not found the screen yet goes looking for "open a file".
+        { label: 'Read a PDF invoice…', click: () => send('menu:read-pdf') },
+        { type: 'separator' },
         { label: 'Import from CSV…', click: () => send('menu:import-csv') },
         { label: 'Export to CSV…', click: () => send('menu:export-csv') },
         { type: 'separator' },
