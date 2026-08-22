@@ -661,7 +661,7 @@
   "toast.docPosted": "दर्ज हो गया। {count} उत्पाद अपडेट हुए।",
   "toast.docVoided": "रद्द कर दिया गया। उल्टी प्रविष्टि दर्ज हुई और दोनों आपके रिकॉर्ड में हैं।",
   "toast.docImported": "फ़ाइल से {count} लाइनें पढ़ी गईं।",
-  "toast.docImportedSome": "{count} लाइनें पढ़ी गईं। {missed} किसी उत्पाद से मेल नहीं खाईं और छोड़ दी गईं।",
+  "toast.docImportedSome": "पढ़ी गई पंक्तियाँ: {count} · किसी उत्पाद से मेल नहीं खाईं, छोड़ी गईं: {missed}",
   "nav.prices": "क़ीमतें",
   "prices.title": "क़ीमतें",
   "prices.sub": "आप जो लेते हैं, उसके मुक़ाबले जो असल में चुकाते हैं",
@@ -743,10 +743,10 @@
   "docs.importPdf": "पीडीएफ़ बिल पढ़ें",
   "docs.pdfReadTitle": "पीडीएफ़ से पढ़ा गया",
   "docs.pdfReadFrom": "{supplier} · बिल {number} · {date}",
-  "docs.pdfReadCounts": "बिल में {read} पंक्तियाँ, {added} इस मसौदे में जोड़ी गईं, {missed} पहचानी नहीं गईं",
+  "docs.pdfReadCounts": "बिल में: {read} · यहाँ जोड़ी गईं: {added} · नहीं पहचानी गईं: {missed}",
   "docs.pdfPrintedTotal": "बिल पर {money} छपा है",
   "docs.pdfUnknownSupplier": "आपूर्तिकर्ता का नाम नहीं",
-  "docs.pdfUnmatchedTitle": "ये अभी आपके स्टॉक में नहीं हैं — इन्हें जोड़ें, फिर पीडीएफ़ दोबारा पढ़ें:",
+  "docs.pdfUnmatchedTitle": "ये अभी आपके स्टॉक में नहीं हैं। जोड़ें और इसकी पंक्ति सीधे इस डिलीवरी में आ जाएगी:",
   "docs.pdfUnmatchedLine": "{money} पर {count}",
   "settings.adoptFolder": "क्या आप इस कंप्यूटर पर MyVault पहले से चला रहे हैं?",
   "settings.adoptFolderDesc": "इंस्टॉल करने या जगह बदलने के बाद अगर आपका स्टॉक खाली दिखे, तो आपकी दुकान शायद पुरानी प्रति के फ़ोल्डर में ही है — पोर्टेबल प्रोग्राम के पास MyVault-Data, या पिछली प्रति का data फ़ोल्डर। MyVault को वह फ़ोल्डर दिखाइए, बिक्री इतिहास समेत सब वापस आ जाएगा।",
@@ -756,5 +756,8 @@
   "docs.dropTitle": "आपूर्तिकर्ता का पीडीएफ़ बिल यहाँ छोड़ें",
   "docs.dropSub": "या ऊपर «पीडीएफ़ बिल पढ़ें» दबाएँ। MyVault इसे इसी कंप्यूटर पर पढ़ता है — कुछ भी कहीं नहीं भेजा जाता।",
   "docs.dropNotPdf": "«{name}» पीडीएफ़ नहीं है। वही बिल फ़ाइल छोड़ें जो आपूर्तिकर्ता ने भेजी है।",
-  "docs.dropNoPath": "MyVault यह पता नहीं लगा सका कि वह फ़ाइल कहाँ है। «पीडीएफ़ बिल पढ़ें» बटन का उपयोग करें।"
+  "docs.dropNoPath": "MyVault यह पता नहीं लगा सका कि वह फ़ाइल कहाँ है। «पीडीएफ़ बिल पढ़ें» बटन का उपयोग करें।",
+  "toast.docPosted.one": "दर्ज हो गया। {count} उत्पाद अपडेट हुआ।",
+  "docs.lines.one": "{count} लाइन",
+  "toast.docImported.one": "फ़ाइल से {count} लाइन पढ़ी गई।"
 }

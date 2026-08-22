@@ -245,7 +245,7 @@ export function InventoryView({
           <div className="stat">
             <span className="stat-label"><Icon name="box" size={14} />{t('stats.differentItems')}</span>
             <span className="stat-value">{formatNumber(totals.skus, locale)}</span>
-            <span className="stat-foot">{t('stats.pieces', { count: formatNumber(totals.units, locale) })}</span>
+            <span className="stat-foot">{t('stats.pieces', { count: totals.units })}</span>
           </div>
           <div className="stat">
             <span className="stat-label"><Icon name="tag" size={14} />{t('stats.stockValue')}</span>

@@ -16,7 +16,25 @@ const ok = (label: string) => { passed += 1; console.log('  ok  ' + label); };
 const placeholders = (text: string) =>
   [...text.matchAll(/\{(\w+)\}/g)].map((m) => m[1]).sort().join(',');
 
+/**
+ * Whether a key is a plural form rather than a string in its own right.
+ *
+ * `docs.units.one` sits beside `docs.units` and is used only when the number is
+ * one, in the languages that say it differently. Chinese and Vietnamese do not,
+ * Turkish does not after a numeral, and Russian happens to use an invariant
+ * abbreviation here — so demanding these of every catalogue would mean twelve
+ * copies of a sentence nobody's language needs. The reader falls back to the
+ * plain key, so an absent form is correct behaviour, not a gap.
+ */
+const PLURAL_FORMS = new Set(['zero', 'one', 'two', 'few', 'many', 'other']);
+const isPluralForm = (key: string) => {
+  const dot = key.lastIndexOf('.');
+  return dot > 0 && PLURAL_FORMS.has(key.slice(dot + 1)) && key.slice(0, dot) in en;
+};
+
 const enKeys = Object.keys(en) as (keyof typeof en)[];
+/** What every language is expected to carry: everything except plural extras. */
+const requiredKeys = enKeys.filter((key) => !isPluralForm(String(key)));
 
 // ------------------------------------------------------------ the line-up
 assert.strictEqual(LANGUAGES.length, 21, 'the twenty most spoken languages, plus Greek');
@@ -61,10 +79,11 @@ ok('every translated string matches an English key and keeps its placeholders');
 // A translation that covers a key must cover it for real, not with the English
 // text left in place by accident on a language that clearly differs.
 const complete = Object.entries(catalogues).filter(
-  ([code, catalogue]) => code !== 'en' && Object.keys(catalogue).length === enKeys.length,
+  ([code, catalogue]) => code !== 'en'
+    && requiredKeys.every((key) => key in catalogue),
 );
 for (const [code, catalogue] of complete) {
-  const missing = enKeys.filter((key) => !(key in catalogue));
+  const missing = requiredKeys.filter((key) => !(key in catalogue));
   assert.strictEqual(missing.length, 0, `${code} is missing: ${missing.slice(0, 5).join(', ')}`);
 }
 
@@ -73,7 +92,7 @@ for (const [code, catalogue] of complete) {
 // names what is missing, which is the only way the twelve stay complete.
 const partial = Object.entries(catalogues)
   .filter(([code]) => code !== 'en')
-  .map(([code, catalogue]) => [code, enKeys.filter((key) => !(key in catalogue))] as const)
+  .map(([code, catalogue]) => [code, requiredKeys.filter((key) => !(key in catalogue))] as const)
   .filter(([, missing]) => missing.length > 0);
 assert.strictEqual(
   partial.length,

@@ -661,7 +661,7 @@
   "toast.docPosted": "Gebucht. {count} Produkte aktualisiert.",
   "toast.docVoided": "Storniert. Das Gegenteil wurde gebucht, und beides steht in Ihren Aufzeichnungen.",
   "toast.docImported": "{count} Zeilen aus der Datei gelesen.",
-  "toast.docImportedSome": "{count} Zeilen gelesen. {missed} ließen sich keinem Produkt zuordnen und wurden ausgelassen.",
+  "toast.docImportedSome": "Gelesene Zeilen: {count} · keinem Produkt zugeordnet und ausgelassen: {missed}",
   "nav.prices": "Preise",
   "prices.title": "Preise",
   "prices.sub": "Was Sie verlangen, verglichen mit dem, was Sie tatsächlich zahlen",
@@ -743,10 +743,10 @@
   "docs.importPdf": "PDF-Rechnung einlesen",
   "docs.pdfReadTitle": "Aus der PDF gelesen",
   "docs.pdfReadFrom": "{supplier} · Rechnung {number} · {date}",
-  "docs.pdfReadCounts": "{read} Positionen auf der Rechnung, {added} in den Entwurf übernommen, {missed} nicht erkannt",
+  "docs.pdfReadCounts": "Auf der Rechnung: {read} · hier übernommen: {added} · nicht erkannt: {missed}",
   "docs.pdfPrintedTotal": "die Rechnung weist {money} aus",
   "docs.pdfUnknownSupplier": "Lieferant nicht genannt",
-  "docs.pdfUnmatchedTitle": "Noch nicht in Ihrem Bestand — anlegen und die PDF erneut einlesen:",
+  "docs.pdfUnmatchedTitle": "Noch nicht in Ihrem Bestand. Anlegen — die Zeile steht sofort auf dieser Lieferung:",
   "docs.pdfUnmatchedLine": "{count} zu {money}",
   "settings.adoptFolder": "Nutzen Sie MyVault auf diesem Rechner bereits?",
   "settings.adoptFolderDesc": "Wenn Ihr Bestand nach dem Installieren oder Verschieben leer aussieht, liegt Ihr Laden vermutlich noch im Ordner der alten Kopie — MyVault-Data neben dem portablen Programm oder der data-Ordner der vorherigen Installation. Zeigen Sie ihn MyVault, und alles kommt zurück, samt Verkaufshistorie.",
@@ -756,5 +756,8 @@
   "docs.dropTitle": "PDF-Rechnung des Lieferanten hier ablegen",
   "docs.dropSub": "Oder oben auf „PDF-Rechnung einlesen“ klicken. MyVault liest sie auf diesem Rechner — nichts wird irgendwohin gesendet.",
   "docs.dropNotPdf": "„{name}“ ist keine PDF. Legen Sie die Rechnungsdatei ab, die Ihr Lieferant geschickt hat.",
-  "docs.dropNoPath": "MyVault konnte nicht feststellen, wo diese Datei liegt. Nutzen Sie die Schaltfläche „PDF-Rechnung einlesen“."
+  "docs.dropNoPath": "MyVault konnte nicht feststellen, wo diese Datei liegt. Nutzen Sie die Schaltfläche „PDF-Rechnung einlesen“.",
+  "toast.docPosted.one": "Gebucht. {count} Produkt aktualisiert.",
+  "docs.lines.one": "{count} Zeile",
+  "toast.docImported.one": "{count} Zeile aus der Datei gelesen."
 }

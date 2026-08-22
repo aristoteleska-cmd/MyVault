@@ -565,7 +565,7 @@ export function InvoicesView() {
 
           <div className="doc-totals">
             <span>{t('docs.lines', { count: draft.totals.lines })}</span>
-            <span>{t('docs.units', { count: formatNumber(draft.totals.units, locale) })}</span>
+            <span>{t('docs.units', { count: draft.totals.units })}</span>
             {vatOn && (
               <>
                 <span>{t('vat.net')}: {formatMoney(draft.totals.net, currency, locale)}</span>
@@ -581,8 +581,8 @@ export function InvoicesView() {
               <div>
                 <div>
                   {draft.kind === 'in'
-                    ? t('docs.confirmIn', { count: formatNumber(draft.totals.units, locale) })
-                    : t('docs.confirmOut', { count: formatNumber(draft.totals.units, locale) })}
+                    ? t('docs.confirmIn', { count: draft.totals.units })
+                    : t('docs.confirmOut', { count: draft.totals.units })}
                 </div>
                 <div className="form-actions">
                   <button type="button" className="btn" onClick={() => setConfirming(false)}>

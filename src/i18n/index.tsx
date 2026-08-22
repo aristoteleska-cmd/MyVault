@@ -19,30 +19,93 @@ interface I18nValue {
 
 const I18nContext = createContext<I18nValue | null>(null);
 
-/** Replaces {placeholders} with their values. */
-function interpolate(template: string, vars?: Record<string, string | number>): string {
+/**
+ * Replaces {placeholders} with their values.
+ *
+ * A number is written the way the language writes numbers — 1.234 in Greek and
+ * German, 1,234 in English — so a caller can hand over the plain count and get
+ * both the right digits and, through the plural rules below, the right words
+ * around them. Callers that have already formatted their own string are handed
+ * straight through.
+ */
+function interpolate(
+  template: string,
+  vars: Record<string, string | number> | undefined,
+  locale: string,
+): string {
   if (!vars) return template;
-  return template.replace(/\{(\w+)\}/g, (match, name) =>
-    Object.prototype.hasOwnProperty.call(vars, name) ? String(vars[name]) : match,
-  );
+  return template.replace(/\{(\w+)\}/g, (match, name) => {
+    if (!Object.prototype.hasOwnProperty.call(vars, name)) return match;
+    const value = vars[name];
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      try {
+        return new Intl.NumberFormat(locale).format(value);
+      } catch {
+        return String(value);
+      }
+    }
+    return String(value);
+  });
+}
+
+/**
+ * The form of a word that goes with a number, in this language.
+ *
+ * "This will add 1 pieces to your stock" is the sort of thing a shopkeeper
+ * reads once and thereafter trusts a little less, and English is the easy case:
+ * Russian needs a different word for 1, for 2–4 and for 5 and up, and Arabic
+ * has six forms including one for exactly two. Rather than encode any of that
+ * here, the browser's own rules are asked which form a number takes, and the
+ * catalogue supplies whichever forms its language actually uses — `key.one`,
+ * `key.few`, `key.many` and so on beside the plain `key`.
+ *
+ * A catalogue that offers no form for this number falls back to the plain key,
+ * so a language nobody has done this work for yet reads exactly as it did
+ * before rather than breaking.
+ */
+const pluralRules = new Map<string, Intl.PluralRules>();
+
+function pluralKey(
+  catalogue: Record<string, string>,
+  key: string,
+  locale: string,
+  count: unknown,
+): string {
+  if (typeof count !== 'number' || !Number.isFinite(count)) return key;
+  let rules = pluralRules.get(locale);
+  if (!rules) {
+    try {
+      rules = new Intl.PluralRules(locale);
+    } catch {
+      // An unknown tag is not worth failing a translation over.
+      rules = new Intl.PluralRules('en');
+    }
+    pluralRules.set(locale, rules);
+  }
+  const candidate = `${key}.${rules.select(count)}`;
+  return catalogue[candidate] ? candidate : key;
 }
 
 export function I18nProvider({ language, children }: { language: string; children: ReactNode }) {
   const value = useMemo<I18nValue>(() => {
     const catalogue = catalogues[language] ?? en;
 
+    const locale = findLanguage(language)?.code ?? 'en';
+
     const t: Translate = (key, vars) => {
       // Fall back to English for anything a translation has not covered yet,
       // so a gap shows readable text instead of a raw key.
-      const template = catalogue[key] ?? en[key] ?? String(key);
-      return interpolate(template, vars);
+      const source = (catalogue[key] !== undefined ? catalogue : en) as Record<string, string>;
+      const wanted = pluralKey(source, key, source === en ? 'en' : locale, vars?.count);
+      const template = source[wanted] ?? en[key] ?? String(key);
+      return interpolate(template, vars, locale);
     };
 
     return {
       language,
       rtl: RTL_LANGUAGES.has(language),
       t,
-      locale: findLanguage(language)?.code ?? 'en',
+      locale,
     };
   }, [language]);
 
