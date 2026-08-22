@@ -42,7 +42,26 @@ const COLUMNS = {
   unitPrice: ['τιμή', 'τιμη', 'τιμή μονάδας', 'unit price', 'price', 'unit', 'rate',
     'preis', 'precio'],
   discount: ['έκπτ', 'εκπτ', 'έκπτωση', 'εκπτωση', 'disc', 'discount', 'rabatt'],
-  vatRate: ['φπα', 'φ π α', 'vat', 'tax', 'mwst', 'iva'],
+  vatRate: ['φπα', 'φ π α', 'vat', 'tax', 'mwst', 'iva',
+    // Which band the line is in, which is the rate by another name. Longer than
+    // the bare "Φ.Π.Α." beside it, which on the same invoice is the money.
+    'κατηγορία φπα', 'κατηγορία φ π α', 'κατηγορια φπα', 'κατηγορια φ π α',
+    'συντελεστής φπα', 'συντελεστης φπα', 'vat rate', 'tax rate'],
+  /**
+   * The VAT in money, and the discount in money.
+   *
+   * Both are printed beside the per-cent column they were worked out from, and
+   * both are read as that column if nothing tells them apart — so a line with
+   * 22% off and €5.32 off becomes a line with 5.32% off, and MyVault's own
+   * arithmetic then disagrees with the paper by seventeen per cent of it.
+   *
+   * Named so they can be ignored, which is all MyVault wants of them: it keeps
+   * the rate and the percentage, and works the money out itself.
+   */
+  vatAmount: ['σύνολο φπα', 'σύνολο φ π α', 'συνολο φπα', 'συνολο φ π α',
+    'ποσό φπα', 'ποσό φ π α', 'ποσο φπα', 'vat amount', 'tax amount'],
+  discountAmount: ['σύνολο εκπτώσεων', 'συνολο εκπτωσεων', 'σύνολο έκπτωσης',
+    'ποσό έκπτωσης', 'ποσο εκπτωσης', 'αξία έκπτωσης', 'discount amount'],
   total: ['καθαρή αξία', 'καθαρη αξια', 'net amount', 'line total', 'αξία', 'αξια', 'σύνολο',
     'συνολο', 'καθαρό', 'καθαρο', 'amount', 'total', 'value', 'net', 'betrag', 'importe'],
   /**
@@ -67,7 +86,7 @@ const COLUMNS = {
 };
 
 /** Read for the layout, never imported. */
-const IGNORED_COLUMNS = new Set(['unit', 'netBeforeDiscount']);
+const IGNORED_COLUMNS = new Set(['unit', 'netBeforeDiscount', 'vatAmount', 'discountAmount']);
 
 /**
  * Where the list of products stops and the summary begins.
@@ -136,7 +155,8 @@ const TOTAL_WORDS = {
     'σύνολο καθαρού ποσού', 'συνολο καθαρου ποσου', 'καθαρού ποσού', 'καθαρου ποσου'],
   vat: ['φπα', 'φ.π.α', 'φ.π.α.', 'vat', 'vat amount', 'tax', 'mwst', 'iva'],
   gross: ['γενικό σύνολο', 'τελικό σύνολο', 'σύνολο', 'συνολο', 'πληρωτέο', 'πληρωτεο',
-    'πληρωτέο ποσό', 'πληρωτεο ποσο', 'total due', 'grand total', 'total', 'gesamtbetrag'],
+    'πληρωτέο ποσό', 'πληρωτεο ποσο', 'συνολική αξία', 'συνολικη αξια',
+    'total due', 'grand total', 'total', 'gesamtbetrag'],
 };
 
 /** Money is only ever compared to the cent. */
@@ -276,7 +296,13 @@ function headingsFor(lines, index) {
     const candidate = lines[above];
     if (!candidate || candidate.y >= line.y) break;
     if (line.y - candidate.y > line.height * (HEADING_LINES + 1)) break;
-    if (candidate.pieces.some((piece) => isNumeric(piece.text))) break;
+    // Most of a line being numbers means it is a row of some table, not the
+    // top of a heading. Any number at all is too strict: one supplier heads two
+    // columns "Εκπτ. 1 %" and "Έκπτ. 1", and that lone "1" was enough to
+    // abandon the whole stacked heading — taking "Τιμή Μονάδας" with it, so the
+    // unit price went unread on every line of the invoice.
+    const numbers = candidate.pieces.filter((piece) => isNumeric(piece.text)).length;
+    if (numbers * 2 >= candidate.pieces.length) break;
 
     for (const fragment of mergeHeadings(candidate.pieces)) {
       const over = groups.find((group) => fragment.x < group.end && fragment.end > group.x);
@@ -301,12 +327,16 @@ function headingsFor(lines, index) {
  * rate and the other is left unnamed — still dividing its neighbours, which is
  * the other half of what a heading is for.
  */
-function settleVatColumns(found, groups) {
-  const vatish = groups.filter((group) => /φ\s*\.?\s*π\s*\.?\s*α|φπα|vat|mwst|iva/i.test(strip(group.text)));
-  if (vatish.length < 2) return;
-  const rate = vatish.find((group) => group.text.includes('%'));
-  if (!rate) return;
-  found.set('vatRate', rate);
+function settlePercentColumns(found, groups) {
+  for (const [column, pattern] of [
+    ['vatRate', /φ\s*\.?\s*π\s*\.?\s*α|φπα|vat|mwst|iva/i],
+    ['discount', /εκπτ|έκπτ|disc|rabatt/i],
+  ]) {
+    const claiming = groups.filter((group) => pattern.test(strip(group.text)));
+    if (claiming.length < 2) continue;
+    const marked = claiming.find((group) => group.text.includes('%'));
+    if (marked) found.set(column, marked);
+  }
 }
 
 /**
@@ -346,7 +376,7 @@ function findHeader(lines) {
       found.set(best.column, piece);
       strength.set(best.column, best.word.length);
     }
-    settleVatColumns(found, groups);
+    settlePercentColumns(found, groups);
     // A table needs something to count and something to charge for; a line that
     // merely says "Invoice" and "Date" is not a header however many words match.
     const usable = found.has('quantity') || found.has('total') || found.has('unitPrice');
@@ -400,15 +430,54 @@ function columnBounds(found, headerLine, headings) {
 }
 
 /** Splits one line into its columns, using where each piece of text sits. */
+/** Columns that hold figures, and therefore never hold words. */
+const FIGURE_COLUMNS = new Set(['quantity', 'unitPrice', 'discount', 'vatRate', 'total']);
+
 function cellsFor(line, bounds) {
-  const cells = {};
+  const gathered = new Map();
+  const spilled = [];
+  // Whether the piece just read was the overflow of a product name, so that the
+  // bracket closing it goes the same way.
+  let carrying = false;
+
   for (const piece of line.pieces) {
     const centre = piece.x + (piece.width || 0) / 2;
     const column = bounds.find((c) => centre >= c.from && centre < c.to);
     if (!column || !column.name || IGNORED_COLUMNS.has(column.name)) continue;
-    cells[column.name] = cells[column.name] ? `${cells[column.name]} ${piece.text}` : piece.text;
+
+    // A product name wider than its column runs into the next one. Left there
+    // it is dropped with that cell's stray text, and the shop gets "HOT WHEELS
+    // ΠΙΣΤΕΣ CITY (" — a name cut off mid-bracket, in the stock list for good.
+    // Words in a column of figures belong to the name they ran out of.
+    // Words, and whatever punctuation trails them: "(ΚΙΝΑ)" arrives as three
+    // pieces and only the middle one has letters in it, so a rule that took
+    // only words handed the shop a product called "… CITY (".
+    const wordy = /\p{L}/u.test(piece.text);
+    const figures = /\d/.test(piece.text);
+    if (FIGURE_COLUMNS.has(column.name) && !figures && (wordy || carrying)) {
+      spilled.push(piece);
+      carrying = true;
+      continue;
+    }
+    carrying = false;
+
+    if (!gathered.has(column.name)) gathered.set(column.name, []);
+    gathered.get(column.name).push(piece);
   }
-  for (const key of Object.keys(cells)) cells[key] = cells[key].replace(/\s+/g, ' ').trim();
+
+  if (spilled.length && gathered.has('description')) {
+    gathered.get('description').push(...spilled);
+  }
+
+  const cells = {};
+  for (const [name, pieces] of gathered.entries()) {
+    // Joined the way the page prints them rather than with a space between
+    // every piece: "56τεμ.(ΚΙΝΑ)" arrives in five pieces and was being written
+    // into the stock list as "56 τεμ .( ΚΙΝΑ )".
+    cells[name] = mergeHeadings(pieces).map((group) => group.text).join(' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
   return cells;
 }
 
@@ -438,11 +507,33 @@ function continuation(cells) {
   return text;
 }
 
+/**
+ * The figure in a cell that also caught the end of a long product name.
+ *
+ * A description too wide for its column runs into the one beside it, and the
+ * quantity cell then reads "ΑΡΑΧΝΗS2 1,00" — from which the plain reading is
+ * twenty-one, because the stray S2 and the 1,00 run together into a number. One
+ * real invoice ordered one spider and MyVault proposed twenty-one of them.
+ *
+ * Figures on an invoice are set against the right of their column and the
+ * overflow arrives on the left, so the last number in the cell is the one the
+ * column is for. Where the cell is a plain number this is that number.
+ */
+function figureIn(cell) {
+  const text = String(cell ?? '').trim();
+  if (!text) return null;
+  const direct = toNumber(text);
+  if (!/\p{L}/u.test(text)) return direct;
+  const tokens = text.split(/\s+/).filter((token) => /\d/.test(token) && !/\p{L}/u.test(token));
+  if (!tokens.length) return direct;
+  return toNumber(tokens[tokens.length - 1]);
+}
+
 function lineFrom(cells) {
   const description = (cells.description || '').trim();
-  const quantity = toNumber(cells.quantity);
-  const unitPrice = toNumber(cells.unitPrice);
-  const total = toNumber(cells.total);
+  const quantity = figureIn(cells.quantity);
+  const unitPrice = figureIn(cells.unitPrice);
+  const total = figureIn(cells.total);
 
   if (!description) return null;
   if (quantity === null && unitPrice === null && total === null) return null;
@@ -576,7 +667,8 @@ const FIELD_LABELS = {
  * is how MyVault came back with no number and no date from a real Greek invoice
  * that prints both in letters an inch high.
  */
-function labelledValue(lines, kinds) {
+function labelledValues(lines, kinds) {
+  const found = [];
   for (let index = 0; index < lines.length; index += 1) {
     const line = lines[index];
     for (const piece of line.pieces) {
@@ -610,10 +702,34 @@ function labelledValue(lines, kinds) {
             .trim()
         : '';
 
-      if (inline || after || under) return { inline, after, under, label: piece, line };
+      if (inline || after || under) found.push({ inline, after, under, label: piece, line });
     }
   }
-  return null;
+  return found;
+}
+
+/** The first thing a label points at — what most fields want. */
+function labelledValue(lines, kinds) {
+  return labelledValues(lines, kinds)[0] || null;
+}
+
+/**
+ * A label that is really the first half of a longer label.
+ *
+ * "Αριθμός ΓΕΜΗ" is a company registry number and "Αριθμός Αδειοδότησης" is a
+ * software licence; both begin with the word for a number, and both sit at the
+ * top of an invoice above the actual invoice number. Read in order the first
+ * one wins, and MyVault files the supplier's registry number as the number of
+ * the invoice — which is wrong on the screen, wrong in the records, and wrong
+ * again when a second invoice from the same supplier claims the same number.
+ *
+ * What separates them is what comes next: a qualifying word rather than a
+ * value. A label followed immediately by more letters is pointing at something
+ * else, unless the value it wants is printed underneath it instead.
+ */
+function isQualified(candidate) {
+  const next = String(candidate.after || '').trim().split(/\s+/)[0] || '';
+  return next.length >= 2 && !/\d/.test(next);
 }
 
 /**
@@ -625,7 +741,7 @@ function readHeading(pages, headerLine) {
   const text = above.map((line) => line.text).join('\n');
 
   // The number, from a label beside the value or above it.
-  const numberField = labelledValue(above, FIELD_LABELS.number);
+  const numberFields = labelledValues(above, FIELD_LABELS.number);
   // Greek letters count as letters. A Greek invoice is numbered by series —
   // "Α-2818", "ΤΔΑ 4821" — and a pattern written in ASCII drops the series and
   // keeps the digits, which is not the number on the paper and not the number
@@ -633,14 +749,29 @@ function readHeading(pages, headerLine) {
   // "Α -2818" is one number with a gap in it, because the series letter and the
   // rest sit far enough apart that the page put a space between them. Closed up
   // around the dash before anything is matched.
-  const pickNumber = (value) => (String(value || '').replace(/\s*([-/])\s*/g, '$1')
+  const pickNumber = (value) => (String(value || '')
+    .replace(/\s*([-/])\s*/g, '$1')
+    // "ΤΔΑ 0001744" is one number written in two pieces: a short series in
+    // capitals, then the digits. Left apart, the digits alone are taken and the
+    // series — the half that says which book the invoice came out of — is lost.
+    // Without a lookbehind this needs \b, and a word boundary in JavaScript is
+    // an ASCII idea: there is none in front of a Greek tau, so the series went
+    // on being dropped by a pattern that looked like it handled it.
+    .replace(/(?<=^|\s)(\p{Lu}{1,4})\s+(?=\d)/gu, '$1')
     .match(/[\p{L}\d][\p{L}\d\-/]{2,}/gu) || [])
     // A number has a number in it. Without that the pattern happily returns
     // the word next to the label — the invoice numbered "Ημερομηνία".
     .find((candidate) => /\d/.test(candidate)) || '';
-  const fromLabel = numberField
-    ? pickNumber(numberField.inline) || pickNumber(numberField.after) || pickNumber(numberField.under)
-    : '';
+  let fromLabel = '';
+  for (const candidate of numberFields) {
+    // What the label carries itself, then what is printed under it, and only
+    // then what follows it on the line — because a label followed by another
+    // word is naming something other than this invoice. See isQualified.
+    const value = pickNumber(candidate.inline)
+      || pickNumber(candidate.under)
+      || (isQualified(candidate) ? '' : pickNumber(candidate.after));
+    if (value) { fromLabel = value; break; }
+  }
   const number = fromLabel || (text.match(
     /(?:αριθμ[όο]ς|αριθ|τιμολ[όο]γιο(?:\s+πώλησης)?|invoice\s*(?:no|number|nr|#)?|inv|rechnung)\s*[.:#]?\s*([A-Za-z0-9][A-Za-z0-9\-/]{2,})/i,
   ) || [])[1] || '';
@@ -690,7 +821,7 @@ function readHeading(pages, headerLine) {
     // Written with a lookahead rather than \b: a word boundary in JavaScript is
     // an ASCII idea, and there is none between a Greek mu and the space after
     // it, so "ΑΦΜ" at the end of the pattern matched nothing at all.
-    const ADDRESS_STARTS = /\s(?:α\.?φ\.?μ\.?|αφμ|οδ[όο]ς|τηλ\.?|τ\.?κ\.?|vat|ust|nif|e-?mail)(?=[\s:.]|$)/i;
+    const ADDRESS_STARTS = /\s(?:α\.?φ\.?μ\.?|αφμ|οδ[όο]ς|τηλ\.?|τ\.?κ\.?|vat|ust|nif|e-?mail|αρ\.?\s*εγκατ[άα]στασης|εγκατ[άα]στασης|δραστηρι[όο]τητες|[έε]δρα|αριθμ[όο]ς\s*γεμη|γεμη|δ\.?ο\.?υ\.?|φαξ|fax|π[όο]λη)(?=[\s:.]|$)/i;
     const names = blocks
       .map((block) => block.text.replace(/\s+/g, ' ').trim().split(ADDRESS_STARTS)[0].trim())
       .filter((value) => value.length >= 3 && /\p{L}/u.test(value) && !NOT_A_NAME.test(value));
@@ -716,9 +847,17 @@ function readHeading(pages, headerLine) {
 }
 
 /** The totals the invoice prints for itself, so they can be checked against. */
+/** True when this line comes after that one, reading the document as printed. */
+function comesAfter(line, mark) {
+  if (!mark) return true;
+  const page = line.page ?? 1;
+  const markPage = mark.page ?? 1;
+  return page > markPage || (page === markPage && line.y > mark.y);
+}
+
 function readTotals(lines, headerLine) {
   const totals = { net: null, vat: null, gross: null };
-  const below = lines.filter((line) => !headerLine || line.y > headerLine.y);
+  const below = lines.filter((line) => comesAfter(line, headerLine));
 
   for (const line of below) {
     const label = strip(line.text.replace(/[\d.,]+\s*$/, ''));
@@ -766,7 +905,15 @@ function readInvoice(extracted) {
     return { ok: false, reason: 'empty', supplier: '', number: '', date: '', lines: [], warnings };
   }
 
-  const allLines = pages.flatMap((page) => page.lines);
+  // Which page a line is on, carried with it. Coordinates start again at the
+  // top of every page, so a line's y says where it is on its own page and
+  // nothing at all about where it is in the document — and "everything below
+  // the table" therefore has to be asked page first, y second. Asked on y
+  // alone, an invoice whose totals are on page two has no totals at all: they
+  // sit at y=114 against a header at y=648 and read as being above it.
+  const allLines = pages.flatMap((page) => page.lines.map(
+    (line) => (line.page === undefined ? Object.assign(line, { page: page.number }) : line),
+  ));
   const header = findHeader(allLines);
 
   if (!header) {
