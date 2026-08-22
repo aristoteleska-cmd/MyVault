@@ -600,12 +600,21 @@ function readInvoice(extracted) {
   for (const line of allLines) {
     if (line === header.line) { started = true; continue; }
     if (!started) continue;
+    // Asked before endsTable, and that order is the whole of it. A Greek
+    // invoice heads its VAT column "ΦΠΑ %", and "φπα" is one of the words that
+    // means the products have finished and the totals have begun — so the
+    // headings printed again at the top of page two ended the table, and every
+    // line on every page after the first was dropped. On a thirty-line delivery
+    // that posts two thirds of the goods and says nothing beyond a total that
+    // disagrees with the paper. The headings repeated are the one line that
+    // cannot mean the table is over: it is the table starting again.
+    if (repeatsHeader(line, header.line)) continue;
     // The summary under the table is laid out in the table's own columns, so it
     // parses as products: a balance carried forward becomes a quantity of 2,03,
     // and the legal footnote's stamp becomes a quantity of four hundred
     // trillion. The words are what tell a person the list has ended.
     if (endsTable(line)) break;
-    if (interruptsTable(line) || repeatsHeader(line, header.line)) continue;
+    if (interruptsTable(line)) continue;
     const row = lineFrom(cellsFor(line, bounds));
     if (row) rows.push(row);
   }
