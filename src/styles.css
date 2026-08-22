@@ -1751,6 +1751,20 @@ table.items tbody td > .item-meta { overflow: hidden; text-overflow: ellipsis; }
 .cell-strong { font-weight: 600; color: var(--text); }
 .cell-note { font-size: 12px; color: var(--text-muted); margin-top: 2px; line-height: 1.35; }
 
+/* The same note, in the colour that means "this one costs you money". Kept to
+   the text rather than the row: a price that has gone up is worth noticing, not
+   worth alarming somebody who is halfway through typing a delivery. Both
+   colours are picked for 4.5:1 against the panel in light and dark alike, and
+   the words say which way the price moved, so the colour is never the only
+   thing carrying the meaning. */
+.cell-warn {
+  font-size: 12px;
+  color: var(--warning);
+  font-weight: 600;
+  margin-top: 2px;
+  line-height: 1.35;
+}
+
 /* A tint on the whole row, so the four lists stay distinguishable when they are
    printed or read at a glance from behind the counter. */
 .table tr.is-bad td { background: var(--danger-soft); }

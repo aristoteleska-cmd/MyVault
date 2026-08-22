@@ -756,5 +756,8 @@
   "docs.dropTitle": "Tedarikçinin PDF faturasını buraya bırakın",
   "docs.dropSub": "Ya da yukarıdaki „PDF fatura oku\" düğmesine basın. MyVault faturayı bu bilgisayarda okur — hiçbir şey hiçbir yere gönderilmez.",
   "docs.dropNotPdf": "„{name}\" bir PDF değil. Tedarikçinizin gönderdiği fatura dosyasını bırakın.",
-  "docs.dropNoPath": "MyVault bu dosyanın nerede olduğunu anlayamadı. „PDF fatura oku\" düğmesini kullanın."
+  "docs.dropNoPath": "MyVault bu dosyanın nerede olduğunu anlayamadı. „PDF fatura oku\" düğmesini kullanın.",
+  "docs.pdfRepricedTitle": "Stoğunuzda zaten var, ama geçen seferkinden farklı fiyatta:",
+  "docs.pdfDearer": "önce {was}, şimdi {now} — %{percent} daha pahalı",
+  "docs.pdfCheaper": "önce {was}, şimdi {now} — %{percent} daha ucuz"
 }

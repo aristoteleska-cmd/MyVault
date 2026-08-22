@@ -759,5 +759,8 @@
   "docs.dropNoPath": "MyVault यह पता नहीं लगा सका कि वह फ़ाइल कहाँ है। «पीडीएफ़ बिल पढ़ें» बटन का उपयोग करें।",
   "toast.docPosted.one": "दर्ज हो गया। {count} उत्पाद अपडेट हुआ।",
   "docs.lines.one": "{count} लाइन",
-  "toast.docImported.one": "फ़ाइल से {count} लाइन पढ़ी गई।"
+  "toast.docImported.one": "फ़ाइल से {count} लाइन पढ़ी गई।",
+  "docs.pdfRepricedTitle": "ये आपके स्टॉक में पहले से हैं, पर पिछली बार से अलग दाम पर:",
+  "docs.pdfDearer": "पहले {was}, अब {now} — {percent}% महँगा",
+  "docs.pdfCheaper": "पहले {was}, अब {now} — {percent}% सस्ता"
 }

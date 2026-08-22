@@ -655,10 +655,26 @@ export interface UnmatchedLine {
   rate?: number | string;
 }
 
+/**
+ * A product on the delivery that is not costing what it cost last time.
+ *
+ * `was` is what the shop paid before, `now` is what this invoice charges once
+ * its own discount is taken off, and `percent` is the move between them.
+ */
+export interface RepricedLine {
+  itemId: string;
+  name: string;
+  was: number;
+  now: number;
+  percent: number;
+  kind: 'dearer' | 'cheaper';
+}
+
 export interface PdfInvoiceResult {
   canceled: boolean;
   added?: number;
   unmatched?: UnmatchedLine[];
+  repriced?: RepricedLine[];
   draft?: DraftDocument;
   invoice?: PdfInvoiceSummary;
 }

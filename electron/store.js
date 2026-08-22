@@ -32,6 +32,13 @@ const MAX_BACKUPS = 10;
 const MAX_SUPPLIER_CODES = 12;
 
 /**
+ * How far a price has to move before a delivery is worth mentioning it, in
+ * per cent. Matches the threshold the pricing advice uses, so a shop is not told
+ * one thing while reading an invoice and another thing after posting it.
+ */
+const COST_CHANGE_THRESHOLD = 5;
+
+/**
  * How many read files one draft remembers, so the same paper is not read twice.
  *
  * An invoice occasionally arrives as one PDF per page, and a shop reading four
@@ -1777,7 +1784,9 @@ class Store {
       }
     }
 
-    const result = { added: 0, unmatched: [], learned: 0 };
+    const result = {
+      added: 0, unmatched: [], learned: 0, repriced: [],
+    };
 
     for (const row of rows) {
       const lower = {};
@@ -1818,6 +1827,29 @@ class Store {
         ].slice(-MAX_SUPPLIER_CODES);
         byCode.set(`${supplier}|${code.toLowerCase()}`, item);
         result.learned += 1;
+      }
+
+      // What this product cost last time, against what the paper is charging
+      // now. A supplier putting a price up is not an error and MyVault does not
+      // treat it as one — but it is the single most useful thing a delivery can
+      // tell a shop, and the moment to see it is while the delivery is still a
+      // draft that can be queried, not a fortnight later when the margin has
+      // already been sold away. Only the lines that moved are reported, and only
+      // past the point where a change is a change rather than a rounded cent.
+      const wasPaid = draft.kind === 'in' ? Number(item.cost) : Number(item.price);
+      if (price && wasPaid > 0) {
+        const paying = clampMoney(price * (1 - (Number(discount) || 0) / 100));
+        const difference = Math.round(((paying - wasPaid) / wasPaid) * 1000) / 10;
+        if (Math.abs(difference) >= COST_CHANGE_THRESHOLD) {
+          result.repriced.push({
+            itemId: item.id,
+            name: item.name,
+            was: wasPaid,
+            now: paying,
+            percent: difference,
+            kind: difference > 0 ? 'dearer' : 'cheaper',
+          });
+        }
       }
 
       draft.lines.push(normalizeLine({

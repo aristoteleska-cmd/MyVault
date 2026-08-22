@@ -756,5 +756,8 @@
   "docs.dropTitle": "أفلِت هنا فاتورة المورّد بصيغة PDF",
   "docs.dropSub": "أو اضغط «قراءة فاتورة PDF» في الأعلى. يقرؤها MyVault على هذا الحاسوب، ولا يُرسَل شيء إلى أي مكان.",
   "docs.dropNotPdf": "«{name}» ليس ملف PDF. أفلِت ملف الفاتورة الذي أرسله المورّد.",
-  "docs.dropNoPath": "تعذّر على MyVault معرفة مكان هذا الملف. استخدم زر «قراءة فاتورة PDF»."
+  "docs.dropNoPath": "تعذّر على MyVault معرفة مكان هذا الملف. استخدم زر «قراءة فاتورة PDF».",
+  "docs.pdfRepricedTitle": "موجودة لديك بالفعل، لكن بسعر يختلف عن المرة السابقة:",
+  "docs.pdfDearer": "كان {was}، والآن {now} — أغلى بنسبة {percent}%",
+  "docs.pdfCheaper": "كان {was}، والآن {now} — أرخص بنسبة {percent}%"
 }

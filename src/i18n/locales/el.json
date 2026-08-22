@@ -763,5 +763,8 @@
   "docs.lines.one": "{count} γραμμή",
   "docs.units.one": "{count} τεμάχιο",
   "docs.confirmOut.one": "Θα αφαιρεθεί {count} τεμάχιο από το απόθεμά σας.",
-  "toast.docImported.one": "Διαβάστηκε {count} γραμμή από το αρχείο."
+  "toast.docImported.one": "Διαβάστηκε {count} γραμμή από το αρχείο.",
+  "docs.pdfRepricedTitle": "Τα έχετε ήδη, σε διαφορετική τιμή από την προηγούμενη φορά:",
+  "docs.pdfDearer": "ήταν {was}, τώρα {now} — {percent}% ακριβότερο",
+  "docs.pdfCheaper": "ήταν {was}, τώρα {now} — {percent}% φθηνότερο"
 }

@@ -763,5 +763,8 @@
   "docs.lines.one": "{count} ligne",
   "docs.units.one": "{count} pièce",
   "docs.confirmOut.one": "Cela retirera {count} pièce de votre stock.",
-  "toast.docImported.one": "{count} ligne lue dans le fichier."
+  "toast.docImported.one": "{count} ligne lue dans le fichier.",
+  "docs.pdfRepricedTitle": "Déjà en stock, à un prix différent de la dernière fois :",
+  "docs.pdfDearer": "avant {was}, maintenant {now} — {percent}% plus cher",
+  "docs.pdfCheaper": "avant {was}, maintenant {now} — {percent}% moins cher"
 }

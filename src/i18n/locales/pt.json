@@ -763,5 +763,8 @@
   "docs.lines.one": "{count} linha",
   "docs.units.one": "{count} peça",
   "docs.confirmOut.one": "Isto vai retirar {count} unidade do seu stock.",
-  "toast.docImported.one": "{count} linha lida do ficheiro."
+  "toast.docImported.one": "{count} linha lida do ficheiro.",
+  "docs.pdfRepricedTitle": "Já tem em stock, a um preço diferente da última vez:",
+  "docs.pdfDearer": "era {was}, agora {now} — {percent}% mais caro",
+  "docs.pdfCheaper": "era {was}, agora {now} — {percent}% mais barato"
 }

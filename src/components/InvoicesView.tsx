@@ -118,6 +118,9 @@ export function InvoicesView() {
     setConfirming(false);
     if (!prices) return;
     setOpenId(null);
+    // What was read from the PDF described the draft that has just stopped
+    // existing. Left on the screen it reads as a description of the next one.
+    setPdfRead(null);
     void refreshHistory();
     // Only when something actually moved. A delivery at the usual prices is the
     // normal case and must not put a panel on the screen to be dismissed.
@@ -209,6 +212,30 @@ export function InvoicesView() {
                 </li>
               ))}
             </ul>
+          )}
+
+          {/* Products the shop already stocks that are not costing what they
+              cost last time. Shown before the delivery is posted, because that
+              is when a shop can still ring the supplier and ask — and because a
+              cost that goes up unnoticed is a margin sold away for a month. */}
+          {(pdfRead.repriced?.length ?? 0) > 0 && (
+            <>
+              <p className="panel-sub">{t('docs.pdfRepricedTitle')}</p>
+              <ul className="notice-list">
+                {pdfRead.repriced?.map((line) => (
+                  <li key={line.itemId}>
+                    <span className="cell-strong">{line.name}</span>
+                    <span className={line.kind === 'dearer' ? 'cell-warn' : 'cell-note'}>
+                      {t(line.kind === 'dearer' ? 'docs.pdfDearer' : 'docs.pdfCheaper', {
+                        was: money(line.was),
+                        now: money(line.now),
+                        percent: Math.abs(line.percent),
+                      })}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </>
           )}
 
           {/* Products on the invoice that this shop does not stock. They are

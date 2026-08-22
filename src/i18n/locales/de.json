@@ -759,5 +759,8 @@
   "docs.dropNoPath": "MyVault konnte nicht feststellen, wo diese Datei liegt. Nutzen Sie die Schaltfläche „PDF-Rechnung einlesen“.",
   "toast.docPosted.one": "Gebucht. {count} Produkt aktualisiert.",
   "docs.lines.one": "{count} Zeile",
-  "toast.docImported.one": "{count} Zeile aus der Datei gelesen."
+  "toast.docImported.one": "{count} Zeile aus der Datei gelesen.",
+  "docs.pdfRepricedTitle": "Schon im Bestand, zu einem anderen Preis als beim letzten Mal:",
+  "docs.pdfDearer": "vorher {was}, jetzt {now} — {percent}% teurer",
+  "docs.pdfCheaper": "vorher {was}, jetzt {now} — {percent}% günstiger"
 }

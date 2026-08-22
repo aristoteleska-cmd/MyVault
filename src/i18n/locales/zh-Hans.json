@@ -756,5 +756,8 @@
   "docs.dropTitle": "把供货商的 PDF 发票拖到这里",
   "docs.dropSub": "或点击上面的“读取 PDF 发票”。MyVault 在这台电脑上读取，不会发送到任何地方。",
   "docs.dropNotPdf": "“{name}”不是 PDF。请拖入供货商发来的发票文件。",
-  "docs.dropNoPath": "MyVault 无法确定该文件的位置。请改用“读取 PDF 发票”按钮。"
+  "docs.dropNoPath": "MyVault 无法确定该文件的位置。请改用“读取 PDF 发票”按钮。",
+  "docs.pdfRepricedTitle": "您已有这些商品，但价格与上次不同：",
+  "docs.pdfDearer": "原 {was}，现 {now} — 贵了 {percent}%",
+  "docs.pdfCheaper": "原 {was}，现 {now} — 便宜了 {percent}%"
 }

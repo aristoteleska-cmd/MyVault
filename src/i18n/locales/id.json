@@ -756,5 +756,8 @@
   "docs.dropTitle": "Letakkan faktur PDF pemasok di sini",
   "docs.dropSub": "Atau tekan «Baca faktur PDF» di atas. MyVault membacanya di komputer ini — tidak ada yang dikirim ke mana pun.",
   "docs.dropNotPdf": "«{name}» bukan PDF. Letakkan berkas faktur yang dikirim pemasok Anda.",
-  "docs.dropNoPath": "MyVault tidak dapat mengetahui letak berkas itu. Gunakan tombol «Baca faktur PDF»."
+  "docs.dropNoPath": "MyVault tidak dapat mengetahui letak berkas itu. Gunakan tombol «Baca faktur PDF».",
+  "docs.pdfRepricedTitle": "Sudah ada di stok Anda, dengan harga berbeda dari sebelumnya:",
+  "docs.pdfDearer": "dulu {was}, kini {now} — {percent}% lebih mahal",
+  "docs.pdfCheaper": "dulu {was}, kini {now} — {percent}% lebih murah"
 }

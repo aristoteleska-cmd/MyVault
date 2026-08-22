@@ -756,5 +756,8 @@
   "docs.dropTitle": "Thả hóa đơn PDF của nhà cung cấp vào đây",
   "docs.dropSub": "Hoặc bấm «Đọc hóa đơn PDF» ở trên. MyVault đọc ngay trên máy này — không gửi gì đi đâu cả.",
   "docs.dropNotPdf": "«{name}» không phải là PDF. Hãy thả tệp hóa đơn nhà cung cấp đã gửi.",
-  "docs.dropNoPath": "MyVault không xác định được tệp đó ở đâu. Hãy dùng nút «Đọc hóa đơn PDF»."
+  "docs.dropNoPath": "MyVault không xác định được tệp đó ở đâu. Hãy dùng nút «Đọc hóa đơn PDF».",
+  "docs.pdfRepricedTitle": "Đã có trong kho, nhưng giá khác lần trước:",
+  "docs.pdfDearer": "trước {was}, nay {now} — đắt hơn {percent}%",
+  "docs.pdfCheaper": "trước {was}, nay {now} — rẻ hơn {percent}%"
 }
