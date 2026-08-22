@@ -32,6 +32,15 @@ const MAX_BACKUPS = 10;
 const MAX_SUPPLIER_CODES = 12;
 
 /**
+ * How many read files one draft remembers, so the same paper is not read twice.
+ *
+ * An invoice occasionally arrives as one PDF per page, and a shop reading four
+ * of them onto one delivery is doing the right thing. Twelve is far past that
+ * and far short of a list worth worrying about the size of.
+ */
+const MAX_DRAFT_SOURCES = 12;
+
+/**
  * Where the second drive keeps the list of copies MyVault wrote there.
  *
  * The rolling window prunes from this list and from nothing else, so a shop's
@@ -1393,6 +1402,35 @@ class Store {
     const draft = this.db.drafts.find((candidate) => candidate.id === id);
     if (!draft) throw new Error('That invoice is no longer open.');
     return draft;
+  }
+
+  /**
+   * Remembers that this exact file has been read onto this draft.
+   *
+   * Reading the same PDF twice is an easy thing to do — the screen tells you
+   * what was missing, you add it, and reading again is the obvious next move —
+   * and it used to append the invoice's lines a second time. The draft then
+   * said two of everything, at twice the money, and the only sign was a total
+   * that no longer matched the paper. Since a shop reads the printed total off
+   * the top of the invoice and the screen's total off the bottom of the screen,
+   * that is exactly the kind of disagreement nobody notices until stock-take.
+   *
+   * The file is remembered by the fingerprint of its own bytes rather than by
+   * its name or its invoice number: the same invoice split into one PDF per
+   * page is a different file each time and must still be allowed, while the
+   * same file chosen twice is the same bytes however it was named.
+   *
+   * @returns {boolean} true if this is the first time, false if already read
+   */
+  noteDraftSource(id, fingerprint) {
+    const draft = this.getDraft(id);
+    const stamp = asString(fingerprint, 64);
+    if (!stamp) return true;
+    if (!Array.isArray(draft.sources)) draft.sources = [];
+    if (draft.sources.includes(stamp)) return false;
+    draft.sources = [...draft.sources, stamp].slice(-MAX_DRAFT_SOURCES);
+    this.persist();
+    return true;
   }
 
   updateDraft(id, patch = {}) {

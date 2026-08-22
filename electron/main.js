@@ -3,6 +3,7 @@
 const { app, BrowserWindow, ipcMain, dialog, shell, Menu, nativeTheme, session } = require('electron');
 const fs = require('fs');
 const path = require('path');
+const { createHash } = require('crypto');
 
 const { Store, STANDARD_FIELDS, MAX_CUSTOM_FIELDS } = require('./store');
 const { report, reorderList, clientHistory } = require('./statistics');
@@ -708,7 +709,23 @@ function registerIpc() {
    * behave identically whichever way the file arrived.
    */
   const readPdfOntoDraft = async (id, filePath) => {
-    const extracted = await extractPdfText(readPdfFile(filePath));
+    const bytes = readPdfFile(filePath);
+
+    // The same file, onto the same draft, twice. See store.noteDraftSource:
+    // the second read used to append every line again, and a delivery that says
+    // two of everything at twice the money is worse than one that says nothing.
+    // Checked before the file is parsed, because refusing is the whole answer.
+    const fingerprint = createHash('sha256').update(bytes).digest('hex').slice(0, 32);
+    if (!store.noteDraftSource(id, fingerprint)) {
+      throw new Error(
+        'That PDF has already been read onto this delivery, and reading it again '
+        + 'would put every line on twice. What is on the screen now is what the '
+        + 'file says. If a line is still missing, add the product and put the '
+        + 'line on by hand — or throw this delivery away and start it again.',
+      );
+    }
+
+    const extracted = await extractPdfText(bytes);
     if (extracted.scanned) {
       throw new Error(
         'That PDF is a picture of an invoice rather than a document with text in '
