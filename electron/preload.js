@@ -1,6 +1,6 @@
 'use strict';
 
-const { contextBridge, ipcRenderer, webFrame } = require('electron');
+const { contextBridge, ipcRenderer, webFrame, webUtils } = require('electron');
 
 /**
  * The only bridge between the UI and the file system. The renderer gets a small
@@ -20,6 +20,22 @@ const menuChannels = [
 
 contextBridge.exposeInMainWorld('myvault', {
   getInfo: () => invoke('app:info'),
+
+  /**
+   * Where a file the shop dragged onto the window actually is.
+   *
+   * A dropped File in a browser is deliberately anonymous — the page is not
+   * told where it came from. Electron can answer, and this is the only way the
+   * window learns a path: it cannot invent one, and what it hands back still
+   * goes through the same checks as a file chosen from the dialog.
+   */
+  pathForFile: (file) => {
+    try {
+      return webUtils.getPathForFile(file);
+    } catch {
+      return '';
+    }
+  },
   getState: () => invoke('state:get'),
 
   items: {
@@ -66,6 +82,8 @@ contextBridge.exposeInMainWorld('myvault', {
     importCsv: (id) => invoke('docs:import-csv', id),
     /** Reads a supplier's PDF invoice onto the draft, and says what it read. */
     importPdf: (id) => invoke('docs:import-pdf', id),
+    /** The same, for a file dragged onto the window rather than chosen. */
+    importPdfFile: (id, filePath) => invoke('docs:import-pdf-file', id, filePath),
     /** Create a product for a line the shop does not stock, and add it. */
     addMissing: (id, line) => invoke('docs:add-missing', id, line),
   },

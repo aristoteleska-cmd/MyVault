@@ -19,7 +19,8 @@ import { Icon } from './Icon';
 export function InvoicesView() {
   const {
     db, drafts, refreshDrafts, startDoc, updateDoc, setDocLine, removeDocLine,
-    discardDoc, postDoc, voidDoc, listDocs, importDocCsv, importDocPdf, addMissingProduct,
+    discardDoc, postDoc, voidDoc, listDocs, importDocCsv, importDocPdf, importDocPdfFile,
+    addMissingProduct, notify,
   } = useVault();
   const { locale } = useI18n();
   const t = useT();
@@ -46,6 +47,9 @@ export function InvoicesView() {
    * stay visible until it has been dealt with.
    */
   const [pdfRead, setPdfRead] = useState<PdfInvoiceResult | null>(null);
+  /** True while a file is being dragged over the drop area. */
+  const [dragging, setDragging] = useState(false);
+
 
   const currency = db.settings.currency;
   const vatOn = db.settings.vatEnabled;
@@ -59,6 +63,37 @@ export function InvoicesView() {
 
   const draft: DraftDocument | undefined = drafts.find((d) => d.id === openId) ?? drafts[0];
   useEffect(() => { if (draft && openId !== draft.id) setOpenId(draft.id); }, [draft, openId]);
+
+  /**
+   * A supplier's PDF, dropped onto the window.
+   *
+   * The button and the File menu both exist, and a person still arrives at this
+   * screen holding a file and looking for somewhere to put it — because that is
+   * what every other program has taught them to expect. So there is somewhere
+   * to put it.
+   */
+  const readDroppedPdf = useCallback(async (files: FileList | null) => {
+    const file = files?.[0];
+    if (!file) return;
+    if (!/\.pdf$/i.test(file.name)) {
+      notify('docs.dropNotPdf', { name: file.name }, 'info');
+      return;
+    }
+    const filePath = window.myvault?.pathForFile?.(file) || '';
+    if (!filePath) {
+      notify('docs.dropNoPath', undefined, 'info');
+      return;
+    }
+    setBusy(true);
+    try {
+      const target = draft ?? await startDoc('in');
+      if (!target) return;
+      const result = await importDocPdfFile(target.id, filePath);
+      if (result) setPdfRead(result);
+    } finally {
+      setBusy(false);
+    }
+  }, [draft, startDoc, importDocPdfFile, notify]);
 
   const matches = useMemo(() => {
     const needle = search.trim().toLowerCase();
@@ -272,6 +307,31 @@ export function InvoicesView() {
             <Icon name="file" size={16} />
             {t('docs.importPdf')}
           </button>
+        </div>
+      )}
+
+      {/*
+        Somewhere to put the file.
+        
+        A button says "I will ask you for a file"; a marked-out area says "put it
+        here", which is what a person holding an invoice is looking for. Both
+        end in the same place, and dropping is the one that needs no explaining.
+      */}
+      {!draft && (
+        <div
+          className={`dropzone${dragging ? ' dropzone-over' : ''}`}
+          onDragOver={(event) => { event.preventDefault(); setDragging(true); }}
+          onDragEnter={(event) => { event.preventDefault(); setDragging(true); }}
+          onDragLeave={() => setDragging(false)}
+          onDrop={(event) => {
+            event.preventDefault();
+            setDragging(false);
+            void readDroppedPdf(event.dataTransfer?.files ?? null);
+          }}
+        >
+          <Icon name="file" size={28} />
+          <p className="dropzone-title">{t('docs.dropTitle')}</p>
+          <p className="dropzone-sub">{t('docs.dropSub')}</p>
         </div>
       )}
 

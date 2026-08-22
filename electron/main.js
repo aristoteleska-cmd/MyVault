@@ -699,15 +699,16 @@ function registerIpc() {
    * business holding a parser or a file. Bytes are read through the same gate as
    * every other file, checked to be a PDF, and handed to pdfjs as a buffer.
    */
-  handle('docs:import-pdf', 'documents.manage', async (id) => {
-    const { canceled, filePaths } = await dialog.showOpenDialog(mainWindow, {
-      title: 'Choose the supplier\'s invoice',
-      properties: ['openFile'],
-      filters: [{ name: 'PDF invoice', extensions: ['pdf'] }],
-    });
-    if (canceled || !filePaths?.length) return { canceled: true };
-
-    const extracted = await extractPdfText(readPdfFile(filePaths[0]));
+  /**
+   * Everything that happens once a PDF has been chosen, however it was chosen.
+   *
+   * Two ways in — the file dialog, and a file dragged onto the window — and one
+   * of these was one too many to have written twice: the credit-note refusal,
+   * the message about a scanned page and the filling of the draft all have to
+   * behave identically whichever way the file arrived.
+   */
+  const readPdfOntoDraft = async (id, filePath) => {
+    const extracted = await extractPdfText(readPdfFile(filePath));
     if (extracted.scanned) {
       throw new Error(
         'That PDF is a picture of an invoice rather than a document with text in '
@@ -776,6 +777,30 @@ function registerIpc() {
         pages: extracted.pageCount,
       },
     };
+  };
+
+  handle('docs:import-pdf', 'documents.manage', async (id) => {
+    const { canceled, filePaths } = await dialog.showOpenDialog(mainWindow, {
+      title: 'Choose the supplier\'s invoice',
+      properties: ['openFile'],
+      filters: [{ name: 'PDF invoice', extensions: ['pdf'] }],
+    });
+    if (canceled || !filePaths?.length) return { canceled: true };
+    return readPdfOntoDraft(id, filePaths[0]);
+  });
+
+  /**
+   * The same, for a file dragged onto the window.
+   *
+   * The path comes from the window, which cannot invent one — Electron hands it
+   * over only for a file somebody actually dropped — and it goes through
+   * readPdfFile like every other file MyVault opens, so a dragged file is
+   * checked exactly as hard as a chosen one.
+   */
+  handle('docs:import-pdf-file', 'documents.manage', async (id, filePath) => {
+    const chosen = String(filePath || '').trim();
+    if (!chosen) throw new Error('That file could not be read. Try choosing it with the button instead.');
+    return readPdfOntoDraft(id, chosen);
   });
 
   /**

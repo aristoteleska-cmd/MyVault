@@ -752,5 +752,9 @@
   "settings.adoptFolderDesc": "Wenn Ihr Bestand nach dem Installieren oder Verschieben leer aussieht, liegt Ihr Laden vermutlich noch im Ordner der alten Kopie — MyVault-Data neben dem portablen Programm oder der data-Ordner der vorherigen Installation. Zeigen Sie ihn MyVault, und alles kommt zurück, samt Verkaufshistorie.",
   "settings.adoptFolderBtn": "Alten Datenordner suchen",
   "toast.adoptedFolder": "Ihr Laden ist zurück — {count} Produkte, mit Historie.",
-  "docs.pdfAddMissing": "Zu meinen Produkten"
+  "docs.pdfAddMissing": "Zu meinen Produkten",
+  "docs.dropTitle": "PDF-Rechnung des Lieferanten hier ablegen",
+  "docs.dropSub": "Oder oben auf „PDF-Rechnung einlesen“ klicken. MyVault liest sie auf diesem Rechner — nichts wird irgendwohin gesendet.",
+  "docs.dropNotPdf": "„{name}“ ist keine PDF. Legen Sie die Rechnungsdatei ab, die Ihr Lieferant geschickt hat.",
+  "docs.dropNoPath": "MyVault konnte nicht feststellen, wo diese Datei liegt. Nutzen Sie die Schaltfläche „PDF-Rechnung einlesen“."
 }

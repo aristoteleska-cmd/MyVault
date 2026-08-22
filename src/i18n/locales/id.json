@@ -752,5 +752,9 @@
   "settings.adoptFolderDesc": "Kalau stok tampak kosong setelah memasang atau memindahkan MyVault, toko Anda kemungkinan masih ada di folder salinan lama — MyVault-Data di sebelah program portabel, atau folder data dari salinan sebelumnya. Tunjukkan foldernya ke MyVault dan semuanya kembali, termasuk riwayat penjualan.",
   "settings.adoptFolderBtn": "Cari folder data lama saya",
   "toast.adoptedFolder": "Toko Anda kembali — {count} produk, beserta riwayatnya.",
-  "docs.pdfAddMissing": "Tambahkan ke produk saya"
+  "docs.pdfAddMissing": "Tambahkan ke produk saya",
+  "docs.dropTitle": "Letakkan faktur PDF pemasok di sini",
+  "docs.dropSub": "Atau tekan «Baca faktur PDF» di atas. MyVault membacanya di komputer ini — tidak ada yang dikirim ke mana pun.",
+  "docs.dropNotPdf": "«{name}» bukan PDF. Letakkan berkas faktur yang dikirim pemasok Anda.",
+  "docs.dropNoPath": "MyVault tidak dapat mengetahui letak berkas itu. Gunakan tombol «Baca faktur PDF»."
 }

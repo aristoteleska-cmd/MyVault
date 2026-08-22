@@ -752,5 +752,9 @@
   "settings.adoptFolderDesc": "Si votre stock paraît vide après une installation ou un déplacement, votre boutique est sans doute encore dans le dossier de l'ancienne copie — MyVault-Data à côté du programme portable, ou le dossier data de la copie précédente. Indiquez-le à MyVault et tout revient, historique des ventes compris.",
   "settings.adoptFolderBtn": "Trouver mon ancien dossier de données",
   "toast.adoptedFolder": "Votre boutique est revenue — {count} produits, avec son historique.",
-  "docs.pdfAddMissing": "Ajouter à mes produits"
+  "docs.pdfAddMissing": "Ajouter à mes produits",
+  "docs.dropTitle": "Déposez ici la facture PDF du fournisseur",
+  "docs.dropSub": "Ou cliquez sur « Lire une facture PDF » ci-dessus. MyVault la lit sur cet ordinateur — rien n'est envoyé nulle part.",
+  "docs.dropNotPdf": "« {name} » n'est pas un PDF. Déposez le fichier de facture que votre fournisseur vous a envoyé.",
+  "docs.dropNoPath": "MyVault n'a pas pu savoir où se trouve ce fichier. Utilisez le bouton « Lire une facture PDF »."
 }

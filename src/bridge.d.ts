@@ -71,6 +71,8 @@ export interface PickedImage {
 
 export interface MyVaultBridge {
   getInfo(): Promise<Result<AppInfo>>;
+  /** Where a dragged file is on this machine. Empty when it cannot be told. */
+  pathForFile(file: File): string;
   getState(): Promise<Result<Database>>;
 
   items: {
@@ -124,6 +126,7 @@ export interface MyVaultBridge {
       draft?: DraftDocument;
     }>>;
     importPdf(id: string): Promise<Result<PdfInvoiceResult>>;
+    importPdfFile(id: string, filePath: string): Promise<Result<PdfInvoiceResult>>;
     addMissing(id: string, line: UnmatchedLine): Promise<Result<{
       item?: Item;
       added?: number;

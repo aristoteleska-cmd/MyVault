@@ -752,5 +752,9 @@
   "settings.adoptFolderDesc": "安装或搬动 MyVault 后如果库存是空的，您的店铺多半还在旧副本用的文件夹里 — 便携版旁边的 MyVault-Data，或先前那份的 data 文件夹。把它指给 MyVault，连同销售记录一起都会回来。",
   "settings.adoptFolderBtn": "找到我旧的数据文件夹",
   "toast.adoptedFolder": "店铺回来了 — {count} 件商品，连同记录。",
-  "docs.pdfAddMissing": "加入我的商品"
+  "docs.pdfAddMissing": "加入我的商品",
+  "docs.dropTitle": "把供货商的 PDF 发票拖到这里",
+  "docs.dropSub": "或点击上面的“读取 PDF 发票”。MyVault 在这台电脑上读取，不会发送到任何地方。",
+  "docs.dropNotPdf": "“{name}”不是 PDF。请拖入供货商发来的发票文件。",
+  "docs.dropNoPath": "MyVault 无法确定该文件的位置。请改用“读取 PDF 发票”按钮。"
 }

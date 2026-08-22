@@ -752,5 +752,9 @@
   "settings.adoptFolderDesc": "Kurulumdan veya taşımadan sonra stokunuz boş görünüyorsa, dükkânınız büyük olasılıkla eski kopyanın kullandığı klasörde duruyor — taşınabilir programın yanındaki MyVault-Data ya da önceki kopyanın data klasörü. MyVault’a o klasörü gösterin; satış geçmişiyle birlikte her şey geri gelir.",
   "settings.adoptFolderBtn": "Eski veri klasörümü bul",
   "toast.adoptedFolder": "Dükkânınız geri geldi — {count} ürün, geçmişiyle birlikte.",
-  "docs.pdfAddMissing": "Ürünlerime ekle"
+  "docs.pdfAddMissing": "Ürünlerime ekle",
+  "docs.dropTitle": "Tedarikçinin PDF faturasını buraya bırakın",
+  "docs.dropSub": "Ya da yukarıdaki „PDF fatura oku\" düğmesine basın. MyVault faturayı bu bilgisayarda okur — hiçbir şey hiçbir yere gönderilmez.",
+  "docs.dropNotPdf": "„{name}\" bir PDF değil. Tedarikçinizin gönderdiği fatura dosyasını bırakın.",
+  "docs.dropNoPath": "MyVault bu dosyanın nerede olduğunu anlayamadı. „PDF fatura oku\" düğmesini kullanın."
 }

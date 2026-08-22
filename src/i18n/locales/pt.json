@@ -752,5 +752,9 @@
   "settings.adoptFolderDesc": "Se o seu stock aparece vazio depois de instalar ou mudar o MyVault, a sua loja está provavelmente ainda na pasta que a cópia antiga usava — MyVault-Data ao lado do programa portátil, ou a pasta data da cópia anterior. Indique-a ao MyVault e volta tudo, incluindo o histórico de vendas.",
   "settings.adoptFolderBtn": "Encontrar a minha pasta de dados antiga",
   "toast.adoptedFolder": "A sua loja voltou — {count} produtos, com o histórico.",
-  "docs.pdfAddMissing": "Adicionar aos meus produtos"
+  "docs.pdfAddMissing": "Adicionar aos meus produtos",
+  "docs.dropTitle": "Largue aqui a fatura PDF do fornecedor",
+  "docs.dropSub": "Ou carregue em «Ler uma fatura PDF» acima. O MyVault lê-a neste computador — nada é enviado para lado nenhum.",
+  "docs.dropNotPdf": "«{name}» não é um PDF. Largue o ficheiro da fatura que o fornecedor lhe enviou.",
+  "docs.dropNoPath": "O MyVault não conseguiu saber onde está esse ficheiro. Use o botão «Ler uma fatura PDF»."
 }

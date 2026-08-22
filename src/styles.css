@@ -236,6 +236,45 @@ button { font: inherit; color: inherit; }
     color var(--speed) var(--ease), transform var(--speed) var(--ease);
 }
 /*
+ * Somewhere to drop a supplier's invoice.
+ *
+ * Marked out with a dashed edge because that is the shape every program uses to
+ * mean "put a file here", and a shopkeeper should not have to be taught it. It
+ * lights up while a file is over it so there is no doubt the window has noticed.
+ */
+.dropzone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-7) var(--space-5);
+  margin-bottom: var(--space-5);
+  border: 2px dashed var(--border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  color: var(--text-muted);
+  text-align: center;
+  transition: border-color var(--speed) var(--ease), background var(--speed) var(--ease);
+}
+.dropzone-over {
+  border-color: var(--accent);
+  background: var(--surface-3);
+  color: var(--text);
+}
+.dropzone-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+}
+.dropzone-sub {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+/*
  * A button that sits inside a list row rather than in a toolbar.
  *
  * Smaller drawn, because a row of them beside four lines of an invoice would

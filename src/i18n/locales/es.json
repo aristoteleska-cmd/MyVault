@@ -752,5 +752,9 @@
   "settings.adoptFolderDesc": "Si sus existencias aparecen vacías tras instalar o mover MyVault, su tienda seguramente sigue en la carpeta que usaba la copia anterior — MyVault-Data junto al programa portátil, o la carpeta data de la copia que tenía antes. Indíquesela a MyVault y volverá todo, incluido el historial de ventas.",
   "settings.adoptFolderBtn": "Buscar mi carpeta de datos anterior",
   "toast.adoptedFolder": "Su tienda ha vuelto: {count} productos, con su historial.",
-  "docs.pdfAddMissing": "Añadir a mis productos"
+  "docs.pdfAddMissing": "Añadir a mis productos",
+  "docs.dropTitle": "Suelte aquí la factura PDF del proveedor",
+  "docs.dropSub": "O pulse «Leer una factura PDF» arriba. MyVault la lee en este ordenador: no se envía nada a ninguna parte.",
+  "docs.dropNotPdf": "«{name}» no es un PDF. Suelte el archivo de la factura que le envió su proveedor.",
+  "docs.dropNoPath": "MyVault no ha podido saber dónde está ese archivo. Use el botón «Leer una factura PDF»."
 }
