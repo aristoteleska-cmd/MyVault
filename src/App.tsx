@@ -11,6 +11,8 @@ import { ReorderView } from './components/ReorderView';
 import { VatView } from './components/VatView';
 import { PricesView } from './components/PricesView';
 import { InvoicesView } from './components/InvoicesView';
+import { SuppliersView } from './components/SuppliersView';
+import { SalesView } from './components/SalesView';
 import { ClientsView } from './components/ClientsView';
 import { CategoriesView } from './components/CategoriesView';
 import { FieldsView } from './components/FieldsView';
@@ -21,7 +23,7 @@ import { SignInView } from './components/SignInView';
 import { RecoveryCode } from './components/RecoveryCode';
 import { Toasts } from './components/Toasts';
 
-type ViewName = 'inventory' | 'statistics' | 'reorder' | 'stocktake' | 'prices' | 'vat' | 'invoices' | 'clients' | 'categories' | 'fields' | 'settings' | 'staff';
+type ViewName = 'inventory' | 'statistics' | 'reorder' | 'stocktake' | 'prices' | 'vat' | 'invoices' | 'suppliers' | 'sales' | 'clients' | 'categories' | 'fields' | 'settings' | 'staff';
 
 /**
  * The sidebar, and what each entry needs before it is offered.
@@ -41,6 +43,8 @@ const NAV: {
   { id: 'reorder', labelKey: 'nav.reorder', icon: 'upload', needs: 'stats.view' },
   { id: 'stocktake', labelKey: 'nav.stocktake', icon: 'check', needs: 'stocktake.run' },
   { id: 'invoices', labelKey: 'nav.invoices', icon: 'invoice', needs: 'documents.manage' },
+  { id: 'suppliers', labelKey: 'nav.suppliers', icon: 'people', needs: 'documents.manage' },
+  { id: 'sales', labelKey: 'nav.sales', icon: 'receipt', needs: 'documents.manage' },
   { id: 'prices', labelKey: 'nav.prices', icon: 'tag', needs: 'pricing.view' },
   { id: 'vat', labelKey: 'nav.vat', icon: 'receipt', needs: 'vat.view' },
   { id: 'clients', labelKey: 'nav.clients', icon: 'people', needs: 'clients.view' },
@@ -329,6 +333,8 @@ export function App() {
         {view === 'prices' && <PricesView />}
         {view === 'vat' && <VatView />}
         {view === 'invoices' && <InvoicesView />}
+        {view === 'suppliers' && <SuppliersView />}
+        {view === 'sales' && <SalesView />}
         {view === 'clients' && <ClientsView />}
         {view === 'categories' && (
           <CategoriesView

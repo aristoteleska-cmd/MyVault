@@ -674,6 +674,27 @@ function registerIpc() {
 
   handle('docs:list', 'documents.manage', (options = {}) => store.listDocuments(options));
 
+  /**
+   * The supplier book, and the search that goes with it.
+   *
+   * Behind the same capability as the invoices themselves: a supplier's history
+   * is what the shop paid and for what, which is the same commercially private
+   * thing whichever screen it is read on.
+   */
+  handle('suppliers:list', 'documents.manage', (options = {}) => store.supplierBook(options));
+  handle('suppliers:save', 'documents.manage', (supplier = {}) => ({
+    supplier: store.saveSupplier(supplier),
+    state: store.publicState(forThisPerson()),
+  }));
+  handle('suppliers:remove', 'documents.manage', (id) => ({
+    ...store.removeSupplier(id),
+    state: store.publicState(forThisPerson()),
+  }));
+
+  /** Every invoice, in or out, searched by number, name, date or product. */
+  handle('docs:search', 'documents.manage', (options = {}) => store.searchDocuments(options));
+  handle('docs:detail', 'documents.manage', (id) => store.documentDetail(id));
+
   /** Reads a supplier's CSV onto the draft, reporting what it could not match. */
   handle('docs:import-csv', 'documents.manage', async (id) => {
     const { canceled, filePaths } = await dialog.showOpenDialog(mainWindow, {
@@ -773,6 +794,13 @@ function registerIpc() {
       fill.date = invoice.date;
     }
     if (Object.keys(fill).length) store.updateDraft(id, fill);
+
+    // The paper knows the supplier's tax number, which is the one thing about
+    // them a shop would otherwise have to copy out by hand. Recorded now rather
+    // than at posting, so it is there even if the delivery is never posted.
+    if (before.kind === 'in' && (fill.supplier || before.supplier)) {
+      store.rememberSupplier(fill.supplier || before.supplier, { vatNumber: invoice.vatNumber });
+    }
 
     const { rows, warnings } = toImportRows(invoice);
     const imported = store.importDraftLines(id, rows);

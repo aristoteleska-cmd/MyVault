@@ -393,6 +393,8 @@ export interface Database {
   categories: Category[];
   customFields: CustomField[];
   clients: Client[];
+  /** Who the shop buys from. What they sent lives in the invoice files. */
+  suppliers: Supplier[];
   stockTake: StockTake | null;
   drafts: DraftDocument[];
   items: Item[];
@@ -668,6 +670,59 @@ export interface RepricedLine {
   now: number;
   percent: number;
   kind: 'dearer' | 'cheaper';
+}
+
+/** Someone the shop buys from. Their invoices are not in here — see SupplierBookEntry. */
+export interface Supplier {
+  id: string;
+  name: string;
+  vatNumber: string;
+  phone: string;
+  email: string;
+  note: string;
+  createdAt: string;
+}
+
+/**
+ * A supplier as the book shows them: who they are, plus what the invoice files
+ * say they have sent. The totals are counted from the record every time rather
+ * than stored, so they cannot drift away from the invoices they came from.
+ */
+export interface SupplierBookEntry extends Supplier {
+  key: string;
+  invoices: number;
+  spent: number;
+  first: string;
+  last: string;
+}
+
+/** One invoice as a search result: enough to recognise it and open it. */
+export interface DocumentSummary {
+  id: string;
+  kind: 'in' | 'out';
+  number: string;
+  date: string;
+  postedAt: string;
+  supplier: string;
+  clientId: string;
+  clientName: string;
+  lines: number;
+  units: number;
+  net: number;
+  vat: number;
+  gross: number;
+  voids: string;
+  voided: boolean;
+}
+
+export interface DocumentSearch {
+  kind?: 'in' | 'out' | '';
+  query?: string;
+  supplier?: string;
+  clientId?: string;
+  from?: string;
+  to?: string;
+  limit?: number;
 }
 
 export interface PdfInvoiceResult {

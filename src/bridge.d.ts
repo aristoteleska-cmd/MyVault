@@ -24,6 +24,10 @@ import type {
   Movement,
   PdfInvoiceResult,
   UnmatchedLine,
+  Supplier,
+  SupplierBookEntry,
+  DocumentSummary,
+  DocumentSearch,
   MovementReason,
   Role,
   Settings,
@@ -133,6 +137,14 @@ export interface MyVaultBridge {
       draft?: DraftDocument;
       state?: Database;
     }>>;
+    search(options?: DocumentSearch): Promise<Result<DocumentSummary[]>>;
+    detail(id: string): Promise<Result<PostedDocument & { clientName: string }>>;
+  };
+
+  suppliers: {
+    list(options?: { query?: string; from?: string; to?: string }): Promise<Result<SupplierBookEntry[]>>;
+    save(supplier: Partial<Supplier>): Promise<Result<{ supplier: Supplier; state: Database }>>;
+    remove(id: string): Promise<Result<{ removed: number; state: Database }>>;
   };
 
   vat: {

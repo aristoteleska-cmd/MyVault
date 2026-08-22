@@ -86,6 +86,17 @@ contextBridge.exposeInMainWorld('myvault', {
     importPdfFile: (id, filePath) => invoke('docs:import-pdf-file', id, filePath),
     /** Create a product for a line the shop does not stock, and add it. */
     addMissing: (id, line) => invoke('docs:add-missing', id, line),
+    /** Every invoice, in or out, found by number, name, date or product. */
+    search: (options) => invoke('docs:search', options),
+    /** One invoice in full, with its lines. */
+    detail: (id) => invoke('docs:detail', id),
+  },
+
+  /** Who the shop buys from, and what each of them has sent. */
+  suppliers: {
+    list: (options) => invoke('suppliers:list', options),
+    save: (supplier) => invoke('suppliers:save', supplier),
+    remove: (id) => invoke('suppliers:remove', id),
   },
 
   /** What the shop owes the tax office, and for which calendar period. */

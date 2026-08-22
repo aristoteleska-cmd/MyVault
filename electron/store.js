@@ -288,6 +288,18 @@ function emptyDatabase() {
     // stored here — it is worked out from the movement log, so the contact list
     // stays a contact list however many years of sales pile up behind it.
     clients: [],
+    /**
+     * The people the shop buys from.
+     *
+     * Only who they are — a name, a phone number, their tax number. What they
+     * have sent is not copied in here: it is already written, once and for
+     * good, in the invoice files, and a second copy would be a second version
+     * of the truth that could disagree with the first. A supplier appears in
+     * this list the moment a delivery is posted in their name, so a shop that
+     * never opens the screen still ends up with a complete book of who supplies
+     * it.
+     */
+    suppliers: [],
     // A count in progress, or null. Counting a shop takes hours and gets
     // interrupted by customers; this is saved so closing MyVault half way
     // through does not throw the morning away.
@@ -583,6 +595,13 @@ class Store {
       ? parsed.clients
           .filter((c) => c && typeof c === 'object')
           .map((c) => this.normalizeClient(c))
+      : [];
+
+    db.suppliers = Array.isArray(parsed.suppliers)
+      ? parsed.suppliers
+          .filter((s) => s && typeof s === 'object')
+          .map((s) => this.normalizeSupplier(s))
+          .filter((s) => s.name)
       : [];
 
     // A count in progress survives a restart. Anything malformed is dropped
@@ -1210,8 +1229,10 @@ class Store {
     }
 
     // A half-typed invoice belongs to whoever is typing it, and the totals on
-    // it are the shop's trade with a supplier.
-    if (!may('documents.manage')) state.drafts = [];
+    // it are the shop's trade with a supplier. Who the shop buys from goes the
+    // same way: a wholesaler's name and terms are what a competitor would most
+    // like to know, and nobody selling at the till needs either.
+    if (!may('documents.manage')) { state.drafts = []; state.suppliers = []; }
 
     // The customer list crosses only for someone who may see customers at all.
     if (!may('clients.view')) state.clients = [];
@@ -1629,6 +1650,10 @@ class Store {
     }
 
     this.db.drafts = this.db.drafts.filter((candidate) => candidate.id !== id);
+    // A delivery posted in somebody's name is what makes them a supplier. Doing
+    // it here rather than asking means a shop that never opens the supplier
+    // screen still has a complete book of who supplies it.
+    if (incoming && draft.supplier) this.rememberSupplier(draft.supplier);
     this.persist();
 
     for (const entry of moved) this.logMovement(entry);
@@ -1871,6 +1896,268 @@ class Store {
 
     this.persist();
     return { ...result, draft: this.describeDraft(draft) };
+  }
+
+  // ------------------------------------------------------------- the suppliers
+  //
+  // Who the shop buys from, and everything they have ever sent.
+  //
+  // The list of names is kept in the data file, because a shop wants to write a
+  // phone number against a wholesaler and have it still be there next year. What
+  // each of them has sent is not kept anywhere twice: it is read out of the
+  // invoice files, which already hold every posted document, for good, one file
+  // per year. A supplier's history is therefore a question asked of the record
+  // rather than a summary maintained beside it — the two can never disagree,
+  // because there is only one of them.
+
+  /**
+   * The date a shop means when it says "that invoice from August".
+   *
+   * The one printed on the paper, not the moment somebody typed it in. They are
+   * usually the same day and occasionally a fortnight apart — a delivery note
+   * from the end of December entered in January is the ordinary case, and it
+   * belongs in December wherever the shop looks for it.
+   */
+  static documentDate(document) {
+    return String(document?.date || document?.postedAt || '').slice(0, 10);
+  }
+
+  /**
+   * The window to read the year files over, for a wanted range of invoice dates.
+   *
+   * The files are filed by when a document was posted, so a search for December
+   * has to read a little of January to find the paper dated the 31st and typed
+   * on the 2nd. A year either side is far more slack than any shop needs and
+   * still spares a ten-year history from being read end to end for one month.
+   */
+  static scanWindow(from, to) {
+    const shift = (value, years) => {
+      const when = new Date(`${String(value).slice(0, 10)}T00:00:00Z`);
+      if (Number.isNaN(when.getTime())) return undefined;
+      when.setUTCFullYear(when.getUTCFullYear() + years);
+      return when.toISOString();
+    };
+    return { from: from ? shift(from, -1) : undefined, to: to ? shift(to, 1) : undefined };
+  }
+
+  normalizeSupplier(input = {}) {
+    return {
+      id: asString(input.id, 64) || newId(),
+      name: asString(input.name, 120).trim(),
+      vatNumber: asString(input.vatNumber, 40).trim(),
+      phone: asString(input.phone, 40).trim(),
+      email: asString(input.email, 120).trim(),
+      note: asString(input.note, 500),
+      createdAt: asString(input.createdAt) || nowIso(),
+    };
+  }
+
+  /**
+   * Makes sure a supplier is in the book, without asking anybody to type them in.
+   *
+   * Called when a delivery is posted and when a PDF fills in the supplier field.
+   * The name is matched the way supplier codes are matched — case, spaces and
+   * punctuation ignored — so "ΑΦΟΙ ΠΑΠΑΔΟΠΟΥΛΟΥ Α.Ε." does not become a second
+   * entry beside "ΑΦΟΙ ΠΑΠΑΔΟΠΟΥΛΟΥ ΑΕ".
+   */
+  rememberSupplier(name, details = {}) {
+    const clean = asString(name, 120).trim();
+    if (!clean) return null;
+    const key = supplierKey(clean);
+    if (!Array.isArray(this.db.suppliers)) this.db.suppliers = [];
+
+    const known = this.db.suppliers.find((supplier) => supplierKey(supplier.name) === key);
+    if (known) {
+      // Anything the paper knows that the book does not. Never the other way
+      // round: what somebody typed is theirs, and an invoice does not overwrite
+      // a phone number the shop corrected by hand.
+      let changed = false;
+      for (const field of ['vatNumber', 'phone', 'email']) {
+        const value = asString(details[field], 120).trim();
+        if (value && !known[field]) { known[field] = value; changed = true; }
+      }
+      if (changed) this.persist();
+      return known;
+    }
+
+    const supplier = this.normalizeSupplier({ ...details, name: clean });
+    this.db.suppliers.push(supplier);
+    this.persist();
+    return supplier;
+  }
+
+  saveSupplier(input = {}) {
+    const clean = this.normalizeSupplier(input);
+    if (!clean.name) throw new Error('A supplier needs a name.');
+    if (!Array.isArray(this.db.suppliers)) this.db.suppliers = [];
+
+    const key = supplierKey(clean.name);
+    const clash = this.db.suppliers.find(
+      (supplier) => supplier.id !== clean.id && supplierKey(supplier.name) === key,
+    );
+    if (clash) throw new Error(`"${clash.name}" is already in your list of suppliers.`);
+
+    const existing = this.db.suppliers.find((supplier) => supplier.id === clean.id);
+    if (existing) Object.assign(existing, clean, { createdAt: existing.createdAt });
+    else this.db.suppliers.push(clean);
+    this.persist();
+    return existing || clean;
+  }
+
+  /**
+   * Takes a supplier out of the book — and nothing else.
+   *
+   * Their invoices stay exactly where they are. A shop that stops dealing with a
+   * wholesaler still bought from them, still deducted the VAT on it, and still
+   * has to be able to show the invoice five years later. The name simply stops
+   * being offered; the history goes on being history, and appears under that
+   * name as an entry nobody has details for.
+   */
+  removeSupplier(id) {
+    const before = (this.db.suppliers || []).length;
+    this.db.suppliers = (this.db.suppliers || []).filter((supplier) => supplier.id !== id);
+    if (this.db.suppliers.length === before) throw new Error('That supplier is not in your list.');
+    this.persist();
+    return { removed: 1 };
+  }
+
+  /**
+   * Every supplier, with what they have sent worked out from the invoice files.
+   *
+   * One pass over the record, not one per supplier: a shop with forty suppliers
+   * and eight years of invoices would otherwise read the same files forty times
+   * to draw one screen.
+   */
+  supplierBook({ query = '', from = '', to = '' } = {}) {
+    const totals = new Map();
+    const voided = new Set();
+    const window = Store.scanWindow(from, to);
+
+    this.documents.forEach({}, (document) => {
+      if (document.voids) voided.add(document.voids);
+    });
+
+    this.documents.forEach(window, (document) => {
+      if (document.kind !== 'in') return;
+      if (document.voids || voided.has(document.id)) return;
+      const when = Store.documentDate(document);
+      if (from && when < from) return;
+      if (to && when > to) return;
+      const key = supplierKey(document.supplier) || '?';
+      const seen = totals.get(key) || {
+        key, name: document.supplier || '', invoices: 0, spent: 0, last: '', first: '',
+      };
+      seen.invoices += 1;
+      seen.spent = clampMoney(seen.spent + (document.totals?.gross || 0));
+      if (!seen.name && document.supplier) seen.name = document.supplier;
+      if (when && (!seen.last || when > seen.last)) seen.last = when;
+      if (when && (!seen.first || when < seen.first)) seen.first = when;
+      totals.set(key, seen);
+    });
+
+    const book = [];
+    const listed = new Set();
+    for (const supplier of this.db.suppliers || []) {
+      const key = supplierKey(supplier.name);
+      listed.add(key);
+      book.push({ ...supplier, key, ...(totals.get(key) || { invoices: 0, spent: 0, last: '', first: '' }), name: supplier.name });
+    }
+    // Suppliers that appear on invoices from before this list existed, or whose
+    // details were removed. They have a history, so they have a place.
+    for (const [key, seen] of totals.entries()) {
+      if (listed.has(key)) continue;
+      book.push({
+        id: '', name: seen.name, vatNumber: '', phone: '', email: '', note: '',
+        createdAt: '', key, invoices: seen.invoices, spent: seen.spent, last: seen.last, first: seen.first,
+      });
+    }
+
+    const wanted = String(query || '').trim().toLowerCase();
+    const matching = wanted
+      ? book.filter((supplier) => [supplier.name, supplier.vatNumber, supplier.phone, supplier.email, supplier.note]
+        .some((field) => String(field || '').toLowerCase().includes(wanted)))
+      : book;
+
+    return matching.sort((a, b) => (b.last || '').localeCompare(a.last || '')
+      || a.name.localeCompare(b.name));
+  }
+
+  /**
+   * Invoices, searched.
+   *
+   * One place for both directions, because "find me that invoice" is the same
+   * question whether the paper came in or went out: a number, a name, a date,
+   * or a product somebody remembers being on it. Reading the year files is what
+   * makes it work on ten years of history without keeping an index that could
+   * be wrong.
+   */
+  searchDocuments({
+    kind = '', query = '', supplier = '', clientId = '', from = '', to = '', limit = 200,
+  } = {}) {
+    const wanted = String(query || '').trim().toLowerCase();
+    const supplierWanted = supplierKey(supplier);
+    const cap = Math.min(500, Math.max(1, Number(limit) || 200));
+
+    const voided = new Set();
+    this.documents.forEach({}, (document) => {
+      if (document.voids) voided.add(document.voids);
+    });
+
+    const clientNames = new Map(
+      (this.db.clients || []).map((client) => [client.id, client.name]),
+    );
+
+    const found = [];
+    this.documents.forEach(Store.scanWindow(from, to), (document) => {
+      if (kind && document.kind !== kind) return;
+      // The date on the paper, which is what a shop searches by. See
+      // Store.documentDate: it is not always the day it was typed in.
+      const when = Store.documentDate(document);
+      if (from && when < from) return;
+      if (to && when > to) return;
+      if (supplierWanted && supplierKey(document.supplier) !== supplierWanted) return;
+      if (clientId && document.clientId !== clientId) return;
+
+      if (wanted) {
+        const client = clientNames.get(document.clientId) || '';
+        const haystack = [
+          document.number, document.supplier, client, document.note, document.date,
+          ...(document.lines || []).map((line) => line.name),
+        ].join(' ').toLowerCase();
+        if (!haystack.includes(wanted)) return;
+      }
+
+      found.push({
+        id: document.id,
+        kind: document.kind,
+        number: document.number || '',
+        date: document.date || '',
+        postedAt: document.postedAt || '',
+        supplier: document.supplier || '',
+        clientId: document.clientId || '',
+        clientName: clientNames.get(document.clientId) || '',
+        lines: (document.lines || []).length,
+        units: document.totals?.units ?? 0,
+        net: document.totals?.net ?? 0,
+        vat: document.totals?.vat ?? 0,
+        gross: document.totals?.gross ?? 0,
+        voids: document.voids || '',
+        voided: voided.has(document.id),
+      });
+      // Newest wanted, oldest read first: keep a window rather than the lot, so
+      // a search across a decade never holds a decade in memory.
+      if (found.length > cap * 2) found.splice(0, found.length - cap);
+    });
+
+    return found.slice(-cap).reverse();
+  }
+
+  /** One invoice in full, lines and all, for the shop that wants to look at it. */
+  documentDetail(id) {
+    const document = this.documents.find(id);
+    if (!document) throw new Error('That invoice is not in your records.');
+    const client = (this.db.clients || []).find((c) => c.id === document.clientId);
+    return { ...document, clientName: client ? client.name : '' };
   }
 
   listDocuments(options = {}) {

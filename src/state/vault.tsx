@@ -37,6 +37,10 @@ import type {
   DeliveryReview,
   BackupStatus,
   UpdateStatus,
+  Supplier,
+  SupplierBookEntry,
+  DocumentSummary,
+  DocumentSearch,
 } from '../types';
 import type { ImportResult, Result } from '../bridge';
 import type { TranslationKey } from '../i18n/locales/en';
@@ -127,6 +131,12 @@ interface VaultValue {
   postDoc: (id: string) => Promise<DeliveryReview | null>;
   voidDoc: (id: string) => Promise<boolean>;
   listDocs: (options?: { limit?: number }) => Promise<PostedDocument[] | null>;
+  searchDocs: (options?: DocumentSearch) => Promise<DocumentSummary[] | null>;
+  docDetail: (id: string) => Promise<(PostedDocument & { clientName: string }) | null>;
+  supplierBook: (options?: { query?: string; from?: string; to?: string })
+    => Promise<SupplierBookEntry[] | null>;
+  saveSupplier: (supplier: Partial<Supplier>) => Promise<Supplier | null>;
+  removeSupplier: (id: string) => Promise<boolean>;
   importDocCsv: (id: string) => Promise<DraftDocument | null>;
   /** Reads a supplier's PDF invoice onto the draft, and hands back what it read. */
   importDocPdf: (id: string) => Promise<PdfInvoiceResult | null>;
@@ -246,6 +256,7 @@ const emptyDb: Database = {
   categories: [],
   customFields: [],
   clients: [],
+  suppliers: [],
   stockTake: null,
   drafts: [],
   items: [],
@@ -693,6 +704,45 @@ export function VaultProvider({ children }: { children: ReactNode }) {
     notify('toast.added', { name: result.item?.name ?? line.name }, 'success');
     return true;
   }, [run, replaceDraft, notify]);
+
+  /**
+   * Invoices, searched — either direction, by number, name, date or product.
+   *
+   * The reading is done in the main process against the year files, so a shop
+   * with a decade of invoices searches them without any of it crossing the
+   * bridge except the page being looked at.
+   */
+  const searchDocs = useCallback(
+    async (options?: DocumentSearch) => run(window.myvault.docs.search(options)),
+    [run],
+  );
+
+  const docDetail = useCallback(
+    async (id: string) => run(window.myvault.docs.detail(id)),
+    [run],
+  );
+
+  const supplierBook = useCallback(
+    async (options?: { query?: string; from?: string; to?: string }) =>
+      run(window.myvault.suppliers.list(options)),
+    [run],
+  );
+
+  const saveSupplier = useCallback(async (supplier: Partial<Supplier>) => {
+    const result = await run(window.myvault.suppliers.save(supplier));
+    if (!result) return null;
+    setDb(result.state);
+    notify('toast.supplierSaved', { name: result.supplier.name }, 'success');
+    return result.supplier;
+  }, [run, notify]);
+
+  const removeSupplier = useCallback(async (id: string) => {
+    const result = await run(window.myvault.suppliers.remove(id));
+    if (!result) return false;
+    setDb(result.state);
+    notify('toast.supplierRemoved', {}, 'success');
+    return true;
+  }, [run, notify]);
 
   const vatReport = useCallback(
     async (range?: { from?: string; to?: string }) => run(window.myvault.vat.report(range)),
@@ -1149,6 +1199,11 @@ export function VaultProvider({ children }: { children: ReactNode }) {
       postDoc,
       voidDoc,
       listDocs,
+      searchDocs,
+      docDetail,
+      supplierBook,
+      saveSupplier,
+      removeSupplier,
       importDocCsv,
       importDocPdf,
       addMissingProduct,
@@ -1211,7 +1266,8 @@ export function VaultProvider({ children }: { children: ReactNode }) {
       statsReport, recentMovements, reorderList, vatReport, vatPeriods, returnItem,
       priceReview, priceAdvice, applyPrice,
       drafts, refreshDrafts, startDoc, updateDoc, setDocLine, removeDocLine,
-      discardDoc, postDoc, voidDoc, listDocs, importDocCsv, importDocPdf, importDocPdfFile, addMissingProduct,
+      discardDoc, postDoc, voidDoc, listDocs, searchDocs, docDetail,
+      supplierBook, saveSupplier, removeSupplier, importDocCsv, importDocPdf, importDocPdfFile, addMissingProduct,
       startStockTake, stockTakeProgress, countStockTake, cancelStockTake, applyStockTake,
       printPdf, backupStatus, refreshBackupStatus, chooseBackupFolder, forgetBackupFolder, backupNow,
       clearHistoryTrouble,
