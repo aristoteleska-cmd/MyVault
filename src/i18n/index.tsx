@@ -1,6 +1,9 @@
-import { createContext, useCallback, useContext, useMemo, type ReactNode } from 'react';
+import {
+  createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode,
+} from 'react';
 import { en, type TranslationKey } from './locales/en';
-import { catalogues } from './catalogues';
+import { loadCatalogue, TRANSLATED_LANGUAGES } from './catalogues';
+import type { Catalogue } from './locales/en';
 import { LANGUAGES, RTL_LANGUAGES, findLanguage, resolveLanguage } from './languages';
 
 export { LANGUAGES, findLanguage, resolveLanguage } from './languages';
@@ -87,8 +90,31 @@ function pluralKey(
 }
 
 export function I18nProvider({ language, children }: { language: string; children: ReactNode }) {
+  /**
+   * The catalogue for the language being read, once it has been read off the
+   * disk. See ./catalogues.ts: the twelve translations are separate files in
+   * the bundle, so only the one in use is loaded.
+   *
+   * Held with the language it belongs to, because the two arrive at different
+   * moments and a catalogue shown under the wrong name is worse than a wait —
+   * it is Greek text with English plurals, or the other way round.
+   */
+  const [loaded, setLoaded] = useState<{ code: string; catalogue: Partial<Catalogue> }>(
+    { code: 'en', catalogue: en },
+  );
+
+  useEffect(() => {
+    let current = true;
+    void loadCatalogue(language).then((catalogue) => {
+      if (current) setLoaded({ code: language, catalogue });
+    });
+    return () => { current = false; };
+  }, [language]);
+
+  const ready = loaded.code === language;
+
   const value = useMemo<I18nValue>(() => {
-    const catalogue = catalogues[language] ?? en;
+    const catalogue = ready ? loaded.catalogue : en;
 
     const locale = findLanguage(language)?.code ?? 'en';
 
@@ -107,7 +133,17 @@ export function I18nProvider({ language, children }: { language: string; childre
       t,
       locale,
     };
-  }, [language]);
+  }, [language, ready, loaded.catalogue]);
+
+  /**
+   * Nothing at all until the right words are in hand.
+   *
+   * The alternative is a screen of English that turns Greek a frame later,
+   * which is the kind of thing a person notices, distrusts, and mentions. The
+   * wait is one file read from the disk the program is already running from,
+   * and the shop is looking at the loading screen either way.
+   */
+  if (!ready) return null;
 
   return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;
 }
@@ -129,7 +165,7 @@ export function useT(): Translate {
  */
 export function useAutoLanguage() {
   return useCallback((saved: string, systemLocale: string | undefined) => {
-    if (saved && catalogues[saved]) return saved;
+    if (saved && TRANSLATED_LANGUAGES.has(saved)) return saved;
     return resolveLanguage(systemLocale);
   }, []);
 }

@@ -1,29 +1,54 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { useVault } from './state/vault';
 import { useI18n, type TranslationKey } from './i18n';
 import { useBarcodeScanner } from './hooks/useBarcodeScanner';
 import type { Capability, Filters, Item, SortState } from './types';
 import { Icon, type IconName } from './components/Icon';
 import { InventoryView } from './components/InventoryView';
-import { StatisticsView } from './components/StatisticsView';
-import { StockTakeView } from './components/StockTakeView';
-import { ReorderView } from './components/ReorderView';
-import { VatView } from './components/VatView';
-import { PricesView } from './components/PricesView';
-import { InvoicesView } from './components/InvoicesView';
-import { SuppliersView } from './components/SuppliersView';
-import { SalesView } from './components/SalesView';
-import { ClientsView } from './components/ClientsView';
-import { CategoriesView } from './components/CategoriesView';
-import { FieldsView } from './components/FieldsView';
-import { SettingsView } from './components/SettingsView';
 import { ItemDialog } from './components/ItemDialog';
-import { StaffView } from './components/StaffView';
 import { SignInView } from './components/SignInView';
 import { RecoveryCode } from './components/RecoveryCode';
 import { Toasts } from './components/Toasts';
 
 type ViewName = 'inventory' | 'statistics' | 'reorder' | 'stocktake' | 'prices' | 'vat' | 'invoices' | 'suppliers' | 'sales' | 'clients' | 'categories' | 'fields' | 'settings' | 'staff';
+
+/**
+ * The screens that are not the one MyVault opens on.
+ *
+ * Everything used to arrive in a single file of about a megabyte: the barcode
+ * decoder, the VAT engine, the invoice reader, the statistics — all of it read
+ * off the disk and parsed before the shop could see how many bags of coffee it
+ * had. On the machine behind a counter, which is not a new machine, that is the
+ * difference between the program being open and the program being usable.
+ *
+ * Stock is imported normally above, because it is what opens and there is
+ * nothing to wait for. The rest are fetched when somebody first asks for them,
+ * out of the app's own bundle — there is no network here and there never will
+ * be, so "fetched" means read from a file beside the program.
+ */
+const StatisticsView = lazy(() => import('./components/StatisticsView').then((m) => ({ default: m.StatisticsView })));
+const StockTakeView = lazy(() => import('./components/StockTakeView').then((m) => ({ default: m.StockTakeView })));
+const ReorderView = lazy(() => import('./components/ReorderView').then((m) => ({ default: m.ReorderView })));
+const VatView = lazy(() => import('./components/VatView').then((m) => ({ default: m.VatView })));
+const PricesView = lazy(() => import('./components/PricesView').then((m) => ({ default: m.PricesView })));
+const InvoicesView = lazy(() => import('./components/InvoicesView').then((m) => ({ default: m.InvoicesView })));
+const SuppliersView = lazy(() => import('./components/SuppliersView').then((m) => ({ default: m.SuppliersView })));
+const SalesView = lazy(() => import('./components/SalesView').then((m) => ({ default: m.SalesView })));
+const ClientsView = lazy(() => import('./components/ClientsView').then((m) => ({ default: m.ClientsView })));
+const CategoriesView = lazy(() => import('./components/CategoriesView').then((m) => ({ default: m.CategoriesView })));
+const FieldsView = lazy(() => import('./components/FieldsView').then((m) => ({ default: m.FieldsView })));
+const StaffView = lazy(() => import('./components/StaffView').then((m) => ({ default: m.StaffView })));
+const SettingsView = lazy(() => import('./components/SettingsView').then((m) => ({ default: m.SettingsView })));
+
+/**
+ * What stands in while a screen is being read off the disk.
+ *
+ * Deliberately empty, and deliberately holding the page's height. The wait is
+ * a few milliseconds from a local file, and a word like "Loading…" that appears
+ * and vanishes inside one frame reads as a flicker, not as information — it
+ * would also need translating into twelve languages to say nothing.
+ */
+const screenLoading = <div className="view" aria-busy="true" />;
 
 /**
  * The sidebar, and what each entry needs before it is offered.
@@ -300,6 +325,7 @@ export function App() {
       </aside>
 
       <main className="main">
+        <Suspense fallback={screenLoading}>
         {view === 'inventory' && (
           <InventoryView
             filters={filters}
@@ -347,6 +373,7 @@ export function App() {
         {view === 'fields' && <FieldsView />}
         {view === 'staff' && <StaffView />}
         {view === 'settings' && <SettingsView />}
+        </Suspense>
       </main>
 
       {dialogOpen && (

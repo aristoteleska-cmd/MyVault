@@ -7,7 +7,7 @@
  */
 import assert from 'assert';
 import { en } from '../src/i18n/locales/en';
-import { catalogues } from '../src/i18n/catalogues';
+import { catalogues } from '../src/i18n/all-catalogues';
 import { LANGUAGES, resolveLanguage } from '../src/i18n/languages';
 
 let passed = 0;
