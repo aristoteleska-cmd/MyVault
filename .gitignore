@@ -7,3 +7,10 @@ npm-debug.log*
 Thumbs.db
 .vscode/
 .idea/
+
+# Whatever the assistant leaves in the working copy. Named one by one rather
+# than ignoring .claude/ whole, because that folder is also where a project
+# keeps configuration worth sharing — and a blanket rule would silently stop
+# any of it ever being committed.
+.claude/settings.local.json
+.claude/worktrees/
