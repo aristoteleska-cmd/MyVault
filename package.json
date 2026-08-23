@@ -22,11 +22,12 @@
     "dist:win": "npm run build && node scripts/sync-license.mjs && electron-builder --win --x64 --publish never",
     "dist:dir": "npm run build && node scripts/sync-license.mjs && electron-builder --dir --publish never",
     "test": "node scripts/run-tests.mjs",
-    "check": "npm run typecheck && npm test && npm audit --omit=dev --audit-level=high",
+    "check": "npm run lint && npm run typecheck && npm test && npm audit --omit=dev --audit-level=high",
     "test:e2e": "xvfb-run -a node tests/persistence.e2e.js && xvfb-run -a node tests/roles.e2e.js",
     "icon": "python build/make-icon.py",
     "dist:linux": "npm run build && electron-builder --linux --publish never",
-    "test:packaged": "xvfb-run -a node tests/packaged.e2e.js"
+    "test:packaged": "xvfb-run -a node tests/packaged.e2e.js",
+    "lint": "eslint ."
   },
   "dependencies": {
     "@zxing/library": "^0.21.3",
@@ -42,10 +43,14 @@
     "electron": "^38.0.0",
     "electron-builder": "^26.0.12",
     "esbuild": "^0.25.0",
+    "eslint": "^9.39.5",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "globals": "^17.11.0",
     "playwright": "^1.62.1",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "typescript": "^5.9.3",
+    "typescript-eslint": "^8.67.0",
     "vite": "^7.1.7",
     "wait-on": "^9.0.1"
   },

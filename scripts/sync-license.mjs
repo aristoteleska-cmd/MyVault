@@ -12,8 +12,8 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
-const licence = readFileSync(join(root, 'LICENSE'), 'utf8').replace(/^﻿/, '');
+const licence = readFileSync(join(root, 'LICENSE'), 'utf8').replace(/^\ufeff/, '');
 const forWindows = licence.replace(/\r?\n/g, '\r\n');
 
-writeFileSync(join(root, 'build', 'license.txt'), `﻿${forWindows}`, 'utf8');
+writeFileSync(join(root, 'build', 'license.txt'), `\ufeff${forWindows}`, 'utf8');
 console.log('build/license.txt refreshed from LICENSE (UTF-8 with BOM, CRLF)');

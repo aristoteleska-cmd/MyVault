@@ -38,7 +38,13 @@ export function StockTakeView() {
     void stockTakeProgress().then(setProgress);
   }, [running, stockTakeProgress]);
 
-  const counts = db.stockTake?.counts ?? {};
+  /**
+   * Memoised because of the fallback, not the lookup. `?? {}` builds a new
+   * empty object on every render, and the sorted list below depends on this —
+   * so during a stock take, where the whole point is typing a count into a long
+   * list, every keystroke re-sorted every product in the shop.
+   */
+  const counts = useMemo(() => db.stockTake?.counts ?? {}, [db.stockTake?.counts]);
   const scope = db.stockTake?.categoryId ?? '';
 
   const inScope = useMemo(

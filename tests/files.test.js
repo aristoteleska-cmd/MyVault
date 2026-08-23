@@ -227,7 +227,7 @@ const WEBP = Buffer.concat([
 
   // A byte order mark used to become part of the first heading, so "Name"
   // quietly stopped matching and every row was skipped.
-  const withBom = write('bom.csv', `﻿Name,Quantity\r\nΟύζο,7\r\n`);
+  const withBom = write('bom.csv', `${'\ufeff'}Name,Quantity\r\nΟύζο,7\r\n`);
   const rows = parseCsv(readCsvFile(withBom));
   assert.strictEqual(rows[0].Name, 'Ούζο', 'the heading survived the byte order mark');
   ok('a file saved by Excel with a byte order mark still matches its own headings');

@@ -360,7 +360,10 @@ export function VaultProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let cancelled = false;
 
-    (async () => {
+    // Started deliberately and not awaited: an effect cannot be async, and the
+    // cancelled flag above is what stops it writing to a component that has
+    // gone. `void` says that is on purpose rather than forgotten.
+    void (async () => {
       if (!window.myvault) {
         setLoadError('splash.noBridge');
         return;
@@ -959,7 +962,7 @@ export function VaultProvider({ children }: { children: ReactNode }) {
       if (result.state) setDb(result.state);
       setImportSummary(result);
     }
-  }, [run, notify]);
+  }, [run]);
 
   const backup = useCallback(async () => {
     const result = await run(window.myvault.data.backup());

@@ -185,8 +185,9 @@ function freshShop() {
   const coffee = shop.addItem({
     name: 'Coffee', quantity: 2, price: 4, cost: 2, lowStockThreshold: 5, supplier: 'Beans Ltd',
   });
-  // Out of stock entirely — the urgent case.
-  const tea = shop.addItem({
+  // Out of stock entirely — the urgent case. Added for the shop to contain it;
+  // the reorder list is what reads it back, by name.
+  shop.addItem({
     name: 'Tea', quantity: 0, price: 3, cost: 1, lowStockThreshold: 4, supplier: 'Beans Ltd',
   });
   // Plenty left: should not appear at all.

@@ -90,7 +90,6 @@ export function StaffView() {
                   type="button"
                   className="btn danger"
                   onClick={() => {
-                    // eslint-disable-next-line no-alert
                     if (window.confirm(t('staff.removeConfirm', { name: person.name }))) {
                       void removeStaff(person.id);
                     }
@@ -151,7 +150,6 @@ export function StaffView() {
                 type="button"
                 className="btn danger"
                 onClick={() => {
-                  // eslint-disable-next-line no-alert
                   if (window.confirm(t('staff.offConfirm'))) void disableStaff();
                 }}
               >

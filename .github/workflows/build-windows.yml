@@ -54,6 +54,10 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      # Cheapest first: the linter catches an unawaited promise or a stale
+      # hook dependency in seconds, and neither the compiler nor the tests
+      # would have said a word about either.
+      - run: npm run lint
       - run: npm run typecheck
       - run: npm test
 

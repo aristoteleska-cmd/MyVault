@@ -55,7 +55,7 @@ class Updater {
     // Injectable so the whole flow can be driven in a test without Windows, a
     // network, or a packaged build. Production passes neither.
     platform = process.platform,
-    loadUpdater = () => require('electron-updater').autoUpdater, // eslint-disable-line global-require
+    loadUpdater = () => require('electron-updater').autoUpdater,
   }) {
     this.app = app;
     this.getMode = getMode;

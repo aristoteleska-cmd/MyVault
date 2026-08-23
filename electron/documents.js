@@ -122,7 +122,8 @@ class DocumentLog {
           if (!Number.isFinite(when) || when < start || when > end) return;
           onDocument(parsed);
         };
-        // eslint-disable-next-line no-cond-assign
+        // Assignment in the condition, deliberately: reading a chunk and
+        // testing what came back is one step, not two.
         while ((bytes = fs.readSync(handle, buffer, 0, READ_CHUNK, null)) > 0) {
           const text = carry + buffer.toString('utf8', 0, bytes);
           const lines = text.split('\n');

@@ -1,6 +1,18 @@
 'use strict';
 
 /**
+ * The mark Excel looks for before it will believe a CSV is UTF-8.
+ *
+ * Written out at the front of every file MyVault exports, and stripped off the
+ * front of every file it reads, because a shop's spreadsheet puts one there.
+ * Named rather than typed inline: it is an invisible character doing real work,
+ * and an invisible character in a template literal is the kind of thing that
+ * gets deleted by accident and debugged for an hour.
+ */
+const BOM = '\ufeff';
+const BOM_AT_START = /^\ufeff/;
+
+/**
  * Minimal, dependency-free CSV reader/writer.
  *
  * Handles quoted fields, embedded commas/newlines, escaped quotes, a UTF-8 BOM
@@ -22,7 +34,7 @@ function detectDelimiter(text) {
 }
 
 function parseCsv(text) {
-  const clean = text.replace(/^﻿/, '');
+  const clean = text.replace(BOM_AT_START, '');
   if (!clean.trim()) return [];
 
   const delimiter = detectDelimiter(clean);
@@ -112,7 +124,7 @@ function toCsv(headers, rows) {
     lines.push(headers.map((header) => escapeCell(row[header])).join(','));
   }
   // BOM keeps accented characters readable when the file is opened in Excel.
-  return `﻿${lines.join('\r\n')}\r\n`;
+  return `${BOM}${lines.join('\r\n')}\r\n`;
 }
 
 module.exports = {

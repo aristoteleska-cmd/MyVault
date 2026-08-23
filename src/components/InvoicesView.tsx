@@ -503,7 +503,9 @@ export function InvoicesView() {
                 {draft.lines.map((line, index) => (
                   // Lines have no id of their own — the same product can appear
                   // twice at two prices, which is a real thing on an invoice.
-                  // eslint-disable-next-line react/no-array-index-key
+                  // Keyed by position because an invoice line has no id of
+                  // its own: the same product can appear twice on one paper,
+                  // at two prices, and both rows are real.
                   <tr key={`${line.itemId}-${index}`}>
                     <td>{line.name}</td>
                     <td className="num">
