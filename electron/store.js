@@ -341,6 +341,13 @@ class Store {
      * reason: they only ever accumulate. See ./documents.js.
      */
     this.documents = new DocumentLog(dataDir);
+
+    /**
+     * Which invoices a reversal names, once it has been asked for. Null means
+     * nobody has asked yet, or that something was written to the log since the
+     * last answer. See reversedDocuments.
+     */
+    this.reversedIds = null;
   }
 
   /**
@@ -903,9 +910,16 @@ class Store {
       return written;
     };
 
+    const movementYears = restore(this.movements, logs?.movements);
+    const invoiceYears = restore(this.documents, logs?.invoices);
+    // Whole years of invoices have just been written underneath it, reversals
+    // and all, so whatever the cache last worked out describes a shop that no
+    // longer exists.
+    this.reversedIds = null;
+
     return {
-      movementYears: restore(this.movements, logs?.movements),
-      invoiceYears: restore(this.documents, logs?.invoices),
+      movementYears,
+      invoiceYears,
       /** True for a backup taken before backups carried the history. */
       withoutHistory: logs === null,
     };
@@ -1657,9 +1671,7 @@ class Store {
     this.persist();
 
     for (const entry of moved) this.logMovement(entry);
-    try {
-      this.documents.append(posted);
-    } catch { /* the stock moved; a missing copy of the paper is the lesser loss */ }
+    this.fileDocument(posted);
 
     return { document: posted, moved: moved.length };
   }
@@ -1680,12 +1692,10 @@ class Store {
     // Whether it has been voided cannot be a flag on the original: the log is
     // append-only, so nothing already written to it is ever changed. The
     // answer is whether a reversal naming it exists, which is also what makes
-    // the state survive being read back from disk.
-    let alreadyVoided = false;
-    this.documents.forEach({}, (document) => {
-      if (document.voids === id) alreadyVoided = true;
-    });
-    if (alreadyVoided) throw new Error('That invoice has already been voided.');
+    // the state survive being read back from disk. See reversedDocuments.
+    if (this.reversedDocuments().has(id)) {
+      throw new Error('That invoice has already been voided.');
+    }
 
     const incoming = original.kind === 'in';
     const at = nowIso();
@@ -1770,9 +1780,7 @@ class Store {
         units: -original.totals.units,
       },
     };
-    try {
-      this.documents.append(record);
-    } catch { /* best effort, as above */ }
+    this.fileDocument(record);
 
     return { document: record, moved: moved.length };
   }
@@ -1911,6 +1919,56 @@ class Store {
   // because there is only one of them.
 
   /**
+   * Which invoices have been undone, worked out once instead of four times.
+   *
+   * A posted invoice is never edited, so "has this one been voided?" cannot be
+   * a flag on it — the answer is whether a reversal naming it exists further
+   * down the log. Four screens need that answer: the invoice history, the
+   * supplier book, the sales search and voiding itself. Each was reading every
+   * invoice file from the first year to the last to work it out, so opening
+   * Suppliers on a shop with a decade of deliveries read the entire decade
+   * twice, and the sales search read it again on every keystroke.
+   *
+   * The set is small — a shop voids a handful of invoices a year, not a
+   * handful a day — and the log only ever grows at the end, so it is built on
+   * demand and thrown away whenever anything is appended. Thrown away rather
+   * than patched: a cache that is updated in two places is a cache that is
+   * wrong in a third, and being wrong here means a voided invoice still
+   * counting towards what a supplier was paid.
+   */
+  reversedDocuments() {
+    if (this.reversedIds) return this.reversedIds;
+    const reversed = new Set();
+    this.documents.forEach({}, (document) => {
+      if (document.voids) reversed.add(document.voids);
+    });
+    this.reversedIds = reversed;
+    return reversed;
+  }
+
+  /**
+   * Files a posted document, and forgets what was true before it existed.
+   *
+   * Every append goes through here so that no future one can be added without
+   * the cache above being dropped with it.
+   */
+  fileDocument(record) {
+    try {
+      this.documents.append(record);
+    } catch {
+      // The stock has already moved and the movement is already in the
+      // history. A missing copy of the paper is the lesser loss, and the
+      // shop is better served by a delivery that posted than by one that
+      // refused at the last step. See the history-trouble path for the case
+      // that does matter, which is a movement that could not be written.
+      return false;
+    } finally {
+      this.reversedIds = null;
+    }
+    return true;
+  }
+
+  /**
    * The date a shop means when it says "that invoice from August".
    *
    * The one printed on the paper, not the moment somebody typed it in. They are
@@ -2030,12 +2088,8 @@ class Store {
    */
   supplierBook({ query = '', from = '', to = '' } = {}) {
     const totals = new Map();
-    const voided = new Set();
+    const voided = this.reversedDocuments();
     const window = Store.scanWindow(from, to);
-
-    this.documents.forEach({}, (document) => {
-      if (document.voids) voided.add(document.voids);
-    });
 
     this.documents.forEach(window, (document) => {
       if (document.kind !== 'in') return;
@@ -2098,10 +2152,7 @@ class Store {
     const supplierWanted = supplierKey(supplier);
     const cap = Math.min(500, Math.max(1, Number(limit) || 200));
 
-    const voided = new Set();
-    this.documents.forEach({}, (document) => {
-      if (document.voids) voided.add(document.voids);
-    });
+    const voided = this.reversedDocuments();
 
     const clientNames = new Map(
       (this.db.clients || []).map((client) => [client.id, client.name]),
@@ -2161,10 +2212,7 @@ class Store {
   }
 
   listDocuments(options = {}) {
-    const voided = new Set();
-    this.documents.forEach({}, (document) => {
-      if (document.voids) voided.add(document.voids);
-    });
+    const voided = this.reversedDocuments();
     return this.documents
       .list({ from: options.from, to: options.to, limit: Math.min(500, Number(options.limit) || 100) })
       .map((document) => ({ ...document, voided: voided.has(document.id) }));
