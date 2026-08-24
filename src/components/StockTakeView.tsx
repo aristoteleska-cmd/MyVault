@@ -276,11 +276,11 @@ export function StockTakeView() {
         <table className="table count-table">
           <thead>
             <tr>
-              <th>{t('stocktake.product')}</th>
-              <th>{t('table.barcode')}</th>
-              <th className="num">{t('stocktake.expected')}</th>
-              <th className="num">{t('stocktake.counted')}</th>
-              <th className="num">{t('stocktake.difference')}</th>
+              <th scope="col">{t('stocktake.product')}</th>
+              <th scope="col">{t('table.barcode')}</th>
+              <th scope="col" className="num">{t('stocktake.expected')}</th>
+              <th scope="col" className="num">{t('stocktake.counted')}</th>
+              <th scope="col" className="num">{t('stocktake.difference')}</th>
             </tr>
           </thead>
           <tbody>

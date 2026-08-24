@@ -187,10 +187,10 @@ export function VatView() {
                 <table className="table">
                   <thead>
                     <tr>
-                      <th>{t('vat.rate')}</th>
-                      <th className="num">{t('vat.net')}</th>
-                      <th className="num">{t('vat.vat')}</th>
-                      <th className="num">{t('vat.gross')}</th>
+                      <th scope="col">{t('vat.rate')}</th>
+                      <th scope="col" className="num">{t('vat.net')}</th>
+                      <th scope="col" className="num">{t('vat.vat')}</th>
+                      <th scope="col" className="num">{t('vat.gross')}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -216,10 +216,10 @@ export function VatView() {
                 <table className="table">
                   <thead>
                     <tr>
-                      <th>{t('vat.rate')}</th>
-                      <th className="num">{t('vat.net')}</th>
-                      <th className="num">{t('vat.vat')}</th>
-                      <th className="num">{t('vat.gross')}</th>
+                      <th scope="col">{t('vat.rate')}</th>
+                      <th scope="col" className="num">{t('vat.net')}</th>
+                      <th scope="col" className="num">{t('vat.vat')}</th>
+                      <th scope="col" className="num">{t('vat.gross')}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -252,7 +252,7 @@ export function VatView() {
         </>
       )}
 
-      <div className="callout warn">
+      <div className="callout warn" role="alert">
         <Icon name="alert" size={18} />
         <div>{t('vat.caveat')}</div>
       </div>

@@ -490,13 +490,13 @@ export function InvoicesView() {
             <table className="table">
               <thead>
                 <tr>
-                  <th>{t('docs.product')}</th>
-                  <th className="num">{t('docs.quantity')}</th>
-                  <th className="num">{t('docs.unitPrice')}</th>
-                  <th className="num">{t('docs.discount')}</th>
-                  {vatOn && <th className="num">{t('vat.rate')}</th>}
-                  <th className="num">{t('docs.lineTotal')}</th>
-                  <th />
+                  <th scope="col">{t('docs.product')}</th>
+                  <th scope="col" className="num">{t('docs.quantity')}</th>
+                  <th scope="col" className="num">{t('docs.unitPrice')}</th>
+                  <th scope="col" className="num">{t('docs.discount')}</th>
+                  {vatOn && <th scope="col" className="num">{t('vat.rate')}</th>}
+                  <th scope="col" className="num">{t('docs.lineTotal')}</th>
+                  <th scope="col" />
                 </tr>
               </thead>
               <tbody>
@@ -605,7 +605,7 @@ export function InvoicesView() {
           </div>
 
           {confirming ? (
-            <div className="callout warn">
+            <div className="callout warn" role="alert">
               <Icon name="alert" size={18} />
               <div>
                 <div>

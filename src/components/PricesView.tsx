@@ -197,11 +197,11 @@ export function PricesView() {
             <table className="table">
               <thead>
                 <tr>
-                  <th>{t('prices.product')}</th>
-                  <th className="num">{t('prices.priceNow')}</th>
-                  <th className="num">{t('prices.costNow')}</th>
-                  <th className="num">{t('prices.margin')}</th>
-                  <th>{t('prices.suggested')}</th>
+                  <th scope="col">{t('prices.product')}</th>
+                  <th scope="col" className="num">{t('prices.priceNow')}</th>
+                  <th scope="col" className="num">{t('prices.costNow')}</th>
+                  <th scope="col" className="num">{t('prices.margin')}</th>
+                  <th scope="col">{t('prices.suggested')}</th>
                 </tr>
               </thead>
               <tbody>

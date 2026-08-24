@@ -158,10 +158,10 @@ export function ReorderView({ onBrowseItem }: { onBrowseItem: (name: string) => 
               <table className="table">
                 <thead>
                   <tr>
-                    <th>{t('reorder.product')}</th>
-                    <th className="num">{t('reorder.inStock')}</th>
-                    <th className="num">{t('reorder.sold', { days })}</th>
-                    <th className="num">{t('reorder.suggested')}</th>
+                    <th scope="col">{t('reorder.product')}</th>
+                    <th scope="col" className="num">{t('reorder.inStock')}</th>
+                    <th scope="col" className="num">{t('reorder.sold', { days })}</th>
+                    <th scope="col" className="num">{t('reorder.suggested')}</th>
                   </tr>
                 </thead>
                 <tbody>

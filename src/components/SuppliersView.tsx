@@ -302,7 +302,7 @@ export function SuppliersView() {
                     {supplier.note && <div className="record-notes">{supplier.note}</div>}
 
                     {confirmingId === supplier.id && (
-                      <div className="callout warn">
+                      <div className="callout warn" role="alert">
                         <Icon name="alert" size={16} />
                         <div>
                           <p>{t('suppliers.deleteWarn')}</p>
@@ -339,12 +339,12 @@ export function SuppliersView() {
                               <table className="table">
                                 <thead>
                                   <tr>
-                                    <th>{t('sales.colDate')}</th>
-                                    <th>{t('sales.colNumber')}</th>
-                                    <th className="num">{t('sales.colLines')}</th>
-                                    <th className="num">{t('sales.colNet')}</th>
-                                    <th className="num">{t('sales.colVat')}</th>
-                                    <th className="num">{t('sales.colTotal')}</th>
+                                    <th scope="col">{t('sales.colDate')}</th>
+                                    <th scope="col">{t('sales.colNumber')}</th>
+                                    <th scope="col" className="num">{t('sales.colLines')}</th>
+                                    <th scope="col" className="num">{t('sales.colNet')}</th>
+                                    <th scope="col" className="num">{t('sales.colVat')}</th>
+                                    <th scope="col" className="num">{t('sales.colTotal')}</th>
                                   </tr>
                                 </thead>
                                 <tbody>

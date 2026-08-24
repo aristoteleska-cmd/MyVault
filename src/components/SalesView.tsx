@@ -172,10 +172,10 @@ export function SalesView() {
                           <table className="table">
                             <thead>
                               <tr>
-                                <th>{t('docs.product')}</th>
-                                <th className="num">{t('docs.quantity')}</th>
-                                <th className="num">{t('docs.unitPrice')}</th>
-                                <th className="num">{t('sales.colTotal')}</th>
+                                <th scope="col">{t('docs.product')}</th>
+                                <th scope="col" className="num">{t('docs.quantity')}</th>
+                                <th scope="col" className="num">{t('docs.unitPrice')}</th>
+                                <th scope="col" className="num">{t('sales.colTotal')}</th>
                               </tr>
                             </thead>
                             <tbody>
