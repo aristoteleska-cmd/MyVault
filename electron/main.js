@@ -991,6 +991,15 @@ function registerIpc() {
   // would keep selling into it all afternoon. Putting the notice away is the
   // manager's, because it is a decision that some movements are gone for good.
   handle('backup:history-status', 'items.view', () => store.historyStatus());
+
+  /**
+   * Reads every movement and every invoice, and reports what could not be read.
+   *
+   * Behind 'stats.view' rather than 'items.view': the answer is about the
+   * takings and the VAT return, and it costs a full pass over the shop's whole
+   * history, which is not something a till should be able to start.
+   */
+  handle('backup:history-check', 'stats.view', () => store.historyIntegrity());
   handle('backup:history-acknowledge', 'settings.manage', () => store.clearHistoryTrouble());
 
   handle('backup:choose-folder', 'settings.manage', async () => {

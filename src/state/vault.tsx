@@ -12,6 +12,7 @@ import type {
   AppInfo,
   AuthState,
   Capability,
+  HistoryCheck,
   Role,
   StaffMember,
   Category,
@@ -173,6 +174,8 @@ interface VaultValue {
   backupNow: () => Promise<void>;
   /** Puts away the notice that movements could not be written down. */
   clearHistoryTrouble: () => Promise<void>;
+  /** Reads every movement and invoice, and reports what could not be read. */
+  checkHistory: () => Promise<HistoryCheck | null>;
 
   addCategory: (name: string, color: string) => Promise<Category | null>;
   updateCategory: (id: string, patch: Partial<Category>) => Promise<void>;
@@ -880,6 +883,11 @@ export function VaultProvider({ children }: { children: ReactNode }) {
     else notify('toast.backupMirrored', undefined, 'success');
   }, [run, notify, notifyRaw]);
 
+  const checkHistory = useCallback(
+    async () => run(window.myvault.backup.historyCheck()),
+    [run],
+  );
+
   const clearHistoryTrouble = useCallback(async () => {
     const result = await window.myvault.backup.acknowledgeHistory();
     if (!result.ok) { notifyRaw(result.error || ''); return; }
@@ -1226,6 +1234,7 @@ export function VaultProvider({ children }: { children: ReactNode }) {
       forgetBackupFolder,
       backupNow,
       clearHistoryTrouble,
+      checkHistory,
       addCategory,
       updateCategory,
       deleteCategory,
@@ -1274,6 +1283,7 @@ export function VaultProvider({ children }: { children: ReactNode }) {
       startStockTake, stockTakeProgress, countStockTake, cancelStockTake, applyStockTake,
       printPdf, backupStatus, refreshBackupStatus, chooseBackupFolder, forgetBackupFolder, backupNow,
       clearHistoryTrouble,
+      checkHistory,
       addCategory, updateCategory, deleteCategory,
       addField, updateField, deleteField, moveField,
       updateSettings, exportCsv, importCsv, backup, restore, adoptDataFolder, openDataFolder,

@@ -816,5 +816,12 @@
   "sales.colTotal": "الإجمالي",
   "docs.filedTitle": "الفواتير المحفوظة",
   "toast.supplierSaved": "تم حفظ {name}.",
-  "toast.supplierRemoved": "أُزيل من قائمة المورّدين. فواتيرهم لم تُمس."
+  "toast.supplierRemoved": "أُزيل من قائمة المورّدين. فواتيرهم لم تُمس.",
+  "settings.historyCheck": "هل ما زالت سجلاتك مقروءة؟",
+  "settings.historyCheckDesc": "يقرأ كل عملية بيع وكل فاتورة على هذا الحاسوب ويخبرك إن كان شيء منها قد صار غير مقروء. يستحق العناء بعد انقطاع الكهرباء، أو قبل أن يطلبها المحاسب.",
+  "settings.historyCheckRun": "فحص السجلات",
+  "settings.historyChecking": "جارٍ القراءة…",
+  "settings.historyCheckWhole": "قُرئ كل شيء: {movements} حركة مخزون و{invoices} فاتورة، دون نقص.",
+  "settings.historyCheckYears": "هذه السنوات تعذّرت قراءتها تمامًا: {years}. كل ما فيها مفقود من إيراداتك ومن إقرار الضريبة.",
+  "settings.historyCheckLines": "تعذّر فهم {count} سجلًا فتُخطّيت."
 }

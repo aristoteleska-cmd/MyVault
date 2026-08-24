@@ -22,6 +22,7 @@ import type {
   HistoryTrouble,
   Item,
   Movement,
+  HistoryCheck,
   PdfInvoiceResult,
   UnmatchedLine,
   Supplier,
@@ -193,6 +194,7 @@ export interface MyVaultBridge {
     forgetFolder(): Promise<Result<{ status: BackupStatus; settings: Settings }>>;
     now(): Promise<Result<BackupStatus>>;
     historyStatus(): Promise<Result<HistoryTrouble | null>>;
+    historyCheck(): Promise<Result<HistoryCheck>>;
     acknowledgeHistory(): Promise<Result<null>>;
   };
 

@@ -127,6 +127,8 @@ class MovementLog {
 
     let scanned = 0;
     let skipped = 0;
+    /** Years whose file could not be opened at all. */
+    const unreadable = [];
 
     for (const year of this.years()) {
       if (year < firstYear || year > lastYear) continue;
@@ -135,6 +137,16 @@ class MovementLog {
       try {
         handle = fs.openSync(this.fileFor(year), 'r');
       } catch {
+        /**
+         * A whole year that cannot be opened.
+         *
+         * Skipping it in silence is the worst of the options: every screen
+         * built on this log — the takings, the VAT return, what a supplier was
+         * paid — then quietly leaves that year out and looks perfectly
+         * healthy. The year is counted and named instead, and the shop is told.
+         * See Store.historyIntegrity.
+         */
+        unreadable.push(year);
         continue;
       }
 
@@ -174,12 +186,23 @@ class MovementLog {
             skipped += 1;
           }
         }
+      } catch {
+        /**
+         * The file opened and then would not be read — a bad sector, a drive
+         * that went away mid-sentence, a year replaced by something that is not
+         * a file. Until now this threw, out of forEach, out of whatever screen
+         * had asked, and the shop got an error instead of a takings figure.
+         *
+         * A shop with one damaged year should still see the other nine, and
+         * should be told which one is damaged. That is what the count is for.
+         */
+        unreadable.push(year);
       } finally {
         fs.closeSync(handle);
       }
     }
 
-    return { scanned, skipped };
+    return { scanned, skipped, unreadable };
   }
 
   /** Convenience for small ranges — a client's history, say. Never for a whole shop. */

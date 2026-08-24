@@ -816,5 +816,12 @@
   "sales.colTotal": "Total",
   "docs.filedTitle": "Faktur tersimpan",
   "toast.supplierSaved": "{name} disimpan.",
-  "toast.supplierRemoved": "Dihapus dari daftar pemasok. Faktur mereka tidak tersentuh."
+  "toast.supplierRemoved": "Dihapus dari daftar pemasok. Faktur mereka tidak tersentuh.",
+  "settings.historyCheck": "Apakah catatan Anda masih terbaca?",
+  "settings.historyCheckDesc": "Membaca setiap penjualan dan setiap faktur di komputer ini dan memberi tahu jika ada yang tidak lagi terbaca. Layak dilakukan setelah listrik padam, atau sebelum akuntan bertanya.",
+  "settings.historyCheckRun": "Periksa catatan",
+  "settings.historyChecking": "Membaca…",
+  "settings.historyCheckWhole": "Semua terbaca: {movements} pergerakan stok dan {invoices} faktur, tidak ada yang hilang.",
+  "settings.historyCheckYears": "Tahun-tahun ini sama sekali tidak terbaca: {years}. Semua isinya hilang dari pendapatan dan laporan PPN Anda.",
+  "settings.historyCheckLines": "{count} catatan tidak terbaca dan dilewati."
 }

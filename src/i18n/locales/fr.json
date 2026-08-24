@@ -823,5 +823,13 @@
   "sales.colTotal": "Total",
   "docs.filedTitle": "Factures archivées",
   "toast.supplierSaved": "{name} enregistré.",
-  "toast.supplierRemoved": "Retiré de votre liste de fournisseurs. Leurs factures sont intactes."
+  "toast.supplierRemoved": "Retiré de votre liste de fournisseurs. Leurs factures sont intactes.",
+  "settings.historyCheck": "Vos archives sont-elles toujours lisibles ?",
+  "settings.historyCheckDesc": "Lit chaque vente et chaque facture sur cet ordinateur et indique si quelque chose est devenu illisible. Utile après une coupure de courant, ou avant que le comptable ne demande.",
+  "settings.historyCheckRun": "Vérifier les archives",
+  "settings.historyChecking": "Lecture…",
+  "settings.historyCheckWhole": "Tout a été lu : {movements} mouvements de stock et {invoices} factures, rien ne manque.",
+  "settings.historyCheckYears": "Ces années n'ont pas pu être lues du tout : {years}. Tout ce qu'elles contiennent manque à vos recettes et à votre déclaration de TVA.",
+  "settings.historyCheckLines": "{count} enregistrements illisibles ont été ignorés.",
+  "settings.historyCheckLines.one": "{count} enregistrement illisible a été ignoré."
 }

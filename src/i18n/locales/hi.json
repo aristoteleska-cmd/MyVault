@@ -819,5 +819,13 @@
   "sales.colTotal": "कुल",
   "docs.filedTitle": "दर्ज बिल",
   "toast.supplierSaved": "{name} सहेजा गया।",
-  "toast.supplierRemoved": "आपूर्तिकर्ता सूची से हटाया गया। उनके बिलों को कुछ नहीं हुआ।"
+  "toast.supplierRemoved": "आपूर्तिकर्ता सूची से हटाया गया। उनके बिलों को कुछ नहीं हुआ।",
+  "settings.historyCheck": "क्या आपके रिकॉर्ड अब भी पढ़े जा सकते हैं?",
+  "settings.historyCheckDesc": "इस कंप्यूटर की हर बिक्री और हर बिल को पढ़ता है और बताता है कि कुछ पढ़ने लायक नहीं रहा तो क्या। बिजली जाने के बाद, या लेखाकार के पूछने से पहले, करने लायक।",
+  "settings.historyCheckRun": "रिकॉर्ड जाँचें",
+  "settings.historyChecking": "पढ़ रहे हैं…",
+  "settings.historyCheckWhole": "सब पढ़ा गया: {movements} स्टॉक हलचलें और {invoices} बिल, कुछ भी गायब नहीं।",
+  "settings.historyCheckYears": "ये वर्ष बिलकुल नहीं पढ़े जा सके: {years}। इनका सब कुछ आपकी आमदनी और कर विवरणी से गायब है।",
+  "settings.historyCheckLines": "{count} रिकॉर्ड समझ नहीं आए और छोड़ दिए गए।",
+  "settings.historyCheckLines.one": "{count} रिकॉर्ड समझ नहीं आया और छोड़ दिया गया।"
 }

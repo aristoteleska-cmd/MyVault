@@ -816,5 +816,12 @@
   "sales.colTotal": "Tổng",
   "docs.filedTitle": "Hóa đơn đã lưu",
   "toast.supplierSaved": "Đã lưu {name}.",
-  "toast.supplierRemoved": "Đã bỏ khỏi danh sách nhà cung cấp. Hóa đơn của họ không bị đụng tới."
+  "toast.supplierRemoved": "Đã bỏ khỏi danh sách nhà cung cấp. Hóa đơn của họ không bị đụng tới.",
+  "settings.historyCheck": "Hồ sơ của bạn còn đọc được không?",
+  "settings.historyCheckDesc": "Đọc từng lần bán và từng hóa đơn trên máy này rồi cho biết có gì đã không còn đọc được. Nên làm sau khi mất điện, hoặc trước khi kế toán hỏi.",
+  "settings.historyCheckRun": "Kiểm tra hồ sơ",
+  "settings.historyChecking": "Đang đọc…",
+  "settings.historyCheckWhole": "Đọc được tất cả: {movements} lượt biến động kho và {invoices} hóa đơn, không thiếu gì.",
+  "settings.historyCheckYears": "Những năm này hoàn toàn không đọc được: {years}. Mọi thứ trong đó bị thiếu khỏi doanh thu và tờ khai thuế của bạn.",
+  "settings.historyCheckLines": "{count} bản ghi không hiểu được nên đã bỏ qua."
 }

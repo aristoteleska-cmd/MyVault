@@ -144,6 +144,8 @@ contextBridge.exposeInMainWorld('myvault', {
      * still a sale that happened.
      */
     historyStatus: () => invoke('backup:history-status'),
+    /** Reads the whole history and says whether any of it is unreadable. */
+    historyCheck: () => invoke('backup:history-check'),
     acknowledgeHistory: () => invoke('backup:history-acknowledge'),
     chooseFolder: () => invoke('backup:choose-folder'),
     forgetFolder: () => invoke('backup:forget-folder'),

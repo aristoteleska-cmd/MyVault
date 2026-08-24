@@ -816,5 +816,12 @@
   "sales.colTotal": "合计",
   "docs.filedTitle": "已归档发票",
   "toast.supplierSaved": "{name} 已保存。",
-  "toast.supplierRemoved": "已从供应商列表移除。他们的发票未受影响。"
+  "toast.supplierRemoved": "已从供应商列表移除。他们的发票未受影响。",
+  "settings.historyCheck": "您的记录还能读出来吗？",
+  "settings.historyCheckDesc": "读取本机上的每一笔销售和每一张发票，并说明是否有内容已无法读取。停电之后，或者会计来问之前，都值得做一次。",
+  "settings.historyCheckRun": "检查记录",
+  "settings.historyChecking": "读取中…",
+  "settings.historyCheckWhole": "全部读出：{movements} 条库存变动和 {invoices} 张发票，没有缺失。",
+  "settings.historyCheckYears": "这些年份完全无法读取：{years}。其中的全部内容都缺失于您的营收和增值税申报。",
+  "settings.historyCheckLines": "有 {count} 条记录无法识别，已跳过。"
 }

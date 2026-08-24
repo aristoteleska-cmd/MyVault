@@ -816,5 +816,12 @@
   "sales.colTotal": "Итого",
   "docs.filedTitle": "Сохранённые счета",
   "toast.supplierSaved": "{name} сохранён.",
-  "toast.supplierRemoved": "Убран из списка поставщиков. Их счета не тронуты."
+  "toast.supplierRemoved": "Убран из списка поставщиков. Их счета не тронуты.",
+  "settings.historyCheck": "Читаются ли ещё ваши записи?",
+  "settings.historyCheckDesc": "Читает каждую продажу и каждый счёт на этом компьютере и сообщает, не стало ли что-то нечитаемым. Стоит сделать после отключения света или перед вопросами бухгалтера.",
+  "settings.historyCheckRun": "Проверить записи",
+  "settings.historyChecking": "Чтение…",
+  "settings.historyCheckWhole": "Прочитано всё: движений товара {movements}, счетов {invoices}, без пропусков.",
+  "settings.historyCheckYears": "Эти годы не удалось прочитать: {years}. Всё из них отсутствует в выручке и в декларации по НДС.",
+  "settings.historyCheckLines": "Не удалось разобрать записей: {count}; они пропущены."
 }

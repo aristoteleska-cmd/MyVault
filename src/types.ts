@@ -418,6 +418,25 @@ export interface Database {
  * lost keeps rising until somebody clears the notice, because clearing it is the
  * moment a person accepts those movements are not coming back.
  */
+/**
+ * What a full read of the history found — the other half of HistoryTrouble.
+ *
+ * That one reports movements that could not be written. This reports records
+ * that cannot be read back: torn lines, and whole year files that will not
+ * open. Both matter for the same reason, which is that the takings and the VAT
+ * return are built from these files and a gap in them is invisible on screen.
+ */
+export interface HistoryCheck {
+  movements: { scanned: number; skipped: number; unreadable: number[] };
+  invoices: { scanned: number; skipped: number; unreadable: number[] };
+  /** True when everything on the disk was read without a gap. */
+  whole: boolean;
+  /** Lines that could not be understood, across both logs. */
+  lines: number;
+  /** Years whose file would not open, across both logs. */
+  years: number[];
+}
+
 export interface HistoryTrouble {
   lost: number;
   since: string;

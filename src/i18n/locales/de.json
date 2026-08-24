@@ -819,5 +819,13 @@
   "sales.colTotal": "Gesamt",
   "docs.filedTitle": "Abgelegte Rechnungen",
   "toast.supplierSaved": "{name} gespeichert.",
-  "toast.supplierRemoved": "Aus Ihrer Lieferantenliste entfernt. Die Rechnungen bleiben unberührt."
+  "toast.supplierRemoved": "Aus Ihrer Lieferantenliste entfernt. Die Rechnungen bleiben unberührt.",
+  "settings.historyCheck": "Sind Ihre Aufzeichnungen noch lesbar?",
+  "settings.historyCheckDesc": "Liest jeden Verkauf und jede Rechnung auf diesem Rechner und sagt, ob etwas davon unlesbar geworden ist. Lohnt sich nach einem Stromausfall oder bevor das Finanzamt fragt.",
+  "settings.historyCheckRun": "Aufzeichnungen prüfen",
+  "settings.historyChecking": "Wird gelesen…",
+  "settings.historyCheckWhole": "Alles gelesen: {movements} Bestandsbewegungen und {invoices} Rechnungen, nichts fehlt.",
+  "settings.historyCheckYears": "Diese Jahre ließen sich gar nicht lesen: {years}. Alles darin fehlt in Ihren Einnahmen und Ihrer Umsatzsteuererklärung.",
+  "settings.historyCheckLines": "{count} Einträge waren nicht lesbar und wurden übersprungen.",
+  "settings.historyCheckLines.one": "{count} Eintrag war nicht lesbar und wurde übersprungen."
 }

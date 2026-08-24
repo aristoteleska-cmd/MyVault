@@ -816,5 +816,12 @@
   "sales.colTotal": "Toplam",
   "docs.filedTitle": "Arşivlenmiş faturalar",
   "toast.supplierSaved": "{name} kaydedildi.",
-  "toast.supplierRemoved": "Tedarikçi listenizden çıkarıldı. Faturalarına dokunulmadı."
+  "toast.supplierRemoved": "Tedarikçi listenizden çıkarıldı. Faturalarına dokunulmadı.",
+  "settings.historyCheck": "Kayıtlarınız hâlâ okunabiliyor mu?",
+  "settings.historyCheckDesc": "Bu bilgisayardaki her satışı ve her faturayı okur ve okunamaz hâle gelen bir şey olup olmadığını söyler. Elektrik kesintisinden sonra veya muhasebeci sormadan önce yapmaya değer.",
+  "settings.historyCheckRun": "Kayıtları denetle",
+  "settings.historyChecking": "Okunuyor…",
+  "settings.historyCheckWhole": "Hepsi okundu: {movements} stok hareketi ve {invoices} fatura, eksiksiz.",
+  "settings.historyCheckYears": "Bu yıllar hiç okunamadı: {years}. İçlerindeki her şey cironuzda ve KDV beyanınızda eksik.",
+  "settings.historyCheckLines": "{count} kayıt anlaşılamadı ve atlandı."
 }

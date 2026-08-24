@@ -823,5 +823,13 @@
   "sales.colLines": "Γραμμές",
   "sales.colNet": "Προ ΦΠΑ",
   "sales.colVat": "ΦΠΑ",
-  "sales.colTotal": "Σύνολο"
+  "sales.colTotal": "Σύνολο",
+  "settings.historyCheck": "Διαβάζονται ακόμη τα αρχεία σας;",
+  "settings.historyCheckDesc": "Διαβάζει κάθε πώληση και κάθε τιμολόγιο σε αυτόν τον υπολογιστή και λέει αν κάτι έχει γίνει μη αναγνώσιμο. Αξίζει μετά από διακοπή ρεύματος, ή πριν σας τα ζητήσει ο λογιστής.",
+  "settings.historyCheckRun": "Έλεγχος αρχείων",
+  "settings.historyChecking": "Διαβάζει…",
+  "settings.historyCheckWhole": "Διαβάστηκαν όλα: {movements} κινήσεις αποθέματος και {invoices} τιμολόγια, χωρίς κενά.",
+  "settings.historyCheckYears": "Αυτά τα έτη δεν διαβάστηκαν καθόλου: {years}. Ό,τι περιέχουν λείπει από τις εισπράξεις και τη δήλωση ΦΠΑ σας.",
+  "settings.historyCheckLines": "{count} εγγραφές δεν έγιναν κατανοητές και παραλείφθηκαν.",
+  "settings.historyCheckLines.one": "{count} εγγραφή δεν έγινε κατανοητή και παραλείφθηκε."
 }

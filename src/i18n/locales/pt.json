@@ -823,5 +823,13 @@
   "sales.colTotal": "Total",
   "docs.filedTitle": "Faturas arquivadas",
   "toast.supplierSaved": "{name} guardado.",
-  "toast.supplierRemoved": "Removido da sua lista de fornecedores. As faturas ficam intactas."
+  "toast.supplierRemoved": "Removido da sua lista de fornecedores. As faturas ficam intactas.",
+  "settings.historyCheck": "Os seus registos ainda se leem?",
+  "settings.historyCheckDesc": "Lê cada venda e cada fatura neste computador e diz se algo ficou ilegível. Vale a pena depois de uma falha de energia, ou antes de o contabilista pedir.",
+  "settings.historyCheckRun": "Verificar os registos",
+  "settings.historyChecking": "A ler…",
+  "settings.historyCheckWhole": "Tudo lido: {movements} movimentos de stock e {invoices} faturas, sem falhas.",
+  "settings.historyCheckYears": "Estes anos não puderam ser lidos: {years}. Tudo o que contêm falta nas suas receitas e na declaração de IVA.",
+  "settings.historyCheckLines": "{count} registos não foram entendidos e ficaram de fora.",
+  "settings.historyCheckLines.one": "{count} registo não foi entendido e ficou de fora."
 }

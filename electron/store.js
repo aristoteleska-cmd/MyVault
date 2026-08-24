@@ -402,6 +402,44 @@ class Store {
   }
 
   /**
+   * Whether the history on this disk can still be read from end to end.
+   *
+   * The mechanism above reports movements that could not be WRITTEN. This is
+   * the other half, and until now there was no other half: both logs already
+   * counted the lines they had to skip and the years they could not open, and
+   * threw the count away. So a shop whose 2024 invoice file was truncated by a
+   * power cut — or left behind by a half-copied backup — had a VAT return that
+   * was quietly short by a year, on a screen that looked perfectly healthy.
+   *
+   * Reading everything is the only way to know, which is why this is not run at
+   * startup: it is asked for from Settings, next to the other thing that tells
+   * a shop the truth about its own records.
+   */
+  historyIntegrity() {
+    const look = (log) => {
+      const seen = log.forEach({}, () => {});
+      return {
+        scanned: seen.scanned || 0,
+        skipped: seen.skipped || 0,
+        unreadable: seen.unreadable || [],
+      };
+    };
+
+    const movements = look(this.movements);
+    const invoices = look(this.documents);
+
+    return {
+      movements,
+      invoices,
+      /** True when everything on the disk was read without a gap. */
+      whole: movements.skipped === 0 && invoices.skipped === 0
+        && movements.unreadable.length === 0 && invoices.unreadable.length === 0,
+      lines: movements.skipped + invoices.skipped,
+      years: [...new Set([...movements.unreadable, ...invoices.unreadable])].sort(),
+    };
+  }
+
+  /**
    * Marks the trouble as seen, once the shop has been told.
    *
    * Clearing it is a decision the person makes, not something the program does

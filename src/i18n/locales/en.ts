@@ -909,6 +909,14 @@ export const en = {
   'sales.colNet': 'Before VAT',
   'sales.colVat': 'VAT',
   'sales.colTotal': 'Total',
+  'settings.historyCheck': 'Can your records still be read?',
+  'settings.historyCheckDesc': 'Reads every sale and every invoice on this computer and says whether any of it has become unreadable. Worth doing after a power cut, or before an accountant asks.',
+  'settings.historyCheckRun': 'Check the records',
+  'settings.historyChecking': 'Reading…',
+  'settings.historyCheckWhole': 'All of it read: {movements} stock movements and {invoices} invoices, with nothing missing.',
+  'settings.historyCheckYears': 'These years could not be read at all: {years}. Everything in them is missing from your takings and your VAT return.',
+  'settings.historyCheckLines': '{count} records could not be understood and were skipped.',
+  'settings.historyCheckLines.one': '{count} record could not be understood and was skipped.',
 };
 
 export type TranslationKey = keyof typeof en;

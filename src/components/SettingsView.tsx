@@ -1,9 +1,10 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useVault } from '../state/vault';
 import type {
+  HistoryCheck,
   AccentChoice, DensityChoice, RoundingStyle, ThemeChoice, UpdateMode,
 } from '../types';
-import { LANGUAGES, resolveLanguage, useI18n, type TranslationKey } from '../i18n';
+import { LANGUAGES, resolveLanguage, useI18n, useT, type TranslationKey } from '../i18n';
 import { TRANSLATED_LANGUAGES } from '../i18n/catalogues';
 import { Icon, type IconName } from './Icon';
 
@@ -47,6 +48,70 @@ const TEXT_SIZES: { value: number; labelKey: TranslationKey }[] = [
  * are short by exactly that much. Clearing the notice is a person deciding they
  * have seen it.
  */
+/**
+ * "Can everything still be read?"
+ *
+ * The panel below this one reports movements that could not be written. This
+ * one answers the opposite question, which nothing used to ask: whether the
+ * records already on the disk can still be read back. Both logs counted the
+ * lines they had to skip and the years they could not open, and threw the
+ * count away — so a shop whose invoice file was truncated by a power cut had a
+ * VAT return quietly short by a year, on a screen that looked perfectly well.
+ *
+ * Asked for rather than run at startup, because answering means reading every
+ * record the shop has ever written, and that is a thing to do deliberately.
+ */
+function HistoryCheckPanel() {
+  const { checkHistory, can } = useVault();
+  const t = useT();
+  const [checking, setChecking] = useState(false);
+  const [result, setResult] = useState<HistoryCheck | null>(null);
+
+  if (!can('stats.view')) return null;
+
+  return (
+    <div className="setting-row">
+      <div className="setting-text">
+        <div className="setting-title">{t('settings.historyCheck')}</div>
+        <div className="setting-desc">
+          {!result && t('settings.historyCheckDesc')}
+          {result?.whole && (
+            <span>
+              {t('settings.historyCheckWhole', {
+                movements: result.movements.scanned,
+                invoices: result.invoices.scanned,
+              })}
+            </span>
+          )}
+          {result && !result.whole && (
+            <span className="setting-warn">
+              {result.years.length > 0 && t('settings.historyCheckYears', {
+                years: result.years.join(', '),
+              })}
+              {result.years.length > 0 && result.lines > 0 && ' '}
+              {result.lines > 0 && t('settings.historyCheckLines', { count: result.lines })}
+            </span>
+          )}
+        </div>
+      </div>
+      <div className="setting-control">
+        <button
+          type="button"
+          className="btn"
+          disabled={checking}
+          onClick={async () => {
+            setChecking(true);
+            setResult(await checkHistory());
+            setChecking(false);
+          }}
+        >
+          {checking ? t('settings.historyChecking') : t('settings.historyCheckRun')}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function HistoryTroublePanel() {
   const { db, clearHistoryTrouble, can } = useVault();
   const { t, locale } = useI18n();
@@ -764,6 +829,7 @@ export function SettingsView() {
           </div>
 
           <HistoryTroublePanel />
+        <HistoryCheckPanel />
           <SecondCopyPanel />
 
           <div className="setting-row">
