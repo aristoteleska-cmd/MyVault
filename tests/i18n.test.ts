@@ -61,16 +61,41 @@ for (const [code, catalogue] of Object.entries(catalogues)) {
   assert.ok(keys.length > 0, `${code} is not empty`);
 
   for (const key of keys) {
-    assert.ok(key in en, `${code}: "${key}" is not a key English defines`);
+    /*
+     * Russian needs a `few` for two to four and a `many` for five and up;
+     * English needs neither, so a form can be right without English having one
+     * of its own. What has to exist is the plain key it sits beside — that is
+     * what the reader falls back to, and what says the key is real at all.
+     */
+    assert.ok(
+      key in en || isPluralForm(key),
+      `${code}: "${key}" is not a key English defines`,
+    );
     const value = catalogue[key as keyof typeof catalogue];
     assert.ok(
       typeof value === 'string' && value.trim() !== '',
       `${code}: "${key}" has no text`,
     );
-    assert.strictEqual(
-      placeholders(String(value)),
-      placeholders(en[key as keyof typeof en]),
-      `${code}: "${key}" does not carry the same {placeholders} as English`,
+    /*
+     * A singular sentence is allowed to say "their most recent purchase"
+     * instead of "their 1 most recent purchase" — the plural rule has already
+     * said what the number is, so printing it again is optional and often
+     * clumsy. Every other placeholder still has to survive, in every form, and
+     * no form may invent one that English does not supply.
+     */
+    const mine = placeholders(String(value)).split(',').filter(Boolean);
+    // Measured against English's own form of the same plural where it has one,
+    // and against the plain key where it does not.
+    const englishText = en[key as keyof typeof en]
+      ?? en[key.slice(0, key.lastIndexOf('.')) as keyof typeof en];
+    const english = placeholders(englishText).split(',').filter(Boolean);
+    const dropped = english.filter((name) => !mine.includes(name));
+    const invented = mine.filter((name) => !english.includes(name));
+    assert.deepStrictEqual(invented, [], `${code}: "${key}" uses a {placeholder} English does not`);
+    assert.deepStrictEqual(
+      dropped.filter((name) => !(isPluralForm(key) && name === 'count')),
+      [],
+      `${code}: "${key}" drops a {placeholder} English carries`,
     );
   }
 }
