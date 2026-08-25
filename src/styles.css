@@ -465,7 +465,7 @@ button { font: inherit; color: inherit; }
   color: var(--text-muted);
   font-size: 14px;
   font-weight: 550;
-  text-align: left;
+  text-align: start;
   cursor: pointer;
   transition: background var(--speed) var(--ease), color var(--speed) var(--ease);
 }
@@ -740,7 +740,7 @@ table.items thead th {
   font-weight: 650;
   letter-spacing: 0.02em;
   color: var(--text-muted);
-  text-align: left;
+  text-align: start;
   white-space: nowrap;
 }
 table.items th.sortable { padding: 0; }
@@ -775,7 +775,7 @@ table.items tbody tr { transition: background var(--speed) var(--ease); }
 table.items tbody tr:hover { background: var(--surface-2); }
 table.items tbody tr[data-selected="true"] { background: var(--accent-soft); }
 
-.col-select { width: 40px; padding-right: 0 !important; }
+.col-select { width: 40px; padding-inline-end: 0 !important; }
 
 /* Edit and delete stay reachable when a shop has enough extra columns to make
    the table scroll sideways. */
@@ -921,7 +921,7 @@ table.items tbody td > .item-meta { overflow: hidden; text-overflow: ellipsis; }
   font-size: 13px;
   color: var(--text-muted);
 }
-.pager { display: flex; align-items: center; gap: var(--space-1); margin-left: auto; }
+.pager { display: flex; align-items: center; gap: var(--space-1); margin-inline-start: auto; }
 
 /* ---------------------------------------------------------- empty states */
 
@@ -1659,7 +1659,7 @@ table.items tbody td > .item-meta { overflow: hidden; text-overflow: ellipsis; }
    at arm's length and right-aligned to sit under the number above it. */
 .count-input {
   width: 82px;
-  text-align: right;
+  text-align: end;
   font-variant-numeric: tabular-nums;
   margin-inline-start: auto;
 }
