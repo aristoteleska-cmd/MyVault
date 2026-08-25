@@ -18,7 +18,9 @@ const { parseCsv, toCsv } = require('./csv');
 // be enforced on one and forgotten on another. See the note at the top of it.
 const { readImageFile, readCsvFile, readJsonFile, readPdfFile } = require('./files');
 const { extractPdfText } = require('./pdf-text');
-const { readInvoice, toImportRows } = require('./invoice-read');
+const {
+  readInvoice, toImportRows, IGNORED_COLUMNS, COLUMN_NAMES,
+} = require('./invoice-read');
 const { Updater } = require('./updater');
 const {
   ROLES, CAPABILITIES, ROLE_CAPABILITIES, COUNTER_REASONS, requestedReason,
@@ -758,11 +760,28 @@ function registerIpc() {
 
     const invoice = readInvoice(extracted);
     if (!invoice.ok) {
+      if (invoice.reason !== 'noTable') {
+        throw new Error(
+          'MyVault found the table in that PDF but no product lines with a quantity in it.',
+        );
+      }
+      // Every supplier's invoice is laid out differently, and the shop holding
+      // one MyVault cannot read is the person least able to say why. So the
+      // failure describes itself: the line that came closest to being a table
+      // heading, and which of its words were recognised. That is a sentence
+      // somebody can act on, or forward to somebody who can.
+      let detail = '';
+      if (invoice.nearest) {
+        const names = invoice.nearest.columns.map((name) => COLUMN_NAMES[name] || name);
+        detail = `\n\nThe closest thing to a table heading was:\n"${invoice.nearest.text}"\n\n`
+          + (names.length
+            ? `MyVault recognised ${names.join(', ')} there, but a table needs at least `
+              + 'three named columns, one of which has to be a quantity, a price or a total.'
+            : 'None of the words on it are ones MyVault knows as column headings.');
+      }
       throw new Error(
-        invoice.reason === 'noTable'
-          ? 'MyVault could not find a table of products in that PDF. Check it is the '
-            + 'invoice itself rather than a covering letter or a statement.'
-          : 'MyVault found the table in that PDF but no product lines with a quantity in it.',
+        'MyVault could not find a table of products in that PDF. Check it is the '
+        + 'invoice itself rather than a covering letter or a statement.' + detail,
       );
     }
 
@@ -820,6 +839,10 @@ function registerIpc() {
         warnings: [...invoice.warnings, ...warnings],
         read: invoice.lines.length,
         pages: extracted.pageCount,
+        // Which of this supplier's columns MyVault understood. Shown on the
+        // read panel so an unfamiliar layout says what it gave up on, rather
+        // than quietly importing lines with an empty cost or no VAT rate.
+        columns: (invoice.columns || []).filter((name) => name && !IGNORED_COLUMNS.has(name)),
       },
     };
   };

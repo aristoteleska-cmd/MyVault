@@ -662,6 +662,12 @@ export interface PdfInvoiceSummary {
   /** Product lines found on the paper, matched or not. */
   read: number;
   pages: number;
+  /**
+   * Which of this supplier's columns MyVault understood, by the names in
+   * electron/invoice-read.js. The ones it reads for the layout and then throws
+   * away are not in here — this is what it actually took off the paper.
+   */
+  columns: string[];
 }
 
 /** A line the paper names that this shop does not stock — yet. */

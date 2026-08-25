@@ -89,6 +89,28 @@ const COLUMNS = {
 const IGNORED_COLUMNS = new Set(['unit', 'netBeforeDiscount', 'vatAmount', 'discountAmount']);
 
 /**
+ * What each column is called when MyVault has to name it in a sentence.
+ *
+ * Only used by the message that explains a PDF it could not read. The window
+ * has its own translated names for the columns it did read; this is the main
+ * process talking, and it talks in English the way the rest of the errors here
+ * do.
+ */
+const COLUMN_NAMES = {
+  code: 'the product code',
+  description: 'the product name',
+  quantity: 'the quantity',
+  unitPrice: 'the unit price',
+  discount: 'the discount',
+  vatRate: 'the VAT rate',
+  total: 'the line total',
+  unit: 'the unit of measure',
+  netBeforeDiscount: 'the amount before the discount',
+  vatAmount: 'the VAT in money',
+  discountAmount: 'the discount in money',
+};
+
+/**
  * Where the list of products stops and the summary begins.
  *
  * Everything below this is the shop's own arithmetic — balances, VAT analysis,
@@ -386,6 +408,46 @@ function findHeader(lines) {
   }
 
   return best;
+}
+
+/**
+ * The line that came closest to being a table heading, when none was good enough.
+ *
+ * Every supplier prints a different invoice, and the shop that meets one MyVault
+ * cannot read is the person least able to say why. "Could not find a table" is
+ * true and useless. This gathers the line that matched the most column words and
+ * says which words those were, so the answer becomes "it found the quantity and
+ * the price on this line but nothing it recognised as a product name" — which is
+ * a sentence somebody can act on, or send on.
+ *
+ * Deliberately looser than `findHeader`: it does not care whether the line could
+ * actually carry a table, because the whole point is to describe the line that
+ * could not.
+ */
+function nearestHeader(lines) {
+  let best = null;
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const groups = headingsFor(lines, index);
+    const found = new Set();
+    for (const piece of groups) {
+      const text = strip(piece.text);
+      if (!text) continue;
+      for (const [column, words] of Object.entries(COLUMNS)) {
+        if (words.some((word) => text === word || text.includes(word))) found.add(column);
+      }
+    }
+    if (!found.size || (best && found.size <= best.found.size)) continue;
+    best = {
+      found,
+      text: groups.map((piece) => piece.text.trim()).filter(Boolean).join(' · '),
+    };
+  }
+
+  if (!best) return null;
+  // Trimmed because this ends up in a message on the screen, and a footer that
+  // happened to match two words can be a paragraph long.
+  return { columns: [...best.found], text: best.text.slice(0, 160) };
 }
 
 /**
@@ -923,6 +985,10 @@ function readInvoice(extracted) {
       ...readHeading(pages, null),
       lines: [],
       totals: readTotals(allLines, null),
+      // What it nearly found, so the failure can be described rather than
+      // merely reported. See nearestHeader.
+      nearest: nearestHeader(allLines),
+      columns: [],
       warnings,
     };
   }
@@ -1065,6 +1131,9 @@ function toImportRows(invoice) {
 
 module.exports = {
   readInvoice,
+  nearestHeader,
+  IGNORED_COLUMNS,
+  COLUMN_NAMES,
   toImportRows,
   toNumber,
   findHeader,

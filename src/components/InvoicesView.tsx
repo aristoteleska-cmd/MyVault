@@ -1,10 +1,20 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useVault } from '../state/vault';
-import { useI18n, useT } from '../i18n';
+import { useI18n, useT, type TranslationKey } from '../i18n';
 import { formatDate, formatDateTime, formatMoney, formatNumber } from '../lib/format';
 import type { DeliveryReview, DraftDocument, PdfInvoiceResult, PostedDocument } from '../types';
 import { useEscape } from '../lib/keys';
 import { Icon } from './Icon';
+
+/**
+ * The columns MyVault actually takes off a supplier's invoice.
+ *
+ * Left to right in the order an invoice normally prints them, so the sentence
+ * on the read panel reads the way the paper does. The columns the reader knows
+ * about only so it can ignore them — the unit of measure, the VAT in money —
+ * are deliberately not here: naming them would say MyVault used them.
+ */
+const PDF_COLUMNS = ['code', 'description', 'quantity', 'unitPrice', 'discount', 'vatRate', 'total'];
 
 /**
  * Invoices and delivery notes.
@@ -59,6 +69,20 @@ export function InvoicesView() {
 
   const currency = db.settings.currency;
   const vatOn = db.settings.vatEnabled;
+
+  /** Column names as words, in the order the invoice printed them. */
+  const columnWords = useCallback(
+    (names: string[]) => (names || [])
+      .filter((name) => PDF_COLUMNS.includes(name))
+      .map((name) => t(`docs.pdfCol.${name}` as TranslationKey))
+      .join(', '),
+    [t],
+  );
+  /** The ones MyVault would have used and this invoice does not print. */
+  const missingColumns = useCallback(
+    (names: string[]) => PDF_COLUMNS.filter((name) => !(names || []).includes(name)),
+    [],
+  );
 
   const refreshHistory = useCallback(async () => {
     const list = await listDocs({ limit: 50 });
@@ -204,6 +228,21 @@ export function InvoicesView() {
             })}
             {pdfRead.invoice.totals.gross !== null && (
               <> · {t('docs.pdfPrintedTotal', { money: money(pdfRead.invoice.totals.gross) })}</>
+            )}
+          </p>
+
+          {/* Which of this supplier's columns MyVault understood.
+              Every supplier lays an invoice out differently, and until now the
+              only sign that a column had been missed was a cost of nothing or a
+              VAT rate that fell back to the shop's own. Saying it plainly turns
+              an unfamiliar layout into something the shop can see and describe,
+              instead of something only the code can explain. */}
+          <p className="panel-sub">
+            {t('docs.pdfColumnsFound', { list: columnWords(pdfRead.invoice.columns) })}
+            {missingColumns(pdfRead.invoice.columns).length > 0 && (
+              <> · {t('docs.pdfColumnsMissing', {
+                list: columnWords(missingColumns(pdfRead.invoice.columns)),
+              })}</>
             )}
           </p>
 
