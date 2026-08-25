@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useVault } from '../state/vault';
 import { useI18n, useT } from '../i18n';
 import { formatDate, formatMoney } from '../lib/format';
+import { useEscape } from '../lib/keys';
 import type { DocumentSummary, SupplierBookEntry } from '../types';
 import { Icon } from './Icon';
 
@@ -34,6 +35,16 @@ export function SuppliersView() {
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
 
   const currency = db.settings.currency;
+
+  // Escape backs out of whichever of the three things is open, in the order
+  // somebody would expect: the warning that is on top of the form, then the
+  // form. Nothing here is a dialog, so none of it would otherwise answer a key.
+  useEscape(confirmingId !== null, () => setConfirmingId(null));
+  useEscape(confirmingId === null && (adding || editingId !== null), () => {
+    setAdding(false);
+    setEditingId(null);
+    setDraft({ ...blank });
+  });
 
   const refresh = useCallback(async () => {
     setBook(await supplierBook());
@@ -175,8 +186,13 @@ export function SuppliersView() {
           )}
         </div>
 
+        {/* A real form, so that Enter in the name field saves the supplier the
+            way Enter does everywhere else a person types a name into a box. */}
         {adding && (
-          <div className="panel form-panel">
+          <form
+            className="panel form-panel"
+            onSubmit={(event) => { event.preventDefault(); void commit(); }}
+          >
             <h3 className="panel-title">{t('suppliers.addTitle')}</h3>
             {fields}
             <div className="form-actions">
@@ -184,15 +200,14 @@ export function SuppliersView() {
                 {t('dialog.cancel')}
               </button>
               <button
-                type="button"
+                type="submit"
                 className="btn btn-primary"
-                onClick={() => void commit()}
                 disabled={!draft.name.trim()}
               >
                 {t('suppliers.save')}
               </button>
             </div>
-          </div>
+          </form>
         )}
 
         {book && book.length === 0 && !adding && (
@@ -214,22 +229,24 @@ export function SuppliersView() {
             {shown.map((supplier) => (
               <div className="record client-record" key={supplier.key}>
                 {editingId && editingId === supplier.id ? (
-                  <div className="record-main">
+                  <form
+                    className="record-main"
+                    onSubmit={(event) => { event.preventDefault(); void commit(); }}
+                  >
                     {fields}
                     <div className="form-actions">
                       <button type="button" className="btn" onClick={() => setEditingId(null)}>
                         {t('dialog.cancel')}
                       </button>
                       <button
-                        type="button"
+                        type="submit"
                         className="btn btn-primary"
-                        onClick={() => void commit()}
                         disabled={!draft.name.trim()}
                       >
                         {t('suppliers.save')}
                       </button>
                     </div>
-                  </div>
+                  </form>
                 ) : (
                   <>
                     <div className="record-head">

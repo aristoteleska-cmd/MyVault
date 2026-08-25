@@ -252,7 +252,10 @@ export function VatView() {
         </>
       )}
 
-      <div className="callout warn" role="alert">
+      {/* Standing advice, not something that just happened — so no `role="alert"`.
+          A screen reader that announced this every time the screen was drawn
+          would be interrupting to say the same sentence it said last time. */}
+      <div className="callout warn">
         <Icon name="alert" size={18} />
         <div>{t('vat.caveat')}</div>
       </div>

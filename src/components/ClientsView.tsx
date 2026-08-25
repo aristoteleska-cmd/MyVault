@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useVault } from '../state/vault';
 import { useI18n, useT } from '../i18n';
 import { formatDate, formatDateTime, formatMoney, formatNumber } from '../lib/format';
+import { useEscape } from '../lib/keys';
 import type { Client, ClientHistory } from '../types';
 import { Icon } from './Icon';
 
@@ -29,6 +30,14 @@ export function ClientsView() {
 
   const currency = db.settings.currency;
   const mayManage = can('clients.manage');
+
+  // The add and edit panels are part of the page rather than dialogs, so
+  // Escape has to be arranged for them by hand.
+  useEscape(adding || editingId !== null, () => {
+    setAdding(false);
+    setEditingId(null);
+    setDraft({ ...blank });
+  });
 
   const shown = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -178,8 +187,13 @@ export function ClientsView() {
           )}
         </div>
 
+        {/* A real form, so Enter in the name field saves the customer rather
+            than doing nothing at all. */}
         {adding && (
-          <div className="panel form-panel">
+          <form
+            className="panel form-panel"
+            onSubmit={(event) => { event.preventDefault(); void commitNew(); }}
+          >
             <h3 className="panel-title">{t('clients.addTitle')}</h3>
             {fields}
             <div className="form-actions">
@@ -187,15 +201,14 @@ export function ClientsView() {
                 {t('dialog.cancel')}
               </button>
               <button
-                type="button"
+                type="submit"
                 className="btn btn-primary"
-                onClick={() => void commitNew()}
                 disabled={!draft.name.trim()}
               >
                 {t('clients.save')}
               </button>
             </div>
-          </div>
+          </form>
         )}
 
         {db.clients.length === 0 && !adding ? (
@@ -211,22 +224,24 @@ export function ClientsView() {
             {shown.map((client) => (
               <div className="record client-record" key={client.id}>
                 {editingId === client.id ? (
-                  <div className="record-main">
+                  <form
+                    className="record-main"
+                    onSubmit={(event) => { event.preventDefault(); void commitEdit(client.id); }}
+                  >
                     {fields}
                     <div className="form-actions">
                       <button type="button" className="btn" onClick={() => setEditingId(null)}>
                         {t('dialog.cancel')}
                       </button>
                       <button
-                        type="button"
+                        type="submit"
                         className="btn btn-primary"
-                        onClick={() => void commitEdit(client.id)}
                         disabled={!draft.name.trim()}
                       >
                         {t('clients.save')}
                       </button>
                     </div>
-                  </div>
+                  </form>
                 ) : (
                   <>
                     <div className="record-head">

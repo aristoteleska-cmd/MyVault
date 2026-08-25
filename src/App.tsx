@@ -97,6 +97,7 @@ export function App() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [prefillBarcode, setPrefillBarcode] = useState('');
   const searchRef = useRef<HTMLInputElement | null>(null);
+  const mainRef = useRef<HTMLElement | null>(null);
 
   // Follow the theme the shop picked, or Windows' own setting.
   useEffect(() => {
@@ -283,6 +284,19 @@ export function App() {
 
   return (
     <div className="app">
+      {/* Fifteen tab stops separate the top of the window from the first thing
+          on the screen somebody actually came to use. This is the way past
+          them, and it stays invisible until a keyboard finds it. It moves the
+          focus itself rather than following a link, because there is no
+          address bar here to put a fragment in. */}
+      <button
+        type="button"
+        className="skip-link"
+        onClick={() => mainRef.current?.focus()}
+      >
+        {t('nav.skip')}
+      </button>
+
       <aside className="sidebar">
         <div className="brand">
           <div className="brand-mark"><Icon name="vault" size={22} /></div>
@@ -324,7 +338,7 @@ export function App() {
         </div>
       </aside>
 
-      <main className="main">
+      <main className="main" ref={mainRef} tabIndex={-1}>
         <Suspense fallback={screenLoading}>
         {view === 'inventory' && (
           <InventoryView

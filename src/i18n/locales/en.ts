@@ -15,6 +15,7 @@ export const en = {
   'nav.sales': 'Sales',
   'nav.settings': 'Settings',
   'nav.section': 'Shop',
+  'nav.skip': 'Skip to the screen',
   'brand.tagline': 'Stock manager',
   'sidebar.localTitle': 'Saved on this PC only.',
   'sidebar.localBody': 'No internet, no accounts — your stock list never leaves this computer.',

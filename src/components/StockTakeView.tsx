@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useVault } from '../state/vault';
 import { useI18n, useT } from '../i18n';
 import { formatDateTime, formatMoney, formatNumber } from '../lib/format';
+import { useEscape } from '../lib/keys';
 import type { StockTakeProgress } from '../types';
 import { Icon } from './Icon';
 
@@ -27,6 +28,10 @@ export function StockTakeView() {
   const [query, setQuery] = useState('');
   const [busy, setBusy] = useState(false);
   const [confirming, setConfirming] = useState(false);
+
+  // Applying a count rewrites every quantity that differs, so the way out of
+  // the question has to be as quick as the way in.
+  useEscape(confirming, () => setConfirming(false));
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const searchRef = useRef<HTMLInputElement>(null);
 

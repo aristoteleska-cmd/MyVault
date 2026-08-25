@@ -415,6 +415,32 @@ button { font: inherit; color: inherit; }
   overflow: hidden;
 }
 
+/* Off the top of the window until something focuses it, then it drops into
+   view over the sidebar. Not `display: none` and not `visibility: hidden`:
+   either of those would take it out of the tab order, which is the one thing
+   it exists for. */
+.skip-link {
+  position: fixed;
+  top: 0;
+  inset-inline-start: 0;
+  z-index: 200;
+  transform: translateY(-140%);
+  padding: var(--space-3) var(--space-4);
+  border: 0;
+  border-end-end-radius: var(--radius-md);
+  background: var(--accent);
+  color: var(--accent-text);
+  font-weight: 650;
+  cursor: pointer;
+  transition: transform var(--speed) var(--ease);
+}
+.skip-link:focus-visible { transform: translateY(0); }
+
+/* The skip link hands focus to the whole main area, so the ring that follows
+   is drawn just inside it rather than around the outside, where the window
+   edge would clip it. */
+.main:focus-visible { outline-offset: -3px; }
+
 .sidebar {
   display: flex;
   flex-direction: column;

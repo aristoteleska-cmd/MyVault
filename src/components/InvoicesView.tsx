@@ -3,6 +3,7 @@ import { useVault } from '../state/vault';
 import { useI18n, useT } from '../i18n';
 import { formatDate, formatDateTime, formatMoney, formatNumber } from '../lib/format';
 import type { DeliveryReview, DraftDocument, PdfInvoiceResult, PostedDocument } from '../types';
+import { useEscape } from '../lib/keys';
 import { Icon } from './Icon';
 
 /**
@@ -31,6 +32,7 @@ export function InvoicesView() {
   const [quantity, setQuantity] = useState('1');
   const [busy, setBusy] = useState(false);
   const [confirming, setConfirming] = useState(false);
+
   /**
    * Set only when a delivery just came in at prices the shop does not usually
    * pay. Shown as a panel rather than a toast: a cost that moved is worth a
@@ -50,6 +52,10 @@ export function InvoicesView() {
   /** True while a file is being dragged over the drop area. */
   const [dragging, setDragging] = useState(false);
 
+  // The step before money moves is a strip on the page, not a dialog, so
+  // Escape has to be wired up for it. Backing out of a confirmation must
+  // always be at least as easy as agreeing to it.
+  useEscape(confirming, () => setConfirming(false));
 
   const currency = db.settings.currency;
   const vatOn = db.settings.vatEnabled;
