@@ -19,8 +19,10 @@ const blank = {
  * ten years of deliveries behind it opens this screen as fast as a shop with
  * none, and nothing here can ever disagree with the invoices it came from.
  */
-export function SuppliersView() {
-  const { supplierBook, saveSupplier, removeSupplier, searchDocs, db } = useVault();
+export function SuppliersView({ onGoToOrders }: { onGoToOrders: (name: string) => void }) {
+  const {
+    supplierBook, saveSupplier, removeSupplier, searchDocs, exportDocsCsv, printPdf, db,
+  } = useVault();
   const { locale } = useI18n();
   const t = useT();
 
@@ -85,6 +87,57 @@ export function SuppliersView() {
     setEditingId(null);
     setDraft({ ...blank });
     await refresh();
+  }
+
+  /**
+   * One supplier's deliveries, on paper.
+   *
+   * Built from the invoices already fetched for the open panel rather than
+   * asked for again, so what is printed is exactly what the shop is looking at.
+   * A voided invoice is printed and marked rather than dropped, and left out of
+   * the totals: it is a record of something that happened.
+   */
+  async function print(supplier: SupplierBookEntry) {
+    const list = invoices || [];
+    const cash = (value: number) => formatMoney(value, currency, locale);
+    const kept = list.filter((invoice) => !invoice.voided);
+    await printPdf({
+      kind: 'documents',
+      fileName: 'supplier-invoices',
+      payload: {
+        title: t('suppliers.sheetTitle', { name: supplier.name }),
+        shop: db.settings.shopName,
+        when: formatDate(new Date().toISOString(), locale),
+        labels: {
+          date: t('sales.colDate'),
+          number: t('sales.colNumber'),
+          lines: t('sales.colLines'),
+          net: t('sales.colNet'),
+          vat: t('sales.colVat'),
+          total: t('sales.colTotal'),
+          count: t('sales.colCount'),
+          nothing: t('sales.sheetNothing'),
+        },
+        totals: {
+          count: String(list.length),
+          net: cash(kept.reduce((sum, invoice) => sum + invoice.net, 0)),
+          vat: cash(kept.reduce((sum, invoice) => sum + invoice.vat, 0)),
+          gross: cash(kept.reduce((sum, invoice) => sum + invoice.gross, 0)),
+          range: supplier.first ? t('suppliers.since', {
+            date: formatDate(supplier.first, locale),
+          }) : '',
+        },
+        lines: list.map((invoice) => ({
+          date: formatDate(invoice.date || invoice.postedAt, locale),
+          number: invoice.number || '—',
+          lines: String(invoice.lines),
+          net: cash(invoice.net),
+          vat: cash(invoice.vat),
+          total: cash(invoice.gross),
+          mark: invoice.voided ? t('sales.voided') : (invoice.voids ? t('sales.reversal') : ''),
+        })),
+      },
+    });
   }
 
   async function remove(id: string) {
@@ -276,6 +329,17 @@ export function SuppliersView() {
                         >
                           {t('suppliers.invoices')}
                         </button>
+                        {/* The other half of a supplier: what they have sent,
+                            and what to ask them for next. The order list is
+                            already grouped by supplier, so this takes the shop
+                            straight to their part of it. */}
+                        <button
+                          type="button"
+                          className="btn btn-sm"
+                          onClick={() => onGoToOrders(supplier.name)}
+                        >
+                          {t('suppliers.toOrders')}
+                        </button>
                         {/* A supplier known only from old invoices has no entry
                             to edit or remove — there is nothing of theirs in the
                             list yet. Saving them from the Add button gives them
@@ -347,11 +411,33 @@ export function SuppliersView() {
                         )}
                         {!loadingInvoices && invoices && invoices.length > 0 && (
                           <>
-                            {supplier.first && (
-                              <p className="panel-sub">
-                                {t('suppliers.since', { date: formatDate(supplier.first, locale) })}
-                              </p>
-                            )}
+                            <div className="toolbar">
+                              {supplier.first && (
+                                <p className="panel-sub" style={{ flex: 1 }}>
+                                  {t('suppliers.since', {
+                                    date: formatDate(supplier.first, locale),
+                                  })}
+                                </p>
+                              )}
+                              <button
+                                type="button"
+                                className="btn btn-sm"
+                                onClick={() => void exportDocsCsv({
+                                  kind: 'in', supplier: supplier.name, limit: 200,
+                                })}
+                              >
+                                <Icon name="download" size={14} />
+                                {t('sales.exportCsv')}
+                              </button>
+                              <button
+                                type="button"
+                                className="btn btn-sm"
+                                onClick={() => void print(supplier)}
+                              >
+                                <Icon name="file" size={14} />
+                                {t('sales.printPdf')}
+                              </button>
+                            </div>
                             <div className="table-scroll">
                               <table className="table">
                                 <thead>

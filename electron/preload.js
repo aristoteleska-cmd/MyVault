@@ -90,6 +90,8 @@ contextBridge.exposeInMainWorld('myvault', {
     search: (options) => invoke('docs:search', options),
     /** One invoice in full, with its lines. */
     detail: (id) => invoke('docs:detail', id),
+    /** The same search again, written out as a spreadsheet. */
+    exportCsv: (options) => invoke('docs:export-csv', options),
   },
 
   /** Who the shop buys from, and what each of them has sent. */

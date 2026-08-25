@@ -140,6 +140,10 @@ export interface MyVaultBridge {
     }>>;
     search(options?: DocumentSearch): Promise<Result<DocumentSummary[]>>;
     detail(id: string): Promise<Result<PostedDocument & { clientName: string }>>;
+    /** The rows the same search found, written to a spreadsheet the shop picks. */
+    exportCsv(options?: DocumentSearch): Promise<Result<{
+      canceled: boolean; empty?: boolean; filePath?: string; count?: number;
+    }>>;
   };
 
   suppliers: {
@@ -180,7 +184,7 @@ export interface MyVaultBridge {
   print: {
     /** The page is built in the main process — only values cross the bridge. */
     pdf(request: {
-      kind: 'stocktake' | 'reorder' | 'inventory' | 'vat' | 'prices';
+      kind: 'stocktake' | 'reorder' | 'inventory' | 'vat' | 'prices' | 'documents';
       fileName?: string;
       payload: Record<string, unknown>;
     }): Promise<Result<{ canceled: boolean; filePath?: string }>>;

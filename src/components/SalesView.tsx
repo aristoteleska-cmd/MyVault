@@ -19,7 +19,7 @@ import { Icon } from './Icon';
  * already hold every posted document for good.
  */
 export function SalesView() {
-  const { searchDocs, docDetail, db } = useVault();
+  const { searchDocs, docDetail, exportDocsCsv, printPdf, db } = useVault();
   const { locale } = useI18n();
   const t = useT();
 
@@ -59,6 +59,58 @@ export function SalesView() {
 
   const filtered = Boolean(query || from || to);
   const total = (rows || []).reduce((sum, row) => (row.voided ? sum : sum + row.gross), 0);
+
+  /**
+   * The search that is on the screen, taken away on paper or in a spreadsheet.
+   *
+   * Neither of these sends the rows anywhere: the CSV is written by the main
+   * process from the same search, and the PDF is built there too — only the
+   * numbers as words cross the bridge. A voided invoice is printed and marked
+   * rather than dropped, because it is a record of something that happened,
+   * and it is left out of the totals for the same reason.
+   */
+  async function print() {
+    const list = rows || [];
+    const money = (value: number) => formatMoney(value, currency, locale);
+    const kept = list.filter((row) => !row.voided);
+    await printPdf({
+      kind: 'documents',
+      fileName: 'sales',
+      payload: {
+        title: t('sales.sheetTitle'),
+        shop: db.settings.shopName,
+        when: formatDate(new Date().toISOString(), locale),
+        labels: {
+          date: t('sales.colDate'),
+          number: t('sales.colNumber'),
+          who: t('sales.colWho'),
+          lines: t('sales.colLines'),
+          net: t('sales.colNet'),
+          vat: t('sales.colVat'),
+          total: t('sales.colTotal'),
+          count: t('sales.colCount'),
+          nothing: t('sales.sheetNothing'),
+        },
+        totals: {
+          count: String(list.length),
+          net: money(kept.reduce((sum, row) => sum + row.net, 0)),
+          vat: money(kept.reduce((sum, row) => sum + row.vat, 0)),
+          gross: money(total),
+          range: [from, to].filter(Boolean).join(' — '),
+        },
+        lines: list.map((row) => ({
+          date: formatDate(row.date || row.postedAt, locale),
+          number: row.number || '—',
+          who: row.clientName,
+          lines: String(row.lines),
+          net: money(row.net),
+          vat: money(row.vat),
+          total: money(row.gross),
+          mark: row.voided ? t('sales.voided') : (row.voids ? t('sales.reversal') : ''),
+        })),
+      },
+    });
+  }
 
   return (
     <div className="view">
@@ -110,6 +162,24 @@ export function SalesView() {
               {t('sales.clear')}
             </button>
           )}
+          <button
+            type="button"
+            className="btn"
+            onClick={() => void exportDocsCsv({ kind: 'out', query, from, to })}
+            disabled={!rows || rows.length === 0}
+          >
+            <Icon name="download" size={16} />
+            {t('sales.exportCsv')}
+          </button>
+          <button
+            type="button"
+            className="btn"
+            onClick={() => void print()}
+            disabled={!rows || rows.length === 0}
+          >
+            <Icon name="file" size={16} />
+            {t('sales.printPdf')}
+          </button>
         </div>
 
         {searching && !rows && <p className="panel-empty">{t('sales.searching')}</p>}

@@ -697,6 +697,51 @@ function registerIpc() {
   handle('docs:search', 'documents.manage', (options = {}) => store.searchDocuments(options));
   handle('docs:detail', 'documents.manage', (id) => store.documentDetail(id));
 
+  /**
+   * The same search, written out as a spreadsheet.
+   *
+   * The rows come from `searchDocuments` rather than from anything the window
+   * sent, so what is exported is what the screen was showing and nothing wider.
+   * Money is written as a plain number with a dot: this file is going into
+   * somebody's spreadsheet or their accountant's program, and a thousands
+   * separator or a currency symbol is a column that arrives as text.
+   */
+  handle('docs:export-csv', 'documents.manage', async (options = {}) => {
+    const found = store.searchDocuments({ ...options, limit: 500 });
+    if (!found.length) return { canceled: true, empty: true };
+
+    const outgoing = options.kind === 'out';
+    const { canceled, filePath } = await dialog.showSaveDialog(mainWindow, {
+      title: outgoing ? 'Export these sales to CSV' : 'Export these invoices to CSV',
+      defaultPath: `myvault-${outgoing ? 'sales' : 'invoices'}-`
+        + `${new Date().toISOString().slice(0, 10)}.csv`,
+      filters: [{ name: 'CSV file', extensions: ['csv'] }],
+    });
+    if (canceled || !filePath) return { canceled: true };
+
+    const headers = ['Date', 'Number', 'Direction', 'Supplier', 'Customer',
+      'Lines', 'Pieces', 'Net', 'VAT', 'Total', 'Status'];
+    const rows = found.map((document) => ({
+      Date: document.date || document.postedAt.slice(0, 10),
+      Number: document.number,
+      Direction: document.kind === 'in' ? 'in' : 'out',
+      Supplier: document.supplier,
+      Customer: document.clientName,
+      Lines: document.lines,
+      Pieces: document.units,
+      Net: document.net.toFixed(2),
+      VAT: document.vat.toFixed(2),
+      Total: document.gross.toFixed(2),
+      // A reversal and the thing it reversed are both real records. Saying
+      // which is which is the difference between a file that reconciles and a
+      // file that appears to double every corrected invoice.
+      Status: document.voided ? 'reversed' : (document.voids ? 'reversal' : ''),
+    }));
+
+    fs.writeFileSync(filePath, toCsv(headers, rows), 'utf8');
+    return { canceled: false, filePath, count: rows.length };
+  });
+
   /** Reads a supplier's CSV onto the draft, reporting what it could not match. */
   handle('docs:import-csv', 'documents.manage', async (id) => {
     const { canceled, filePaths } = await dialog.showOpenDialog(mainWindow, {

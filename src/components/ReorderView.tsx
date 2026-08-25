@@ -20,7 +20,12 @@ const WINDOWS = [
  * ordering happens one supplier at a time, on the phone or by email, and a list
  * sorted any other way has to be re-sorted by hand before it can be used.
  */
-export function ReorderView({ onBrowseItem }: { onBrowseItem: (name: string) => void }) {
+export function ReorderView({ onBrowseItem, supplier, onShowAll }: {
+  onBrowseItem: (name: string) => void;
+  /** Set when the shop arrived here from a supplier's own screen. */
+  supplier?: string;
+  onShowAll: () => void;
+}) {
   const { db, reorderList, printPdf } = useVault();
   const { locale } = useI18n();
   const t = useT();
@@ -30,6 +35,18 @@ export function ReorderView({ onBrowseItem }: { onBrowseItem: (name: string) => 
   const [loading, setLoading] = useState(true);
 
   const currency = db.settings.currency;
+
+  /**
+   * The panels to draw, which is all of them unless the shop came here from one
+   * supplier's screen asking what to order from that supplier.
+   *
+   * Filtered here rather than asked for narrower, because the totals along the
+   * top are about the whole order list and stay true either way — a shop that
+   * has narrowed the view has not stopped needing to know what else is out.
+   */
+  const shown = (list?.suppliers || []).filter(
+    (entry) => !supplier || entry.supplier === supplier,
+  );
 
   const load = useCallback(async (span: number) => {
     setLoading(true);
@@ -144,14 +161,28 @@ export function ReorderView({ onBrowseItem }: { onBrowseItem: (name: string) => 
             </div>
           </div>
 
-          {list.suppliers.map((supplier) => (
-            <div className="panel supplier-panel" key={supplier.supplier || '—'}>
+          {supplier && (
+            <div className="callout">
+              <Icon name="info" size={18} />
+              <div style={{ flex: 1 }}>
+                {shown.length
+                  ? t('reorder.onlySupplier', { name: supplier })
+                  : t('reorder.noneFromSupplier', { name: supplier })}
+              </div>
+              <button type="button" className="btn btn-sm" onClick={onShowAll}>
+                {t('reorder.showAll')}
+              </button>
+            </div>
+          )}
+
+          {shown.map((entry) => (
+            <div className="panel supplier-panel" key={entry.supplier || '—'}>
               <div className="panel-head">
-                <span>{supplier.supplier || t('reorder.noSupplier')}</span>
+                <span>{entry.supplier || t('reorder.noSupplier')}</span>
                 <span className="panel-head-right">
                   {t('reorder.supplierSummary', {
-                    count: formatNumber(supplier.units, locale),
-                    money: formatMoney(supplier.cost, currency, locale),
+                    count: formatNumber(entry.units, locale),
+                    money: formatMoney(entry.cost, currency, locale),
                   })}
                 </span>
               </div>
@@ -165,7 +196,7 @@ export function ReorderView({ onBrowseItem }: { onBrowseItem: (name: string) => 
                   </tr>
                 </thead>
                 <tbody>
-                  {supplier.items.map((item) => (
+                  {entry.items.map((item) => (
                     <tr key={item.id}>
                       <td>
                         <button type="button" className="rank-name" onClick={() => onBrowseItem(item.name)}>

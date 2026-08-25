@@ -91,6 +91,8 @@ export function App() {
   const { ready, loadError, db, info, notify, scanBarcodePhoto, auth, can, recoveryCode } = useVault();
   const { t, rtl } = useI18n();
   const [view, setView] = useState<ViewName>('inventory');
+  /** Set when the shop reached the order list from one supplier's own screen. */
+  const [orderSupplier, setOrderSupplier] = useState('');
   const [filters, setFilters] = useState<Filters>(initialFilters);
   const [sort, setSort] = useState<SortState>({ key: 'name', direction: 'asc' });
   const [dialogItem, setDialogItem] = useState<Item | null>(null);
@@ -367,13 +369,21 @@ export function App() {
               setFilters((current) => ({ ...current, query: name, scope: 'all' }));
               setView('inventory');
             }}
+            supplier={orderSupplier}
+            onShowAll={() => setOrderSupplier('')}
           />
         )}
         {view === 'stocktake' && <StockTakeView />}
         {view === 'prices' && <PricesView />}
         {view === 'vat' && <VatView />}
         {view === 'invoices' && <InvoicesView />}
-        {view === 'suppliers' && <SuppliersView />}
+        {/* A supplier has two halves — what they have sent, and what to ask
+            them for next — and the second half lives on the order list. */}
+        {view === 'suppliers' && (
+          <SuppliersView
+            onGoToOrders={(name) => { setOrderSupplier(name); setView('reorder'); }}
+          />
+        )}
         {view === 'sales' && <SalesView />}
         {view === 'clients' && <ClientsView />}
         {view === 'categories' && (

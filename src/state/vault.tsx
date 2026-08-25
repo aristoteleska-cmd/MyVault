@@ -134,6 +134,8 @@ interface VaultValue {
   listDocs: (options?: { limit?: number }) => Promise<PostedDocument[] | null>;
   searchDocs: (options?: DocumentSearch) => Promise<DocumentSummary[] | null>;
   docDetail: (id: string) => Promise<(PostedDocument & { clientName: string }) | null>;
+  /** Writes the invoices a search found out as a spreadsheet. */
+  exportDocsCsv: (options?: DocumentSearch) => Promise<void>;
   supplierBook: (options?: { query?: string; from?: string; to?: string })
     => Promise<SupplierBookEntry[] | null>;
   saveSupplier: (supplier: Partial<Supplier>) => Promise<Supplier | null>;
@@ -162,7 +164,7 @@ interface VaultValue {
 
   /** Saves one of MyVault's own documents as a PDF. Returns the path, or null. */
   printPdf: (request: {
-    kind: 'stocktake' | 'reorder' | 'inventory' | 'vat' | 'prices';
+    kind: 'stocktake' | 'reorder' | 'inventory' | 'vat' | 'prices' | 'documents';
     fileName?: string;
     payload: Record<string, unknown>;
   }) => Promise<string | null>;
@@ -728,6 +730,17 @@ export function VaultProvider({ children }: { children: ReactNode }) {
     [run],
   );
 
+  const exportDocsCsv = useCallback(async (options?: DocumentSearch) => {
+    const result = await run(window.myvault.docs.exportCsv(options));
+    if (!result || result.canceled) {
+      // An empty search is not a failure and not a file, so it says so rather
+      // than opening a save dialog for a spreadsheet with a header row in it.
+      if (result?.empty) notify('sales.exportEmpty', undefined, 'info');
+      return;
+    }
+    notify('sales.exported', { count: result.count ?? 0, path: result.filePath ?? '' }, 'success');
+  }, [run, notify]);
+
   const supplierBook = useCallback(
     async (options?: { query?: string; from?: string; to?: string }) =>
       run(window.myvault.suppliers.list(options)),
@@ -843,7 +856,7 @@ export function VaultProvider({ children }: { children: ReactNode }) {
   // ---------------------------------------------------------------- printing
 
   const printPdf = useCallback(async (request: {
-    kind: 'stocktake' | 'reorder' | 'inventory' | 'vat' | 'prices';
+    kind: 'stocktake' | 'reorder' | 'inventory' | 'vat' | 'prices' | 'documents';
     fileName?: string;
     payload: Record<string, unknown>;
   }) => {
@@ -1212,6 +1225,7 @@ export function VaultProvider({ children }: { children: ReactNode }) {
       listDocs,
       searchDocs,
       docDetail,
+      exportDocsCsv,
       supplierBook,
       saveSupplier,
       removeSupplier,
@@ -1278,7 +1292,7 @@ export function VaultProvider({ children }: { children: ReactNode }) {
       statsReport, recentMovements, reorderList, vatReport, vatPeriods, returnItem,
       priceReview, priceAdvice, applyPrice,
       drafts, refreshDrafts, startDoc, updateDoc, setDocLine, removeDocLine,
-      discardDoc, postDoc, voidDoc, listDocs, searchDocs, docDetail,
+      discardDoc, postDoc, voidDoc, listDocs, searchDocs, docDetail, exportDocsCsv,
       supplierBook, saveSupplier, removeSupplier, importDocCsv, importDocPdf, importDocPdfFile, addMissingProduct,
       startStockTake, stockTakeProgress, countStockTake, cancelStockTake, applyStockTake,
       printPdf, backupStatus, refreshBackupStatus, chooseBackupFolder, forgetBackupFolder, backupNow,

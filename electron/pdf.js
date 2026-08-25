@@ -197,6 +197,54 @@ function inventorySheet({ title, shop, when, lines, totals, labels }) {
 }
 
 /**
+ * A list of invoices, in or out.
+ *
+ * The same sheet serves both screens, because they are asking the same question
+ * of the same records: what did this supplier send us, and what did we sell in
+ * this fortnight. The reversed ones are printed rather than dropped — a voided
+ * invoice is a thing that happened, and a list that quietly leaves it out is a
+ * list somebody will one day reconcile against a bank statement and lose an
+ * afternoon to. It is marked instead, and left out of the totals.
+ */
+function documentsSheet({ title, shop, when, lines, totals, labels }) {
+  // One supplier's own sheet has their name in the title, so repeating it on
+  // every row is a column of the same eighteen characters. Leaving the label
+  // out is how the caller says the column has nothing to say.
+  const named = Boolean(labels.who);
+  return page({
+    title,
+    shop,
+    when,
+    subtitle: totals.range || '',
+    body: `
+      <div class="totals">
+        <div class="total"><div class="k">${esc(labels.count)}</div><div class="v">${esc(totals.count)}</div></div>
+        <div class="total"><div class="k">${esc(labels.net)}</div><div class="v">${esc(totals.net)}</div></div>
+        <div class="total"><div class="k">${esc(labels.vat)}</div><div class="v">${esc(totals.vat)}</div></div>
+        <div class="total"><div class="k">${esc(labels.total)}</div><div class="v">${esc(totals.gross)}</div></div>
+      </div>
+      <table>
+        <thead><tr>
+          <th>${esc(labels.date)}</th><th>${esc(labels.number)}</th>
+          ${named ? `<th>${esc(labels.who)}</th>` : ''}
+          <th class="num">${esc(labels.lines)}</th><th class="num">${esc(labels.net)}</th>
+          <th class="num">${esc(labels.vat)}</th><th class="num">${esc(labels.total)}</th>
+        </tr></thead>
+        <tbody>${rows(lines, (line) => `
+          <td>${esc(line.date)}</td>
+          <td>${esc(line.number)}${line.mark ? ` <span class="short">${esc(line.mark)}</span>` : ''}</td>
+          ${named ? `<td>${esc(line.who)}</td>` : ''}
+          <td class="num">${esc(line.lines)}</td>
+          <td class="num">${esc(line.net)}</td>
+          <td class="num">${esc(line.vat)}</td>
+          <td class="num">${esc(line.total)}</td>`)}
+        </tbody>
+      </table>
+      ${lines.length === 0 ? `<p class="note">${esc(labels.nothing)}</p>` : ''}`,
+  });
+}
+
+/**
  * The VAT return, as a sheet to hand an accountant.
  *
  * Laid out the way a return is: turnover and tax per rate, what was collected,
@@ -290,6 +338,7 @@ const DOCUMENTS = {
   inventory: inventorySheet,
   vat: vatSheet,
   prices: pricesSheet,
+  documents: documentsSheet,
 };
 
 /**
