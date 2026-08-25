@@ -24,15 +24,25 @@ const { _electron: electron } = require('playwright-core');
 const root = path.join(__dirname, '..');
 const releaseDir = path.join(root, 'release');
 
+/**
+ * The build to test, which is the newest one there.
+ *
+ * `release/` accumulates: a machine that has cut two releases has two AppImages
+ * in it, and this used to take whichever sorted first — the oldest. That is a
+ * test that passes loudly while proving nothing about the build in front of it,
+ * which is worse than no test. Newest by the time it was written, and the name
+ * is printed so what was checked is never in doubt.
+ */
 function findAppImage() {
-  const found = fs.existsSync(releaseDir)
-    ? fs.readdirSync(releaseDir).filter((name) => name.endsWith('.AppImage'))
-    : [];
+  const found = (fs.existsSync(releaseDir) ? fs.readdirSync(releaseDir) : [])
+    .filter((name) => name.endsWith('.AppImage'))
+    .map((name) => ({ name, at: fs.statSync(path.join(releaseDir, name)).mtimeMs }))
+    .sort((a, b) => b.at - a.at);
   if (found.length === 0) {
     console.error('No .AppImage in release/. Run "npm run dist:linux" first.');
     process.exit(1);
   }
-  return path.join(releaseDir, found[0]);
+  return path.join(releaseDir, found[0].name);
 }
 
 /**
