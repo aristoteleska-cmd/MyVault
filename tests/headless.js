@@ -1,5 +1,7 @@
 'use strict';
 
+const assert = require('assert');
+
 /**
  * The switches an Electron window needs to be driveable on a bare build machine.
  *
@@ -36,4 +38,41 @@ const HEADLESS_FLAGS = [
   '--disable-gpu',
 ];
 
-module.exports = { HEADLESS_FLAGS };
+/**
+ * Fails now, with a reason, instead of in thirty seconds without one.
+ *
+ * The failure this whole file exists to prevent is uniquely unhelpful when it
+ * happens: every click times out saying "waiting for element to be visible,
+ * enabled and stable", which is a description of Playwright's own patience and
+ * not of anything wrong with MyVault. Somebody reading that in a build log has
+ * no reason to suspect the frame loop.
+ *
+ * So the suites ask the window one question before they touch it — are you
+ * drawing? — and say plainly what it means if the answer is no.
+ */
+async function assertWindowAnimates(window, label = 'the window') {
+  const frames = await window.evaluate(() => new Promise((resolve) => {
+    let seen = 0;
+    // Resolves either way: a window that has stopped drawing will never call
+    // the callback back, and a probe that waits for it forever has reproduced
+    // the bug it was written to explain.
+    const giveUp = setTimeout(() => resolve(seen), 2000);
+    const step = () => {
+      seen += 1;
+      if (seen >= 5) { clearTimeout(giveUp); resolve(seen); return; }
+      requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  }));
+
+  assert.ok(
+    frames >= 5,
+    `${label} is not drawing: ${frames} animation frames in two seconds.\n`
+    + 'Playwright waits for an element to hold still across two animation frames\n'
+    + 'before it will click it, so every click after this point would hang for\n'
+    + 'thirty seconds and then time out without explaining itself.\n'
+    + 'See HEADLESS_FLAGS at the top of tests/headless.js.',
+  );
+}
+
+module.exports = { HEADLESS_FLAGS, assertWindowAnimates };

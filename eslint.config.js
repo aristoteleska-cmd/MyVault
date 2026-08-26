@@ -137,8 +137,11 @@ export default [
      * `page.evaluate`, and inside those the browser globals are as real as
      * Node's are outside them. Both sets are in scope in one file, which is
      * unusual enough to be worth saying out loud.
+     *
+     * headless.js is not a suite but is written from the same two sides — it
+     * asks the page whether it is still drawing — so it belongs here too.
      */
-    files: ['tests/**/*.e2e.js'],
+    files: ['tests/**/*.e2e.js', 'tests/headless.js'],
     languageOptions: { globals: { ...globals.node, ...globals.browser } },
   },
 

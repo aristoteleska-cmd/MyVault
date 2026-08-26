@@ -17,7 +17,7 @@ const path = require('path');
 const http = require('http');
 const crypto = require('crypto');
 const { _electron: electron } = require('playwright');
-const { HEADLESS_FLAGS } = require('./headless-flags');
+const { HEADLESS_FLAGS, assertWindowAnimates } = require('./headless');
 
 const root = path.join(__dirname, '..');
 const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'myvault-e2e-'));
@@ -38,6 +38,7 @@ async function open() {
   });
   const window = await app.firstWindow();
   await window.waitForSelector('.view', { timeout: 30_000 });
+  await assertWindowAnimates(window, 'the MyVault window');
   return { app, window };
 }
 

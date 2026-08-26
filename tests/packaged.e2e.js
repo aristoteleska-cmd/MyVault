@@ -20,7 +20,7 @@ const os = require('os');
 const path = require('path');
 const { execFileSync } = require('child_process');
 const { _electron: electron } = require('playwright-core');
-const { HEADLESS_FLAGS } = require('./headless-flags');
+const { HEADLESS_FLAGS, assertWindowAnimates } = require('./headless');
 
 const root = path.join(__dirname, '..');
 const releaseDir = path.join(root, 'release');
@@ -87,6 +87,7 @@ function extract(appImage) {
   ok('the packaged app starts and opens its window');
 
   await window.waitForSelector('.app, #root', { timeout: 30000 });
+  await assertWindowAnimates(window, 'the packaged MyVault window');
   const rendered = await window.textContent('body');
   assert.ok(rendered.trim().length > 20, 'the window is not blank');
   ok('the interface is bundled and renders');
