@@ -20,6 +20,7 @@ const os = require('os');
 const path = require('path');
 const { execFileSync } = require('child_process');
 const { _electron: electron } = require('playwright-core');
+const { HEADLESS_FLAGS } = require('./headless-flags');
 
 const root = path.join(__dirname, '..');
 const releaseDir = path.join(root, 'release');
@@ -75,7 +76,7 @@ function extract(appImage) {
   // not of the build.
   const launch = () => electron.launch({
     executablePath: binary,
-    args: ['--no-sandbox'],
+    args: ['--no-sandbox', ...HEADLESS_FLAGS],
     env: { ...process.env, MYVAULT_DATA_DIR: dataDir },
   });
 

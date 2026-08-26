@@ -17,6 +17,7 @@ const path = require('path');
 const http = require('http');
 const crypto = require('crypto');
 const { _electron: electron } = require('playwright');
+const { HEADLESS_FLAGS } = require('./headless-flags');
 
 const root = path.join(__dirname, '..');
 const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'myvault-e2e-'));
@@ -31,7 +32,7 @@ const ok = (label) => { passed += 1; console.log('  ok  ' + label); };
  */
 async function open() {
   const app = await electron.launch({
-    args: [root, '--no-sandbox'],
+    args: [root, '--no-sandbox', ...HEADLESS_FLAGS],
     cwd: root,
     env: { ...process.env, MYVAULT_DATA_DIR: dataDir },
   });
