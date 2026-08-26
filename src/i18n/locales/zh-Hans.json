@@ -808,6 +808,7 @@
   "sales.emptyBody": "您在“发票”页开出的发票会连同明细保存在这里。",
   "sales.noMatch": "没有匹配的发票。",
   "sales.total": "{count} 张发票 · {money}",
+  "sales.capped": "仅最新的 {count} 张——缩小日期范围可看到其余的",
   "sales.total.one": "{count} 张发票 · {money}",
   "sales.toCustomer": "开给 {name}",
   "sales.noCustomer": "未填客户",

@@ -808,6 +808,7 @@
   "sales.emptyBody": "Faturalar ekranında kestiğiniz faturalar, içerdikleriyle birlikte burada saklanır.",
   "sales.noMatch": "Eşleşen fatura yok.",
   "sales.total": "{count} fatura · {money}",
+  "sales.capped": "yalnızca en yeni {count} — kalanları görmek için tarihleri daraltın",
   "sales.total.one": "{count} fatura · {money}",
   "sales.toCustomer": "{name} adına",
   "sales.noCustomer": "Müşteri belirtilmemiş",

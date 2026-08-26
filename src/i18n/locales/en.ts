@@ -922,6 +922,7 @@ export const en = {
   'sales.emptyBody': 'Invoices you make on the Invoices screen are kept here, with what was on them.',
   'sales.noMatch': 'No invoice matches that.',
   'sales.total': '{count} invoices · {money}',
+  'sales.capped': 'the newest {count} only — narrow the dates to see the rest',
   'sales.total.one': '{count} invoice · {money}',
   'sales.toCustomer': 'to {name}',
   'sales.noCustomer': 'No customer named',

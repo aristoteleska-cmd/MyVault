@@ -836,6 +836,7 @@
   "sales.emptyBody": "As faturas que faz no ecrã Faturas ficam aqui, com aquilo que levavam.",
   "sales.noMatch": "Nenhuma fatura corresponde.",
   "sales.total": "{count} faturas · {money}",
+  "sales.capped": "apenas as {count} mais recentes — limite as datas para ver o resto",
   "sales.total.one": "{count} fatura · {money}",
   "sales.toCustomer": "para {name}",
   "sales.noCustomer": "Sem cliente indicado",

@@ -26,6 +26,12 @@ export function useEscape(active: boolean, onEscape: () => void): void {
     if (!active) return undefined;
     function onKeyDown(event: KeyboardEvent) {
       if (event.key !== 'Escape' || event.defaultPrevented) return;
+      // Escape while an input method is mid-word means "throw away what I am
+      // spelling", not "throw away the form". MyVault ships in Chinese,
+      // Japanese-adjacent scripts and Hindi, where a name is typed through a
+      // composition and cancelling it is an ordinary keystroke — closing the
+      // panel underneath would take the rest of the form with it.
+      if (event.isComposing || event.keyCode === 229) return;
       event.preventDefault();
       handler.current();
     }

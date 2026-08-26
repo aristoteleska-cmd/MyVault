@@ -6,6 +6,17 @@ import type { DocumentSummary, PostedDocument } from '../types';
 import { Icon } from './Icon';
 
 /**
+ * How many invoices one search brings back.
+ *
+ * Named because three things have to agree about it: what the screen asks for,
+ * what the CSV is written from, and the moment the shop has to be told the list
+ * was cut off. A shop with four hundred invoices in a month that saw three
+ * hundred and was told nothing would reconcile the file against its bank and
+ * lose an afternoon to the hundred that were never in it.
+ */
+const PAGE = 300;
+
+/**
  * Everything the shop has sold on paper.
  *
  * The other side of the Invoices screen: that one is for making an invoice,
@@ -35,7 +46,7 @@ export function SalesView() {
 
   const run = useCallback(async () => {
     setSearching(true);
-    setRows(await searchDocs({ kind: 'out', query, from, to, limit: 300 }));
+    setRows(await searchDocs({ kind: 'out', query, from, to, limit: PAGE }));
     setSearching(false);
   }, [searchDocs, query, from, to]);
 
@@ -165,7 +176,7 @@ export function SalesView() {
           <button
             type="button"
             className="btn"
-            onClick={() => void exportDocsCsv({ kind: 'out', query, from, to })}
+            onClick={() => void exportDocsCsv({ kind: 'out', query, from, to, limit: PAGE })}
             disabled={!rows || rows.length === 0}
           >
             <Icon name="download" size={16} />
@@ -201,6 +212,13 @@ export function SalesView() {
                 count: rows.length,
                 money: formatMoney(total, currency, locale),
               })}
+              {/* A full page means the search was cut off, not that the shop
+                  made exactly this many sales. Said out loud, because both the
+                  total above and the spreadsheet below it are about the rows
+                  that came back and not about the rows that exist. */}
+              {rows.length >= PAGE && (
+                <> · <span className="cell-warn">{t('sales.capped', { count: PAGE })}</span></>
+              )}
             </p>
 
             <div className="record-list">

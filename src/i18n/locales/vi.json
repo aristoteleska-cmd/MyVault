@@ -808,6 +808,7 @@
   "sales.emptyBody": "Hóa đơn bạn lập ở màn hình Hóa đơn được giữ tại đây, kèm nội dung của chúng.",
   "sales.noMatch": "Không có hóa đơn nào khớp.",
   "sales.total": "{count} hóa đơn · {money}",
+  "sales.capped": "chỉ {count} mới nhất — thu hẹp khoảng ngày để xem phần còn lại",
   "sales.total.one": "{count} hóa đơn · {money}",
   "sales.toCustomer": "cho {name}",
   "sales.noCustomer": "Không ghi khách hàng",

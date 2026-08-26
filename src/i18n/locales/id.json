@@ -808,6 +808,7 @@
   "sales.emptyBody": "Faktur yang Anda buat di layar Faktur disimpan di sini, beserta isinya.",
   "sales.noMatch": "Tidak ada faktur yang cocok.",
   "sales.total": "{count} faktur · {money}",
+  "sales.capped": "hanya {count} terbaru — persempit tanggalnya untuk melihat sisanya",
   "sales.total.one": "{count} faktur · {money}",
   "sales.toCustomer": "untuk {name}",
   "sales.noCustomer": "Tanpa pelanggan",

@@ -825,6 +825,7 @@
   "sales.emptyBody": "Счета, которые вы выписываете на экране «Счета», хранятся здесь вместе с их содержимым.",
   "sales.noMatch": "Ни один счёт не подходит.",
   "sales.total": "счетов: {count} · {money}",
+  "sales.capped": "только последние {count} — сузьте даты, чтобы увидеть остальные",
   "sales.total.one": "счёт: {count} · {money}",
   "sales.toCustomer": "для {name}",
   "sales.noCustomer": "Покупатель не указан",

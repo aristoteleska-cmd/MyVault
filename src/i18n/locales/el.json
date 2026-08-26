@@ -837,6 +837,7 @@
   "sales.emptyBody": "Τα τιμολόγια που εκδίδετε στην οθόνη Τιμολόγια φυλάσσονται εδώ, με ό,τι είχαν πάνω τους.",
   "sales.noMatch": "Κανένα τιμολόγιο δεν ταιριάζει.",
   "sales.total": "{count} τιμολόγια · {money}",
+  "sales.capped": "μόνο τα {count} πιο πρόσφατα — περιορίστε τις ημερομηνίες για τα υπόλοιπα",
   "sales.total.one": "{count} τιμολόγιο · {money}",
   "sales.toCustomer": "προς {name}",
   "sales.noCustomer": "Χωρίς πελάτη",

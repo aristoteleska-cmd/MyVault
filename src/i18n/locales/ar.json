@@ -824,6 +824,7 @@
   "sales.emptyBody": "الفواتير التي تصدرها من شاشة الفواتير تُحفظ هنا بما كان فيها.",
   "sales.noMatch": "لا فاتورة تطابق ذلك.",
   "sales.total": "{count} فواتير · {money}",
+  "sales.capped": "أحدث {count} فقط — ضيّق التواريخ لرؤية الباقي",
   "sales.total.one": "فاتورة {count} · {money}",
   "sales.toCustomer": "إلى {name}",
   "sales.noCustomer": "بدون عميل",

@@ -826,6 +826,7 @@
   "sales.emptyBody": "बिल स्क्रीन पर बनाए गए बिल यहाँ रखे जाते हैं, उनमें जो था उसके साथ।",
   "sales.noMatch": "कोई बिल मेल नहीं खाता।",
   "sales.total": "{count} बिल · {money}",
+  "sales.capped": "केवल नवीनतम {count} — बाकी देखने के लिए तारीखें सीमित करें",
   "sales.total.one": "{count} बिल · {money}",
   "sales.toCustomer": "{name} के नाम",
   "sales.noCustomer": "ग्राहक दर्ज नहीं",

@@ -11,6 +11,16 @@ const blank = {
 };
 
 /**
+ * How many of a supplier's invoices one look brings back.
+ *
+ * The same number has to be asked for on screen, printed, and written to the
+ * spreadsheet, and the same number is what says the list was cut off. See the
+ * matching constant in SalesView: a total that is really a page size, presented
+ * as a total, is a figure somebody will act on.
+ */
+const PAGE = 200;
+
+/**
  * Who the shop buys from, and everything they have ever sent.
  *
  * The list of names is kept in the data file; what each supplier has sent is
@@ -75,7 +85,7 @@ export function SuppliersView({ onGoToOrders }: { onGoToOrders: (name: string) =
     setOpenKey(supplier.key);
     setInvoices(null);
     setLoadingInvoices(true);
-    setInvoices(await searchDocs({ kind: 'in', supplier: supplier.name, limit: 200 }));
+    setInvoices(await searchDocs({ kind: 'in', supplier: supplier.name, limit: PAGE }));
     setLoadingInvoices(false);
   }, [openKey, searchDocs]);
 
@@ -412,18 +422,29 @@ export function SuppliersView({ onGoToOrders }: { onGoToOrders: (name: string) =
                         {!loadingInvoices && invoices && invoices.length > 0 && (
                           <>
                             <div className="toolbar">
-                              {supplier.first && (
-                                <p className="panel-sub" style={{ flex: 1 }}>
-                                  {t('suppliers.since', {
-                                    date: formatDate(supplier.first, locale),
-                                  })}
-                                </p>
-                              )}
+                              {/* Always drawn, even when there is nothing to
+                                  say in it, so the two buttons keep their place
+                                  at the end of the row rather than sliding to
+                                  the front for a supplier whose first delivery
+                                  MyVault never saw a date on. */}
+                              <p className="panel-sub" style={{ flex: 1 }}>
+                                {supplier.first && t('suppliers.since', {
+                                  date: formatDate(supplier.first, locale),
+                                })}
+                                {invoices.length >= PAGE && (
+                                  <>
+                                    {supplier.first ? ' · ' : ''}
+                                    <span className="cell-warn">
+                                      {t('sales.capped', { count: PAGE })}
+                                    </span>
+                                  </>
+                                )}
+                              </p>
                               <button
                                 type="button"
                                 className="btn btn-sm"
                                 onClick={() => void exportDocsCsv({
-                                  kind: 'in', supplier: supplier.name, limit: 200,
+                                  kind: 'in', supplier: supplier.name, limit: PAGE,
                                 })}
                               >
                                 <Icon name="download" size={14} />

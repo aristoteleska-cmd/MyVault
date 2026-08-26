@@ -316,7 +316,13 @@ export function App() {
               type="button"
               className="nav-item"
               aria-current={view === entry.id ? 'page' : undefined}
-              onClick={() => setView(entry.id)}
+              // Asking for a screen from the sidebar asks for the whole of it.
+              // Narrowing the order list to one supplier is something the shop
+              // did on the way in from that supplier's own page, and it has no
+              // business surviving a trip to Stock and back — that is a screen
+              // that comes up nearly empty, naming a supplier nobody picked
+              // this time, with nothing on it to say why.
+              onClick={() => { setOrderSupplier(''); setView(entry.id); }}
               title={t(entry.labelKey)}
             >
               <Icon name={entry.icon} />

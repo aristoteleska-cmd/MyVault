@@ -701,13 +701,19 @@ function registerIpc() {
    * The same search, written out as a spreadsheet.
    *
    * The rows come from `searchDocuments` rather than from anything the window
-   * sent, so what is exported is what the screen was showing and nothing wider.
+   * sent, so nothing the window could say puts a row in this file that the
+   * search would not have found. The options are passed through untouched,
+   * limit included — an earlier version helped itself to five hundred rows
+   * whatever the screen had asked for, so a Sales screen showing three hundred
+   * invoices wrote a file with three hundred and twenty in it, and the twenty
+   * nobody had seen were the ones that would be queried.
+   *
    * Money is written as a plain number with a dot: this file is going into
    * somebody's spreadsheet or their accountant's program, and a thousands
    * separator or a currency symbol is a column that arrives as text.
    */
   handle('docs:export-csv', 'documents.manage', async (options = {}) => {
-    const found = store.searchDocuments({ ...options, limit: 500 });
+    const found = store.searchDocuments(options);
     if (!found.length) return { canceled: true, empty: true };
 
     const outgoing = options.kind === 'out';

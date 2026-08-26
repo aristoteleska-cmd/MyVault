@@ -837,6 +837,7 @@
   "sales.emptyBody": "Las facturas que hace en la pantalla Facturas se guardan aquí, con lo que llevaban.",
   "sales.noMatch": "Ninguna factura coincide.",
   "sales.total": "{count} facturas · {money}",
+  "sales.capped": "solo las {count} más recientes: acota las fechas para ver el resto",
   "sales.total.one": "{count} factura · {money}",
   "sales.toCustomer": "a {name}",
   "sales.noCustomer": "Sin cliente",

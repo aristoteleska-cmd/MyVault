@@ -827,6 +827,7 @@
   "sales.emptyBody": "Rechnungen, die Sie im Rechnungen-Bildschirm erstellen, liegen hier — mit allem, was daraufstand.",
   "sales.noMatch": "Keine Rechnung passt dazu.",
   "sales.total": "{count} Rechnungen · {money}",
+  "sales.capped": "nur die neuesten {count} — grenzen Sie die Daten ein, um den Rest zu sehen",
   "sales.total.one": "{count} Rechnung · {money}",
   "sales.toCustomer": "an {name}",
   "sales.noCustomer": "Kein Kunde genannt",

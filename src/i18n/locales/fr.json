@@ -837,6 +837,7 @@
   "sales.emptyBody": "Les factures créées dans l’écran Factures sont conservées ici, avec leur contenu.",
   "sales.noMatch": "Aucune facture ne correspond.",
   "sales.total": "{count} factures · {money}",
+  "sales.capped": "les {count} plus récentes seulement — resserrez les dates pour voir le reste",
   "sales.total.one": "{count} facture · {money}",
   "sales.toCustomer": "à {name}",
   "sales.noCustomer": "Aucun client indiqué",
