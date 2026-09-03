@@ -261,8 +261,22 @@ async function main() {
   ({ app, window } = await open());
   const fresh = await callBridge(window, 'auth.state');
   assert.strictEqual(fresh.data.signedIn, false, 'a new sitting starts signed out');
-  assert.strictEqual(fresh.data.staffCount, 3, 'though the staff list is remembered');
-  ok('reopening MyVault asks for a PIN again');
+  /*
+   * A locked screen is told nothing about who works here — not even how many.
+   *
+   * This used to assert the head count was 3, which is to say it pinned the
+   * leak in place. A PIN signs in whoever it belongs to, so the number of staff
+   * is the number that tells a stranger what a guess is worth: three people
+   * make any four-digit guess three times likelier to open the till than one
+   * person does. The staff list being remembered is still worth checking, so it
+   * is checked below, from the other side of the PIN.
+   */
+  assert.strictEqual(fresh.data.staffCount, 0, 'and is told nothing about the staff');
+  const back = await callBridge(window, 'auth.signIn', ['1111']);
+  assert.strictEqual(back.ok, true, 'the manager PIN still works after a restart');
+  assert.strictEqual(back.data.staffCount, 3, 'and the staff list was remembered');
+  await callBridge(window, 'auth.signOut');
+  ok('reopening MyVault asks for a PIN again, and says nothing until it is given');
 
   // ------------------------------------------- forgetting the manager PIN
   // MyVault holds a single-instance lock, so the previous window has to be shut

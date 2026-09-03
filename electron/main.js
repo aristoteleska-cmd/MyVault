@@ -14,6 +14,7 @@ const {
   priceAdvice, priceReview, deliveryReview, ROUNDING_STYLES,
 } = require('./pricing');
 const { NETWORK_SWITCHES, DISABLED_FEATURES, UPDATE_HOSTS, enforceOffline } = require('./offline');
+const { writeFileDurably } = require('./durable');
 const { parseCsv, toCsv } = require('./csv');
 // Every path that reads a file off the disk goes through here, so a rule cannot
 // be enforced on one and forgotten on another. See the note at the top of it.
@@ -110,7 +111,72 @@ function signInDelay() {
   const free = 4;
   if (wrongPins < free) return 0;
   const step = Math.min(2 ** (wrongPins - free), 30);
+  // A clock moved backwards makes this negative, which makes the wait longer.
+  // That is the right way round: the only way to shorten a wait by touching the
+  // clock is to move it forwards, and somebody who can set the machine's clock
+  // is already past everything this file can do.
   return Math.max(0, (step * 1000) - (Date.now() - lastWrongPinAt));
+}
+
+/**
+ * Where the count of wrong PINs is kept between runs.
+ *
+ * It used to live only in this process, and the comment beside it said that was
+ * what made it safe from a window that could be reloaded or driven from the
+ * console. That was true and it was not enough: closing MyVault and opening it
+ * again reset the count to zero. Measured against the running app, a restart
+ * bought four more guesses at no delay at all, so the "three and a half days"
+ * this schedule was supposed to cost was really a few hours of relaunching.
+ *
+ * A separate small file rather than the shop's own data file: this is written
+ * on every wrong guess, and rewriting the whole inventory to record a typo
+ * would be both slow and a good way to damage the thing worth keeping.
+ *
+ * What this defends against is somebody at the keyboard. It does not defend
+ * against somebody who can reach the data folder — they can delete this file,
+ * and they could equally copy the hashes and try them somewhere else with no
+ * delay at all. That is a lock-on-the-door problem, and it always was.
+ */
+function attemptsFile() {
+  return path.join(store.dataDir, 'signin-attempts.json');
+}
+
+function loadAttempts() {
+  try {
+    const saved = JSON.parse(fs.readFileSync(attemptsFile(), 'utf8'));
+    const wrong = Number(saved?.wrong);
+    const at = Number(saved?.at);
+    if (Number.isFinite(wrong) && wrong > 0) wrongPins = Math.min(wrong, 1000);
+    if (Number.isFinite(at) && at > 0) lastWrongPinAt = at;
+  } catch {
+    // No file yet, or one nobody can read. Starting from zero is the same
+    // position a shop is in on the day they install MyVault.
+  }
+}
+
+function saveAttempts() {
+  try {
+    writeFileDurably(attemptsFile(), JSON.stringify({ wrong: wrongPins, at: lastWrongPinAt }));
+  } catch {
+    // A folder that cannot be written to is already the shop's larger problem,
+    // and refusing to let anyone sign in over it would be the wrong answer.
+  }
+}
+
+/** One wrong knock: counted, and remembered past the end of this process. */
+function countWrongAttempt() {
+  wrongPins += 1;
+  lastWrongPinAt = Date.now();
+  saveAttempts();
+}
+
+/** Somebody proved who they are, so the door opens again immediately. */
+function clearWrongAttempts() {
+  wrongPins = 0;
+  lastWrongPinAt = 0;
+  try {
+    fs.rmSync(attemptsFile(), { force: true });
+  } catch { /* nothing to remove is the state we wanted */ }
 }
 
 /**
@@ -210,7 +276,16 @@ function authState() {
     user: user ? { id: user.id, name: user.name, role: user.role } : null,
     capabilities: role ? [...ROLE_CAPABILITIES[role]] : [],
     roles: ROLES,
-    staffCount: users.length,
+    /*
+     * Withheld from a locked screen, and nothing reads it before that anyway.
+     *
+     * A PIN signs in whoever it belongs to, so a shop with five staff is five
+     * times likelier to be opened by any one guess than a shop with one. That
+     * turns the head count into the one number a stranger would want before
+     * they start: it tells them what their guessing is worth. It costs nothing
+     * to stop handing it to somebody who has not signed in.
+     */
+    staffCount: role ? users.length : 0,
   };
 }
 
@@ -531,8 +606,7 @@ function registerIpc() {
       // app, sixty guesses went through in six-tenths of a second and every one
       // of the refusals asked for the same single second — ten thousand PINs in
       // under three hours, not the days this was supposed to cost.
-      wrongPins += 1;
-      lastWrongPinAt = Date.now();
+      countWrongAttempt();
       throw new Error(
         `Too many wrong PINs. Wait ${Math.ceil(waitFor / 1000)} seconds and try again.`,
       );
@@ -542,12 +616,11 @@ function registerIpc() {
     // One message for a wrong PIN and for a PIN belonging to nobody, so trying
     // numbers tells you nothing about who works here.
     if (!found) {
-      wrongPins += 1;
-      lastWrongPinAt = Date.now();
+      countWrongAttempt();
       throw new Error('That PIN was not recognised.');
     }
 
-    wrongPins = 0;
+    clearWrongAttempts();
     signedInId = found.id;
     return authState();
   });
@@ -585,7 +658,35 @@ function registerIpc() {
    * route in and there is nothing here to rate-limit.
    */
   handle('auth:recover', null, ({ code, pin }) => {
-    const { user, nextCode } = store.useRecoveryCode(code, pin);
+    /*
+     * The recovery code is the other door into the same room, and it was not
+     * being counted at all: wrong codes could be tried as fast as the machine
+     * would go, for ever. Twenty characters of a thirty-one character alphabet
+     * is about ninety-nine bits, so nobody was ever going to guess one — but a
+     * door with no counter on it is the one that gets leant on, and the cost of
+     * counting is nothing.
+     *
+     * It shares the PIN's counter deliberately. Somebody working through PINs
+     * and then through codes is one person trying to get in, and the wait they
+     * have earned should follow them from one box to the other.
+     */
+    const waitFor = signInDelay();
+    if (waitFor > 0) {
+      countWrongAttempt();
+      throw new Error(
+        `Too many failed attempts. Wait ${Math.ceil(waitFor / 1000)} seconds and try again.`,
+      );
+    }
+
+    let recovered;
+    try {
+      recovered = store.useRecoveryCode(code, pin);
+    } catch (error) {
+      countWrongAttempt();
+      throw error;
+    }
+    const { user, nextCode } = recovered;
+    clearWrongAttempts();
     // Straight in as that manager: they have proved who they are, and making
     // them type the PIN they just chose adds nothing.
     signedInId = user.id;
@@ -1437,6 +1538,11 @@ app.whenReady().then(() => {
     app.quit();
     return;
   }
+
+  // How many wrong PINs this shop has already had, from whichever run of
+  // MyVault they were typed into. See loadAttempts: the count outliving the
+  // process is the whole point of it being on disk.
+  loadAttempts();
 
   const theme = store.getState().settings.theme;
   nativeTheme.themeSource = ['light', 'dark'].includes(theme) ? theme : 'system';
