@@ -4,6 +4,7 @@ const { app, BrowserWindow, ipcMain, dialog, shell, Menu, nativeTheme, session }
 const fs = require('fs');
 const path = require('path');
 const { createHash } = require('crypto');
+const { pathToFileURL } = require('url');
 
 const { Store, STANDARD_FIELDS, MAX_CUSTOM_FIELDS } = require('./store');
 const { report, reorderList, clientHistory } = require('./statistics');
@@ -120,13 +121,31 @@ function signInDelay() {
  * both values immediately. Reading them is the only moment they are needed and
  * the last moment they exist in the clear.
  */
+/**
+ * Windows' own registry tool, by its full path.
+ *
+ * These three calls ran plain `reg`, which Windows resolves against PATH — and
+ * PATH on a shop's PC is whatever every installer it has ever run has put
+ * there. A writable directory earlier in that list than System32 is enough to
+ * have MyVault run somebody else's `reg.exe`, at startup, with the shop's
+ * privileges. Naming the real one costs a line.
+ *
+ * SystemRoot is set by Windows itself; the fallback is the path it has had
+ * since Windows 2000, and if neither is right the call fails and is caught, the
+ * same as it would be on a machine with no registry entry to read.
+ */
+function regExe() {
+  const root = process.env.SystemRoot || process.env.windir || 'C:\\Windows';
+  return path.join(root, 'System32', 'reg.exe');
+}
+
 function consumeInstallerSetup() {
   if (process.platform !== 'win32') return null;
   const read = (name) => {
     try {
       const { execFileSync } = require('child_process');
       const out = execFileSync(
-        'reg',
+        regExe(),
         ['query', 'HKCU\\Software\\MyVault', '/v', name],
         { encoding: 'utf8', timeout: 2000, windowsHide: true },
       );
@@ -140,7 +159,7 @@ function consumeInstallerSetup() {
     try {
       const { execFileSync } = require('child_process');
       execFileSync(
-        'reg',
+        regExe(),
         ['delete', 'HKCU\\Software\\MyVault', '/v', name, '/f'],
         { encoding: 'utf8', timeout: 2000, windowsHide: true },
       );
@@ -248,7 +267,7 @@ function installerLanguage() {
   try {
     const { execFileSync } = require('child_process');
     const out = execFileSync(
-      'reg',
+      regExe(),
       ['query', 'HKCU\\Software\\MyVault', '/v', 'InstallerLanguage'],
       { encoding: 'utf8', timeout: 2000, windowsHide: true },
     );
@@ -335,9 +354,45 @@ function createWindow() {
   // No second windows, and no handing a URL off to a browser either — the app
   // has no reason to send anyone anywhere.
   mainWindow.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
-  mainWindow.webContents.on('will-navigate', (event, url) => {
-    const allowed = isDev ? 'http://localhost:5173' : 'file://';
-    if (!url.startsWith(allowed)) event.preventDefault();
+  /**
+   * The window loads one page and stays on it.
+   *
+   * This used to allow anything beginning with `file://`, which is every file
+   * on the computer. Nothing in MyVault navigates — there are no links, the
+   * window-open handler denies, and dropping a file cannot navigate because
+   * `navigateOnDragDrop` is off — so the only way that breadth could ever be
+   * spent is by a bug or by somebody else's code, which is exactly the case
+   * worth closing. Now the one page it was started on is the only page it can
+   * be on, and a reload of that page still works because the comparison
+   * ignores the query and the fragment.
+   *
+   * `will-frame-navigate` covers subframes as well as the top-level document.
+   * The policy already says `frame-src 'none'`, so there should be no frames at
+   * all; this is what makes that a property of the program rather than a
+   * property of nobody having added one yet.
+   */
+  const homePage = isDev
+    ? 'http://localhost:5173/'
+    : pathToFileURL(path.join(__dirname, '..', 'dist', 'index.html')).href;
+
+  const isHomePage = (url) => {
+    try {
+      const asked = new URL(url);
+      const home = new URL(homePage);
+      if (asked.protocol !== home.protocol) return false;
+      // A dev server serves the app from its root; a packaged app is one file.
+      return isDev
+        ? asked.origin === home.origin
+        : asked.pathname === home.pathname;
+    } catch {
+      return false;
+    }
+  };
+
+  const stayHome = (event, url) => { if (!isHomePage(url)) event.preventDefault(); };
+  mainWindow.webContents.on('will-navigate', stayHome);
+  mainWindow.webContents.on('will-frame-navigate', (event) => {
+    if (!isHomePage(event.url)) event.preventDefault();
   });
 
   mainWindow.on('closed', () => { mainWindow = null; });
