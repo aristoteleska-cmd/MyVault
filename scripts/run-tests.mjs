@@ -36,6 +36,7 @@ const suites = [
   { name: 'prices and margins', file: 'tests/pricing.test.js', typescript: false },
   { name: 'services and discounts', file: 'tests/services.test.js', typescript: false },
   { name: 'reading a PDF invoice', file: 'tests/invoice-pdf.test.js', typescript: false },
+  { name: 'invoice layouts', file: 'tests/invoice-formats.test.js', typescript: false },
   { name: 'escalation paths', file: 'tests/escalation.test.js', typescript: false },
   { name: 'silent losses', file: 'tests/losses.test.js', typescript: false },
   { name: 'backup and restore', file: 'tests/backup.test.js', typescript: false },

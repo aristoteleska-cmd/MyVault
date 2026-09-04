@@ -32,17 +32,70 @@ const { lineAmount } = require('./documents');
  * document it did not write.
  */
 
+/**
+ * Letters that are not the letter they look like.
+ *
+ * One accounting package prints every capital sigma as U+01A9 — "Ʃ", an African
+ * letter esh that happens to be drawn the same — so "ΣΥΝΟΛΟ" arrives as "ƩΥΝΟΛΟ"
+ * and matches nothing. On screen it is a sigma; to a comparison it is not, and
+ * the invoice's own totals went unread with no sign that anything had been
+ * missed. Straightened for matching only: the text MyVault stores and shows is
+ * always what the file actually contains.
+ */
+const LOOKALIKES = [[/[Ʃʃ]/g, 'σ'], [/З/g, 'ζ']];
+
+/**
+ * Accents come off before anything is compared.
+ *
+ * A French invoice heads its columns "Quantité", "Désignation", "Prix
+ * unitaire"; a Spanish one "Código" and "Descripción". Matched letter for
+ * letter against a list, every one of those is a different word from the one
+ * anybody would think to write down, and the whole table goes unrecognised —
+ * the French fixture was refused outright with "could not find a table of
+ * products" until this line existed.
+ *
+ * It costs nothing in Greek, where the same idea already appears twice in every
+ * list — 'περιγραφή' beside 'περιγραφη' — because taking the tonos off is
+ * exactly what those pairs were written by hand to survive.
+ */
+const unaccent = (text) => text.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+const strip = (text) => unaccent(LOOKALIKES
+  .reduce((value, [pattern, letter]) => value.replace(pattern, letter), String(text || ''))
+  .toLowerCase())
+  .replace(/[.:%()]/g, ' ')
+  .replace(/\s+/g, ' ')
+  .trim();
+
+/**
+ * Every list in this file is written the way a person would write it — with the
+ * accents on — and compared against text that has had its accents taken off.
+ * Both sides go through the same door, so a word spelled correctly in the list
+ * still matches: 'descripción' becomes 'descripcion' here exactly as "Descripción"
+ * does when it is read off the page.
+ *
+ * This is why the file can keep saying 'περιγραφή' rather than 'περιγραφη'.
+ */
+const words = (list) => list.map(strip);
+const wordSet = (groups) => Object.fromEntries(
+  Object.entries(groups).map(([key, list]) => [key, words(list)]),
+);
+
 /** The words a column heading can be, in the languages a shop is likeliest to meet. */
-const COLUMNS = {
-  code: ['κωδικός', 'κωδ', 'κωδικος', 'code', 'sku', 'barcode', 'ean', 'item no', 'art'],
+const COLUMNS = wordSet({
+  code: ['κωδικός', 'κωδ', 'κωδικος', 'code', 'sku', 'barcode', 'ean', 'item no', 'art',
+    'código', 'cod', 'référence', 'réf', 'ref', 'codice'],
   description: ['περιγραφή', 'περιγραφη', 'είδος', 'ειδος', 'ονομασία', 'description',
-    'product', 'item', 'details', 'articolo', 'descripción', 'bezeichnung'],
+    'product', 'item', 'details', 'articolo', 'descripción', 'bezeichnung',
+    'désignation', 'libellé', 'artículo', 'descrizione', 'denominazione', 'concepto'],
   quantity: ['ποσότητα', 'ποσοτητα', 'ποσ', 'τεμ', 'τεμάχια', 'qty', 'quantity', 'units',
-    'menge', 'cantidad'],
+    'menge', 'cantidad', 'quantité', 'qté', 'quantità', 'cant', 'aantal'],
   unitPrice: ['τιμή', 'τιμη', 'τιμή μονάδας', 'unit price', 'price', 'unit', 'rate',
-    'preis', 'precio'],
-  discount: ['έκπτ', 'εκπτ', 'έκπτωση', 'εκπτωση', 'disc', 'discount', 'rabatt'],
-  vatRate: ['φπα', 'φ π α', 'vat', 'tax', 'mwst', 'iva',
+    'preis', 'precio', 'prix unitaire', 'prix', 'precio unitario', 'prezzo',
+    'prezzo unitario', 'einzelpreis', 'p.u'],
+  discount: ['έκπτ', 'εκπτ', 'έκπτωση', 'εκπτωση', 'disc', 'discount', 'rabatt',
+    'dto', 'descuento', 'remise', 'sconto'],
+  vatRate: ['φπα', 'φ π α', 'vat', 'tax', 'mwst', 'iva', 'tva', 'btw', 'igic',
     // Which band the line is in, which is the rate by another name. Longer than
     // the bare "Φ.Π.Α." beside it, which on the same invoice is the money.
     'κατηγορία φπα', 'κατηγορία φ π α', 'κατηγορια φπα', 'κατηγορια φ π α',
@@ -63,7 +116,8 @@ const COLUMNS = {
   discountAmount: ['σύνολο εκπτώσεων', 'συνολο εκπτωσεων', 'σύνολο έκπτωσης',
     'ποσό έκπτωσης', 'ποσο εκπτωσης', 'αξία έκπτωσης', 'discount amount'],
   total: ['καθαρή αξία', 'καθαρη αξια', 'net amount', 'line total', 'αξία', 'αξια', 'σύνολο',
-    'συνολο', 'καθαρό', 'καθαρο', 'amount', 'total', 'value', 'net', 'betrag', 'importe'],
+    'συνολο', 'καθαρό', 'καθαρο', 'amount', 'total', 'value', 'net', 'betrag', 'importe',
+    'montant', 'totale', 'gesamt'],
   /**
    * What the line came to before the discount was taken off it.
    *
@@ -82,11 +136,23 @@ const COLUMNS = {
    * same: a heading nobody recognises is a heading that does not divide its
    * neighbours, and "Τεμάχια" then lands in the quantity beside the number.
    */
-  unit: ['μ.μ', 'μμ', 'μον.μετρ', 'μονάδα', 'uom', 'u/m', 'unit of measure'],
-};
+  unit: ['μ.μ', 'μμ', 'μον.μετρ', 'μονάδα', 'uom', 'u/m', 'unit of measure', 'unité', 'einheit'],
+});
 
-/** Read for the layout, never imported. */
-const IGNORED_COLUMNS = new Set(['unit', 'netBeforeDiscount', 'vatAmount', 'discountAmount']);
+/**
+ * Read for the layout, never imported.
+ *
+ * These headings have to be recognised so that they divide their neighbours —
+ * a column nobody knows about is a column that does not separate the two either
+ * side of it — but nothing in them reaches the shop's draft.
+ *
+ * `discountAmount` used to be in here too. It is not any more: on an invoice
+ * that prints money off and no rate, that figure is the only record of the
+ * discount, and the line's own arithmetic cannot be made to agree without it.
+ * It still never reaches the draft — see lineFrom, which uses it once, to work
+ * out the rate the invoice did not print.
+ */
+const IGNORED_COLUMNS = new Set(['unit', 'netBeforeDiscount', 'vatAmount']);
 
 /**
  * What each column is called when MyVault has to name it in a sentence.
@@ -119,13 +185,13 @@ const COLUMN_NAMES = {
  * 2,03 and 400014893621007. A person knows the list has ended because the words
  * change; so does this.
  */
-const END_OF_TABLE = [
+const END_OF_TABLE = words([
   'υπόλοιπο', 'υπολοιπο', 'ανάλυση', 'αναλυση', 'σύνολο', 'συνολο', 'πληρωτέο', 'πληρωτεο',
   'κρατήσεις', 'κρατησεις', 'επιβαρύνσεις', 'επιβαρυνσεις', 'φόροι', 'φοροι',
   'αξία προ έκπτωσης', 'γενικό σύνολο', 'φ.π.α', 'φπα', 'παρατηρήσεις',
   'subtotal', 'sub total', 'total', 'balance', 'vat', 'amount due',
   'grand total', 'notes', 'terms',
-];
+])
 
 /**
  * Lines that interrupt the table without ending it.
@@ -138,14 +204,33 @@ const END_OF_TABLE = [
  *
  * Skipped rather than stopped at, along with the page footer that follows it.
  */
-const INTERRUPTS_TABLE = [
+const INTERRUPTS_TABLE = words([
   'μεταφορά', 'μεταφορα', 'εκ μεταφοράς', 'σε μεταφορά', 'από μεταφορά',
   'carried forward', 'carry forward', 'brought forward', 'continued', 'σελίδα', 'σελιδα',
   'page',
-];
+])
 
 /** A quantity above this is not a quantity — it is a barcode, or a stamp. */
 const MAX_QUANTITY = 100000;
+
+/**
+ * And money above this is not money either.
+ *
+ * The quantity has had a ceiling for a while, because a barcode landing in that
+ * column was the obvious way for a misread table to produce nonsense. The price
+ * had none, and the same accident there is quieter and worse: a heading that
+ * wrapped across three rows left one line reading "723226362422.56" as a unit
+ * price, and nothing stopped it — a quantity of four at seven hundred billion
+ * euros each would have gone onto the draft as an ordinary product, and into
+ * the shop's cost history behind it.
+ *
+ * A million on one line of one delivery is already far past anything a shop
+ * buys. Past that the figure is a misread column, and the honest thing is to
+ * drop the line rather than import a number nobody typed — the invoice's own
+ * total then disagrees with the lines, which is exactly the signal the totals
+ * check exists to raise.
+ */
+const MAX_LINE_MONEY = 1000000;
 
 /**
  * What a document calls itself when it is goods coming back rather than going out.
@@ -159,27 +244,29 @@ const MAX_QUANTITY = 100000;
  * So it is recognised and reported, and MyVault makes the document that means
  * goods leaving rather than arriving.
  */
-const CREDIT_NOTE = [
+const CREDIT_NOTE = words([
   'πιστωτικό', 'πιστωτικο', 'πιστωτικό τιμολόγιο', 'επιστροφή', 'επιστροφη',
   'credit note', 'credit memo', 'gutschrift', 'nota de crédito', 'nota di credito',
-];
+])
 
 /** How many headings a line needs before it is believed to be the table header. */
 const HEADER_MATCHES = 3;
 
 /** What the invoice's own totals are called. */
-const TOTAL_WORDS = {
+const TOTAL_WORDS = wordSet({
   net: ['καθαρή αξία', 'καθαρη αξια', 'μερικό σύνολο', 'subtotal', 'sub total', 'net',
     'net total', 'net amount', 'nettobetrag',
+    'base imponible', 'importe neto', 'total ht', 'imponibile', 'nettosumme',
     // "Σύνολο Καθαρού Ποσού" ends in the word for an amount and begins with the
     // word for a grand total; the longer match is what makes it the net rather
     // than the total payable.
     'σύνολο καθαρού ποσού', 'συνολο καθαρου ποσου', 'καθαρού ποσού', 'καθαρου ποσου'],
-  vat: ['φπα', 'φ.π.α', 'φ.π.α.', 'vat', 'vat amount', 'tax', 'mwst', 'iva'],
+  vat: ['φπα', 'φ.π.α', 'φ.π.α.', 'vat', 'vat amount', 'tax', 'mwst', 'iva', 'tva', 'btw'],
   gross: ['γενικό σύνολο', 'τελικό σύνολο', 'σύνολο', 'συνολο', 'πληρωτέο', 'πληρωτεο',
     'πληρωτέο ποσό', 'πληρωτεο ποσο', 'συνολική αξία', 'συνολικη αξια',
-    'total due', 'grand total', 'total', 'gesamtbetrag'],
-};
+    'total due', 'grand total', 'total', 'gesamtbetrag',
+    'total ttc', 'total factura', 'importe total', 'totale documento', 'zu zahlen'],
+});
 
 /** Money is only ever compared to the cent. */
 const round2 = (value) => Math.round((Number(value) + Number.EPSILON) * 100) / 100;
@@ -187,24 +274,6 @@ const round2 = (value) => Math.round((Number(value) + Number.EPSILON) * 100) / 1
 /** A line's arithmetic may be out by this much before it is worth flagging. */
 const TOLERANCE = 0.02;
 
-/**
- * Letters that are not the letter they look like.
- *
- * One accounting package prints every capital sigma as U+01A9 — "Ʃ", an African
- * letter esh that happens to be drawn the same — so "ΣΥΝΟΛΟ" arrives as "ƩΥΝΟΛΟ"
- * and matches nothing. On screen it is a sigma; to a comparison it is not, and
- * the invoice's own totals went unread with no sign that anything had been
- * missed. Straightened for matching only: the text MyVault stores and shows is
- * always what the file actually contains.
- */
-const LOOKALIKES = [[/[Ʃʃ]/g, 'σ'], [/З/g, 'ζ']];
-
-const strip = (text) => LOOKALIKES
-  .reduce((value, [pattern, letter]) => value.replace(pattern, letter), String(text || ''))
-  .toLowerCase()
-  .replace(/[.:%()]/g, ' ')
-  .replace(/\s+/g, ' ')
-  .trim();
 
 /**
  * A number as an invoice writes it, in either convention.
@@ -373,6 +442,23 @@ function findHeader(lines) {
 
   for (let index = 0; index < lines.length; index += 1) {
     const line = lines[index];
+    /*
+     * A heading is words. This line is not.
+     *
+     * `headingsFor` gathers the heading text sitting above a line, and it was
+     * never asked whether the line it was gathering onto looked like a heading
+     * at all — so on an invoice whose column titles wrap across three rows, the
+     * first row of products collected the titles above it, scored higher than
+     * the real heading, and became the header. Every genuine product line then
+     * landed in the wrong columns and the invoice was refused for having no
+     * lines in it, which is a strange thing to say about a page of products.
+     *
+     * The same test the stacked-heading merge already applies to the rows above
+     * it, applied to the row itself.
+     */
+    const figures = line.pieces.filter((piece) => isNumeric(piece.text)).length;
+    if (figures * 2 >= line.pieces.length) continue;
+
     const groups = headingsFor(lines, index);
     const found = new Map();
     const strength = new Map();
@@ -602,11 +688,38 @@ function lineFrom(cells) {
   // A quantity with fifteen digits in it is a document stamp or a barcode that
   // has landed in the wrong column, not a delivery of four hundred trillion.
   if (quantity !== null && Math.abs(quantity) > MAX_QUANTITY) return null;
+  // The same for the money on the line: see MAX_LINE_MONEY.
+  if (unitPrice !== null && Math.abs(unitPrice) > MAX_LINE_MONEY) return null;
+  if (total !== null && Math.abs(total) > MAX_LINE_MONEY) return null;
   // The totals block sits under the table and often lines up with its columns.
   if (quantity === null && unitPrice === null) return null;
 
-  const discount = toNumber(cells.discount);
   const vatRate = toNumber(cells.vatRate);
+
+  /*
+   * A discount printed as money rather than as a percentage.
+   *
+   * MyVault keeps discounts as a rate and works the money out itself, so the
+   * column that prints "1,80" off is deliberately ignored where a per-cent
+   * column exists beside it — reading both is how "22% and €5.32" once became
+   * "5.32% off".
+   *
+   * But some suppliers print only the money. Ignoring it there left every line
+   * on the invoice disagreeing with the paper by the discount, and the cost
+   * that reached the shop's price list was the undiscounted one — twenty
+   * napkins at ninety cents instead of the eighty-one they actually cost. So
+   * where there is money off and no rate to read, the rate is worked back out
+   * of it, which is arithmetic on figures the invoice printed rather than a
+   * guess about what it meant.
+   */
+  let discount = toNumber(cells.discount);
+  if (discount === null && quantity !== null && unitPrice !== null) {
+    const off = toNumber(cells.discountAmount);
+    const before = round2(quantity * unitPrice);
+    if (off !== null && off > 0 && before > 0 && off <= before) {
+      discount = round2((off / before) * 100);
+    }
+  }
 
   const row = {
     code: (cells.code || '').trim(),
@@ -714,11 +827,12 @@ function stripLabel(original, word) {
 }
 
 /** Labels an invoice puts over, or in front of, the values this needs. */
-const FIELD_LABELS = {
+const FIELD_LABELS = wordSet({
   number: ['αριθμός', 'αριθμος', 'αριθ', 'αρ παραστατικού', 'number', 'invoice no', 'no', 'nr',
-    'rechnungsnummer', 'número'],
-  date: ['ημερομηνία', 'ημερομηνια', 'date', 'datum', 'fecha'],
-};
+    'rechnungsnummer', 'número', 'rechnung nr', 'rechnung', 'factura nº', 'factura no',
+    'factura', 'facture n', 'facture', 'fattura', 'invoice'],
+  date: ['ημερομηνία', 'ημερομηνια', 'date', 'datum', 'fecha', 'data'],
+});
 
 /**
  * The value that belongs to a label, whether it is beside it or under it.

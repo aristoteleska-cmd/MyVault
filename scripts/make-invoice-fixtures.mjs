@@ -226,9 +226,115 @@ const creditNote = `<!doctype html><meta charset="utf-8">
 </table>
 <p style="text-align:right">Καθαρή αξία 30,00<br>Φ.Π.Α. 3,90<br>Γενικό Σύνολο 33,90</p>`;
 
+
+/**
+ * The shapes a shop meets that are not Greek and not English.
+ *
+ * Each of these was written because the reader got it wrong: the French one was
+ * refused outright for having no table, the Spanish one lost its code and
+ * discount columns, and the one whose discount is printed as money rather than
+ * as a rate had every line disagreeing with the paper. They are kept so that
+ * stays fixed.
+ */
+const shared = `body{font-family:"DejaVu Sans",Arial,sans-serif;font-size:11pt;margin:36px}
+h1{font-size:14pt;margin:0 0 4px}table{width:100%;border-collapse:collapse;margin-top:12px}
+th,td{border-bottom:1px solid #999;padding:4px 6px}th{text-align:left;font-size:10pt}
+td.n,th.n{text-align:right}.tot{margin-top:14px;width:46%;margin-left:auto}.tot td{border:none}`;
+
+const sheet = (title, meta, head, rows, totals) => `<!doctype html><meta charset="utf-8">
+<style>${shared}</style><h1>${title}</h1><div>${meta}</div>
+<table><thead><tr>${head}</tr></thead><tbody>${rows}</tbody></table>
+<table class="tot">${totals}</table>`;
+
+/** Dot thousands, comma decimals, dd.mm.yyyy, and two VAT rates on one page. */
+const german = sheet('Getränke Grosshandel GmbH',
+  'Rechnung Nr. 2026-0442<br>Datum: 14.08.2026',
+  '<th>Art.-Nr.</th><th>Bezeichnung</th><th class="n">Menge</th><th class="n">Einzelpreis</th><th class="n">MwSt %</th><th class="n">Betrag</th>',
+  `<tr><td>A-1001</td><td>Mineralwasser 1L</td><td class="n">24</td><td class="n">0,45</td><td class="n">19</td><td class="n">10,80</td></tr>
+   <tr><td>A-1002</td><td>Apfelsaft naturtrüb 1L</td><td class="n">12</td><td class="n">1,20</td><td class="n">19</td><td class="n">14,40</td></tr>
+   <tr><td>A-1003</td><td>Kaffeebohnen 1kg</td><td class="n">6</td><td class="n">12,50</td><td class="n">7</td><td class="n">75,00</td></tr>`,
+  '<tr><td>Nettobetrag</td><td class="n">100,20</td></tr><tr><td>MwSt</td><td class="n">17,08</td></tr><tr><td><b>Gesamtbetrag</b></td><td class="n"><b>117,28</b></td></tr>');
+
+/** "Código", "Dto %" and "Base imponible" — three headings that were unreadable. */
+const spanish = sheet('Distribuciones García S.L.',
+  'Factura Nº F-2026/318<br>Fecha: 03/08/2026',
+  '<th>Código</th><th>Descripción</th><th class="n">Cantidad</th><th class="n">Precio</th><th class="n">Dto %</th><th class="n">IVA %</th><th class="n">Importe</th>',
+  `<tr><td>ES-01</td><td>Aceite de oliva 1L</td><td class="n">12</td><td class="n">4,80</td><td class="n">0</td><td class="n">10</td><td class="n">57,60</td></tr>
+   <tr><td>ES-02</td><td>Arroz bomba 1kg</td><td class="n">20</td><td class="n">2,15</td><td class="n">5</td><td class="n">10</td><td class="n">40,85</td></tr>`,
+  '<tr><td>Base imponible</td><td class="n">98,45</td></tr><tr><td>IVA</td><td class="n">9,85</td></tr><tr><td><b>Total</b></td><td class="n"><b>108,30</b></td></tr>');
+
+/** Every heading accented. This one was refused outright before. */
+const french = sheet('Établissements Dubois SARL',
+  'Facture N° 2026-1177<br>Date : 21/07/2026',
+  '<th>Réf.</th><th>Désignation</th><th class="n">Quantité</th><th class="n">Prix unitaire</th><th class="n">TVA %</th><th class="n">Montant</th>',
+  `<tr><td>FR-9</td><td>Farine T55 5kg</td><td class="n">10</td><td class="n">3,90</td><td class="n">5,5</td><td class="n">39,00</td></tr>
+   <tr><td>FR-12</td><td>Sucre en poudre 1kg</td><td class="n">15</td><td class="n">1,10</td><td class="n">5,5</td><td class="n">16,50</td></tr>`,
+  '<tr><td>Total HT</td><td class="n">55,50</td></tr><tr><td>TVA</td><td class="n">3,05</td></tr><tr><td><b>Total TTC</b></td><td class="n"><b>58,55</b></td></tr>');
+
+/** The quantity carries its unit, and a line runs past a thousand. */
+const unitsAndThousands = sheet('Northern Supply Co.',
+  'Invoice 88214<br>Date: 2026-08-05',
+  '<th>SKU</th><th>Description</th><th class="n">Qty</th><th class="n">Unit price</th><th class="n">VAT</th><th class="n">Amount</th>',
+  `<tr><td>NS-100</td><td>Flour, plain</td><td class="n">12 pcs</td><td class="n">1.95</td><td class="n">20%</td><td class="n">23.40</td></tr>
+   <tr><td>NS-101</td><td>Sunflower oil 5L</td><td class="n">6 pcs</td><td class="n">8.40</td><td class="n">20%</td><td class="n">50.40</td></tr>
+   <tr><td>NS-102</td><td>Rice 25kg sack</td><td class="n">80 pcs</td><td class="n">17.25</td><td class="n">20%</td><td class="n">1,380.00</td></tr>`,
+  '<tr><td>Net</td><td class="n">1,453.80</td></tr><tr><td>VAT</td><td class="n">290.76</td></tr><tr><td><b>Total</b></td><td class="n"><b>1,744.56</b></td></tr>');
+
+/** The discount is money, and there is no rate anywhere to read it from. */
+const moneyDiscount = sheet('Vasilis Trading',
+  'ΤΙΜΟΛΟΓΙΟ 5512<br>Ημερομηνία: 09/08/2026',
+  '<th>Κωδικός</th><th>Περιγραφή</th><th class="n">Ποσότητα</th><th class="n">Τιμή</th><th class="n">Ποσό έκπτωσης</th><th class="n">ΦΠΑ %</th><th class="n">Καθαρή αξία</th>',
+  `<tr><td>V-1</td><td>Χαρτοπετσέτες 100τεμ</td><td class="n">20</td><td class="n">0,90</td><td class="n">1,80</td><td class="n">24</td><td class="n">16,20</td></tr>
+   <tr><td>V-2</td><td>Ποτήρια πλαστικά 50τεμ</td><td class="n">30</td><td class="n">1,40</td><td class="n">4,20</td><td class="n">24</td><td class="n">37,80</td></tr>`,
+  '<tr><td>Καθαρή αξία</td><td class="n">54,00</td></tr><tr><td>ΦΠΑ</td><td class="n">12,96</td></tr><tr><td><b>Σύνολο</b></td><td class="n"><b>66,96</b></td></tr>');
+
+/** A small supplier on one rate, who prints no VAT column at all. */
+const noVatColumn = sheet('Corner Bakery Supplies',
+  'Invoice 4471<br>Date: 11/08/2026',
+  '<th>Code</th><th>Item</th><th class="n">Qty</th><th class="n">Price</th><th class="n">Total</th>',
+  `<tr><td>CB-1</td><td>Baking paper 50m</td><td class="n">8</td><td class="n">3.25</td><td class="n">26.00</td></tr>
+   <tr><td>CB-2</td><td>Piping bags 100</td><td class="n">4</td><td class="n">5.50</td><td class="n">22.00</td></tr>`,
+  '<tr><td>Net</td><td class="n">48.00</td></tr><tr><td>VAT 20%</td><td class="n">9.60</td></tr><tr><td><b>Total</b></td><td class="n"><b>57.60</b></td></tr>');
+
+/** Not an invoice at all: a bill with an amount due and nothing to deliver. */
+const utilityBill = `<!doctype html><meta charset="utf-8"><style>${shared}</style>
+<h1>City Water Board</h1><div>Account 55-2213-9<br>Billing period: 01/07/2026 – 31/07/2026</div>
+<p>Meter reading previous: 4,182 &nbsp; current: 4,231</p>
+<table class="tot"><tr><td>Water used</td><td class="n">49 m³</td></tr>
+<tr><td>Standing charge</td><td class="n">8,00</td></tr>
+<tr><td><b>Amount due</b></td><td class="n"><b>73,40</b></td></tr></table>
+<p>Please pay within 30 days.</p>`;
+
+/**
+ * A heading so wide it wraps onto three rows, with a per-cent discount and the
+ * money it came to side by side.
+ *
+ * MyVault does not read this one, and the fixture is kept for that reason: it
+ * refuses the file rather than importing the nonsense it used to make of it.
+ * See tests/invoice-formats.test.js.
+ */
+const wrappedHeading = `<!doctype html><meta charset="utf-8"><style>${shared}</style>
+<h1>Impact Wholesale</h1><div>ΤΙΜΟΛΟΓΙΟ 0001744<br>Ημερομηνία: 01/08/2026</div>
+<table><thead><tr><th>Κωδικός</th><th>Περιγραφή</th><th class="n">Ποσότητα</th>
+<th class="n">Τιμή</th><th class="n">Έκπτ. %</th><th class="n">Ποσό έκπτωσης</th>
+<th class="n">ΦΠΑ %</th><th class="n">Καθαρή αξία</th></tr></thead><tbody>
+<tr><td>G0009</td><td>MONOPOLY CLASSIC</td><td class="n">1</td><td class="n">31,01</td><td class="n">22</td><td class="n">6,82</td><td class="n">24</td><td class="n">24,19</td></tr>
+<tr><td>W2087</td><td>UNO ΚΑΡΤΕΣ</td><td class="n">4</td><td class="n">7,23</td><td class="n">22</td><td class="n">6,36</td><td class="n">24</td><td class="n">22,56</td></tr>
+</tbody></table>
+<table class="tot"><tr><td>Καθαρή αξία</td><td class="n">46,75</td></tr>
+<tr><td>ΦΠΑ</td><td class="n">11,22</td></tr><tr><td><b>Σύνολο</b></td><td class="n"><b>57,97</b></td></tr></table>`;
+
 const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', args: ['--no-sandbox'] });
 const page = await browser.newPage();
-for (const [name, html] of [['supplier-greek', supplierInvoice], ['supplier-english', englishInvoice], ['scanned-no-text', scanned], ['mismatched', mismatched], ['epsilon-style', epsilonStyle], ['two-pages', twoPages], ['credit-note', creditNote]]) {
+for (const [name, html] of [
+  ['supplier-greek', supplierInvoice], ['supplier-english', englishInvoice],
+  ['scanned-no-text', scanned], ['mismatched', mismatched], ['epsilon-style', epsilonStyle],
+  ['two-pages', twoPages], ['credit-note', creditNote],
+  ['german', german], ['spanish', spanish], ['french', french],
+  ['units-and-thousands', unitsAndThousands], ['money-discount', moneyDiscount],
+  ['no-vat-column', noVatColumn], ['utility-bill', utilityBill],
+  ['wrapped-heading', wrappedHeading],
+]) {
   await page.setContent(html, { waitUntil: 'load' });
   const pdf = await page.pdf({ format: 'A4', printBackground: true });
   writeFileSync(`tests/fixtures/${name}.pdf`, pdf);
