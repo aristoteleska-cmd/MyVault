@@ -366,4 +366,4 @@ function buildDocument(kind, payload = {}) {
   });
 }
 
-module.exports = { buildDocument, esc, DOCUMENT_KINDS: Object.keys(DOCUMENTS) };
+module.exports = { buildDocument, esc };

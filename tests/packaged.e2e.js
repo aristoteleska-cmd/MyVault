@@ -169,21 +169,41 @@ function extract(appImage) {
   // The dialog cannot be driven from here, so this proves the half that
   // packaging breaks: that the parser loads at all inside the asar and reads a
   // real file. The channel above it is covered by tests/invoice-pdf.test.js.
-  const parsed = await app.evaluate(async (_electron, fixturePath) => {
+  const fixtures = path.join(root, 'tests', 'fixtures');
+  const parsed = await app.evaluate(async (_electron, dir) => {
     // The bundled main module's own require, so the modules resolve inside the
     // asar exactly as they do when a shop presses the button.
     const load = process.mainModule.require.bind(process.mainModule);
+    const nodePath = load('path');
     const { readPdfFile } = load('./files.js');
     const { extractPdfText } = load('./pdf-text.js');
     const { readInvoice } = load('./invoice-read.js');
-    const read = readInvoice(await extractPdfText(readPdfFile(fixturePath)));
-    return { supplier: read.supplier, lines: read.lines.length, net: read.totals.net };
-  }, path.join(root, 'tests', 'fixtures', 'supplier-greek.pdf'));
+    const out = {};
+    for (const name of ['supplier-greek', 'supplier-english', 'epsilon-style', 'mismatched']) {
+      const read = readInvoice(await extractPdfText(readPdfFile(nodePath.join(dir, `${name}.pdf`))));
+      out[name] = { supplier: read.supplier, lines: read.lines.length, net: read.totals.net };
+    }
+    return out;
+  }, fixtures);
 
-  assert.strictEqual(parsed.supplier, 'ΑΦΟΙ ΠΑΠΑΔΟΠΟΥΛΟΥ Α.Ε.');
-  assert.strictEqual(parsed.lines, 4);
-  assert.strictEqual(parsed.net, 161.19);
-  ok('the PDF reader loads inside the packed bundle and reads a real invoice');
+  assert.strictEqual(parsed['supplier-greek'].supplier, 'ΑΦΟΙ ΠΑΠΑΔΟΠΟΥΛΟΥ Α.Ε.');
+  assert.strictEqual(parsed['supplier-greek'].lines, 4);
+  assert.strictEqual(parsed['supplier-greek'].net, 161.19);
+  /*
+   * Every layout, not one of them, because the installer no longer carries the
+   * whole of pdfjs.
+   *
+   * Only the legacy build is ever imported and only the standard fonts are ever
+   * read, so the modern build, the viewer, the TypeScript declarations and the
+   * image decoders were fifteen megabytes in every download that nothing could
+   * reach. Trimming them is safe exactly as long as this stays true, and one
+   * fixture proving the parser loads would not notice a font or an encoding
+   * that had gone with them.
+   */
+  for (const [name, read] of Object.entries(parsed)) {
+    assert.ok(read.lines > 0, `${name}.pdf still reads its lines from inside the bundle`);
+  }
+  ok(`the PDF reader loads inside the packed bundle and reads ${Object.keys(parsed).length} layouts`);
 
   await app.close();
 
